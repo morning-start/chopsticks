@@ -1,8 +1,7 @@
-use rquickjs::{Context, Function, Runtime};
+use rquickjs::{Context, Runtime};
 
-fn add(a: f64, b: f64) -> f64 {
-    a + b
-}
+// 导入http模块
+mod http;
 
 fn main() {
     // 创建运行时和上下文
@@ -11,22 +10,20 @@ fn main() {
 
     // 在上下文中执行
     ctx.with(|ctx| {
-        // 定义一个 Rust 函数：接收两个数字，返回它们的和
-        let rust_add = Function::new(ctx.clone(), add).unwrap();
+        // 注册fetch函数到全局对象
+        http::register_fetch(&ctx).unwrap();
 
-        // 将函数绑定到全局对象（globalThis）
-        let global = ctx.globals();
-        global.set("rustAdd", rust_add).unwrap();
-
-        // 执行一段 JavaScript 调用这个函数
-        let result: f64 = ctx
+        // 执行一段 JavaScript 调用fetch函数，测试GET请求
+        let result: String = ctx
             .eval(
                 r#"
-            rustAdd(10, 20);
+            // 测试GET请求
+            const getResponse = fetch('https://httpbin.org/get');
+            JSON.stringify(getResponse);
         "#,
             )
             .unwrap();
 
-        println!("JS result: {}", result); // 输出: JS result: 30
+        println!("JS result: {}", result);
     });
 }
