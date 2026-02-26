@@ -9,17 +9,17 @@ import (
 )
 
 type ProgressBar struct {
-	mu         sync.Mutex
-	prefix     string
-	total      int64
-	current    int64
-	width      int
-	showSpeed  bool
-	startTime  time.Time
-	writer     io.Writer
-	done       bool
-	spinner    bool
+	mu        sync.Mutex
+	prefix    string
+	total     int64
+	current   int64
+	startTime time.Time
+	writer    io.Writer
+	width     int
 	spinnerPos int
+	showSpeed bool
+	done      bool
+	spinner   bool
 }
 
 var spinnerChars = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
