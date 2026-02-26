@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+
+	"chopsticks/engine/fetch"
 )
 
 type Task func() error
@@ -209,7 +211,10 @@ func (p *ParallelDownloader) Run(ctx context.Context) error {
 }
 
 func (p *ParallelDownloader) downloadFile(ctx context.Context, task DownloadTask) error {
-	return nil
+	if task.StartBytes > 0 && task.EndBytes > 0 {
+		return fetch.DownloadRange(task.URL, task.DestPath, task.StartBytes, task.EndBytes)
+	}
+	return fetch.Download(task.URL, task.DestPath)
 }
 
 func (p *ParallelDownloader) Results() []DownloadResult {

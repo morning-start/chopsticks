@@ -165,6 +165,43 @@ func DownloadFile(client *http.Client, url, destPath string, headers map[string]
 	return nil
 }
 
+// DownloadRange 下载文件的指定字节范围 (用于并行下载/断点续传)。
+func DownloadRange(url, destPath string, startBytes, endBytes int64) error {
+	client := &http.Client{Timeout: 5 * time.Minute}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("创建请求: %w", err)
+	}
+
+	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", startBytes, endBytes))
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("执行请求: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+		return fmt.Errorf("下载失败: %s", resp.Status)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+		return fmt.Errorf("创建目录: %w", err)
+	}
+
+	out, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("创建文件: %w", err)
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		return fmt.Errorf("复制响应体: %w", err)
+	}
+	return nil
+}
+
 // ParseURL 解析 URL 字符串为组件。
 func ParseURL(rawURL string) (*URLInfo, error) {
 	parsed, err := url.Parse(rawURL)
