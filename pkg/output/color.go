@@ -12,11 +12,6 @@ type Color int
 
 const (
 	Reset Color = iota
-	Bold
-	Faint
-	Italic
-	Underline
-
 	Black
 	Red
 	Green
@@ -35,37 +30,33 @@ const (
 	BrightCyan
 	BrightWhite
 
-	Success = Green
-	Warning = Yellow
-	Error   = Red
-	Info    = Cyan
+	SuccessColor = Green
+	WarningColor = Yellow
+	ErrorColor   = Red
+	InfoColor    = Cyan
 )
 
 var (
 	stdout = colorable.NewColorableStdout()
 	stderr = colorable.NewColorableStderr()
-	colors  = map[Color]string{
-		Reset:          ansi.Reset,
-		Bold:           ansi.Bold,
-		Faint:          ansi.Faint,
-		Italic:         ansi.Italic,
-		Underline:      ansi.Underline,
-		Black:          ansi.ColorCode("black"),
-		Red:            ansi.ColorCode("red"),
-		Green:          ansi.ColorCode("green"),
-		Yellow:         ansi.ColorCode("yellow"),
-		Blue:           ansi.ColorCode("blue"),
-		Magenta:        ansi.ColorCode("magenta"),
-		Cyan:           ansi.ColorCode("cyan"),
-		White:          ansi.ColorCode("white"),
-		BrightBlack:    ansi.ColorCode("black+h"),
-		BrightRed:      ansi.ColorCode("red+h"),
-		BrightGreen:    ansi.ColorCode("green+h"),
-		BrightYellow:   ansi.ColorCode("yellow+h"),
-		BrightBlue:     ansi.ColorCode("blue+h"),
-		BrightMagenta:  ansi.ColorCode("magenta+h"),
-		BrightCyan:     ansi.ColorCode("cyan+h"),
-		BrightWhite:    ansi.ColorCode("white+h"),
+	colors = map[Color]string{
+		Reset:         ansi.Reset,
+		Black:         ansi.ColorCode("black"),
+		Red:           ansi.ColorCode("red"),
+		Green:         ansi.ColorCode("green"),
+		Yellow:        ansi.ColorCode("yellow"),
+		Blue:          ansi.ColorCode("blue"),
+		Magenta:       ansi.ColorCode("magenta"),
+		Cyan:          ansi.ColorCode("cyan"),
+		White:         ansi.ColorCode("white"),
+		BrightBlack:   ansi.ColorCode("black+h"),
+		BrightRed:     ansi.ColorCode("red+h"),
+		BrightGreen:   ansi.ColorCode("green+h"),
+		BrightYellow:  ansi.ColorCode("yellow+h"),
+		BrightBlue:    ansi.ColorCode("blue+h"),
+		BrightMagenta: ansi.ColorCode("magenta+h"),
+		BrightCyan:    ansi.ColorCode("cyan+h"),
+		BrightWhite:   ansi.ColorCode("white+h"),
 	}
 	disableColor bool
 )
@@ -157,21 +148,21 @@ func Printf(color Color, format string, args ...interface{}) {
 	}
 }
 
-func Error(format string, args ...interface{}) {
+func PrintError(format string, args ...interface{}) {
 	if IsColorEnabled() {
-		message := Colorize(Error, fmt.Sprintf(format, args...))
+		message := Colorize(ErrorColor, fmt.Sprintf(format, args...))
 		fmt.Fprint(stderr, message)
 	} else {
 		fmt.Fprintf(stderr, format, args...)
 	}
 }
 
-func Errorln(args ...interface{}) {
+func PrintErrorln(args ...interface{}) {
 	if IsColorEnabled() {
 		var argsWithColor []interface{}
 		for _, arg := range args {
 			if s, ok := arg.(string); ok {
-				argsWithColor = append(argsWithColor, Colorize(Error, s))
+				argsWithColor = append(argsWithColor, Colorize(ErrorColor, s))
 			} else {
 				argsWithColor = append(argsWithColor, arg)
 			}
@@ -182,66 +173,66 @@ func Errorln(args ...interface{}) {
 	}
 }
 
-func Success(format string, args ...interface{}) {
-	Print(Success, format, args...)
+func PrintSuccess(format string, args ...interface{}) {
+	Print(SuccessColor, format, args...)
 }
 
-func Successln(args ...interface{}) {
-	Println(Success, args...)
+func PrintSuccessln(args ...interface{}) {
+	Println(SuccessColor, args...)
 }
 
-func Warning(format string, args ...interface{}) {
-	Print(Warning, format, args...)
+func PrintWarning(format string, args ...interface{}) {
+	Print(WarningColor, format, args...)
 }
 
-func Warningln(args ...interface{}) {
-	Println(Warning, args...)
+func PrintWarningln(args ...interface{}) {
+	Println(WarningColor, args...)
 }
 
-func Info(format string, args ...interface{}) {
-	Print(Info, format, args...)
+func PrintInfo(format string, args ...interface{}) {
+	Print(InfoColor, format, args...)
 }
 
-func Infoln(args ...interface{}) {
-	Println(Info, args...)
+func PrintInfoln(args ...interface{}) {
+	Println(InfoColor, args...)
 }
 
 func Header(format string, args ...interface{}) {
-	Print(Bold+Cyan, format, args...)
+	Print(Cyan, format, args...)
 }
 
 func SubHeader(format string, args ...interface{}) {
-	Print(Bold+Blue, format, args...)
+	Print(Blue, format, args...)
 }
 
 func Item(label, value string) {
 	if IsColorEnabled() {
-		fmt.Fprintf(stdout, "%s %s\n", Colorize(Bold, label+":"), value)
+		fmt.Fprintf(stdout, "%s %s\n", Colorize(BrightBlack, label+":"), value)
 	} else {
 		fmt.Printf("%s %s\n", label+":", value)
 	}
 }
 
 func Checkmark() {
-	Println(Success, "✓")
+	Println(SuccessColor, "✓")
 }
 
 func CheckmarkWith(msg string) {
-	Println(Success, "✓ "+msg)
+	Println(SuccessColor, "✓ "+msg)
 }
 
 func Crossmark() {
-	Println(Error, "✗")
+	Println(ErrorColor, "✗")
 }
 
 func CrossmarkWith(msg string) {
-	Println(Error, "✗ "+msg)
+	Println(ErrorColor, "✗ "+msg)
 }
 
 func Arrow() {
-	Print(Info, "→ ")
+	Print(InfoColor, "→ ")
 }
 
 func ArrowWith(msg string) {
-	Print(Info, "→ "+msg)
+	Print(InfoColor, "→ "+msg)
 }

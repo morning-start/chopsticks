@@ -169,7 +169,7 @@ func (p *ParallelDownloader) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, p.workers)
 	results := make(chan DownloadResult, len(p.downloads))
-	var completed int64
+	var completed int32
 
 	for i, task := range p.downloads {
 		wg.Add(1)
@@ -186,7 +186,7 @@ func (p *ParallelDownloader) Run(ctx context.Context) error {
 
 			results <- result
 
-			completed := atomic.AddInt32(&completed, 1)
+			completed = atomic.AddInt32(&completed, 1)
 			if p.progress != nil {
 				p.progress(int(completed), len(p.downloads))
 			}

@@ -5,11 +5,14 @@ go 1.25.6
 require (
 	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
 	github.com/go-git/go-git/v5 v5.11.0
+	github.com/mattn/go-colorable v0.1.14
 	github.com/mattn/go-sqlite3 v1.14.24
+	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/ulikunitz/xz v0.5.11
 	github.com/yuin/gopher-lua v1.1.1
 	go.etcd.io/bbolt v1.4.3
 	golang.org/x/sys v0.32.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -27,6 +30,7 @@ require (
 	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/skeema/knownhosts v1.2.1 // indirect
