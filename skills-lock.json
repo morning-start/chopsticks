@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "skills": {
+    "brainstorming": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "5cafa1558b0b6bd4d4c71f23d5567b7fcbbcdb4b0a50b0c5f69a80a3cebaf9b8"
+    },
+    "dispatching-parallel-agents": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "534432f7d0af6f567ec505ef251e6bbf0a8f2d12a34d9da9517fb131dd9c8646"
+    },
+    "executing-plans": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "7311ed85870f37e9af1e8354c500e7c4161893d845031eed43dd1d55157da83a"
+    },
+    "finishing-a-development-branch": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "9edba9a38684c060fdc38290f640e1dc0c37de286723ac9be73bacacf7cd6f3d"
+    },
+    "go-code-review": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "32803185a52ba239345228aed5a4a13f234811bc107a82127442ba8d3d96fe87"
+    },
+    "go-concurrency": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "befe76f796e4c446ce26b51743459841849eab2738f99bfeb8bc576b9c88e838"
+    },
+    "go-context": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "f6b245dc63229dfba8559efe2df3b879f1d3be15936bfa9a826c4f4af7b8718b"
+    },
+    "go-control-flow": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "d4275befef0f77e2ded29922de9ddc2d6ce50e9f9219a2217f9b7c96b1301b06"
+    },
+    "go-data-structures": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "ca27624af8f3a7790cd9784615e53219a2c7acf5107411aeaf6e3119e8c48911"
+    },
+    "go-defensive": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "67bcf349fc6e32e0604adc9d01d552466112f2959d3a88dfd8b6ff023260ad7d"
+    },
+    "go-documentation": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "bb40cbdb5b9e58a77971c1c09faa5f206ac823e951eefb7181bcbce890148495"
+    },
+    "go-error-handling": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "d25f3a6fc594ca2b7c7214805c21e87569c019afb3ace5e44cc305d3451f41b1"
+    },
+    "go-functional-options": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "783034a99ff343859e1bb08245ebb69c1148d2a9d5e0a0c2a8caf83efafe06d5"
+    },
+    "go-interfaces": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "b594cbfe1bf208b7f66f20f97d3e6644df4119063c0f8f357de3be88136353a6"
+    },
+    "go-linting": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "5ec9b3754b9b6c3236c7ddfd0c50cfdff8a797fb87c00cf8581040731a99db97"
+    },
+    "go-naming": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "eefb164ea45e3de5d019949674b4ddcd4defe057ab061650ea2c7704c44b4ec4"
+    },
+    "go-packages": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "e4d03c4d19c3634aecd60bdcad2f505e58019f588c5361dcd675772acf5ddef2"
+    },
+    "go-performance": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "d0f75c971cdb4736de364ed86a56c480dc3d6376bd8506f23aed7365b9099070"
+    },
+    "go-style-core": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "e9035212f35001c43603fcd13eb56f4c0c049552b8b7f47e05e1e439ca6b91ca"
+    },
+    "go-testing": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "65c9ac2b7f0337a39114b4f93a8a07c52786a3e4e66e161737c0bfdd313ded78"
+    },
+    "receiving-code-review": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "2760c85d4f4117b0006e7ba755f4bbd61f8f4c185f347999763c97f507274e30"
+    },
+    "requesting-code-review": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "93a837ba79c3c3f0b3e503fd9d8b54c638337d73d200c1af3bca9607264bf0e0"
+    },
+    "subagent-driven-development": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "1f5831dbfcddda9ac3e706f2ca81a3887fef9598159966d27ef672d86e255242"
+    },
+    "systematic-debugging": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "72e9ab72627e4fd8ed26a582e82309a98ecdc4f6e1c99418430ac05682c9e91d"
+    },
+    "test-driven-development": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "126f1ebf6ccd414f42544f6e83d8cc5adb089e1108eaffb7c400701e37eecd9f"
+    },
+    "using-git-worktrees": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "52bbb4b6e80918e83e92a1514f3b3757712154c2a8a42de24919e48a794c54fc"
+    },
+    "using-superpowers": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "4310d74a75f89e81f999bfa5b10886be977f95ee0c7fc1d547f94e32c7c8d7f3"
+    },
+    "verification-before-completion": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "9b446f0c7fe1cfb560b1d34439523b1a76d5f177290007b2c053a1c749a4a8ba"
+    },
+    "writing-plans": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "8c536ae03ef3ab1fa974c0e50a65d803acddf5d4ee7cac68ab25a39b9e338611"
+    },
+    "writing-skills": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "90371e81ed49a9d9a5eb5a36f62e75586939253f85096e8d50fd1f6b8bacf2a8"
+    }
+  }
+}

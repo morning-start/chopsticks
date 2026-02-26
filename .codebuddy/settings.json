@@ -1,0 +1,5 @@
+{
+  "enabledPlugins": {
+    "agent-team-agile-workflow@codebuddy-plugins-official": true
+  }
+}
