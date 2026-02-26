@@ -234,5 +234,5 @@ func Arrow() {
 }
 
 func ArrowWith(msg string) {
-	Print(InfoColor, "→ "+msg)
+	Print(InfoColor, "%s", "→ "+msg)
 }

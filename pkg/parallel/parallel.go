@@ -186,9 +186,9 @@ func (p *ParallelDownloader) Run(ctx context.Context) error {
 
 			results <- result
 
-			completed = atomic.AddInt32(&completed, 1)
+			newCompleted := atomic.AddInt32(&completed, 1)
 			if p.progress != nil {
-				p.progress(int(completed), len(p.downloads))
+				p.progress(int(newCompleted), len(p.downloads))
 			}
 		}(i, task)
 	}
