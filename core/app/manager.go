@@ -1,28 +1,23 @@
-// Package app 提供应用（软件包）管理功能。
 package app
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"chopsticks/core/bucket"
 	"chopsticks/core/manifest"
 	"chopsticks/core/store"
 )
 
-// 常用 sentinel 错误。
 var (
-	// ErrAppNotFound 表示指定的应用不存在。
-	ErrAppNotFound = errors.New("app not found")
-	// ErrAppAlreadyInstalled 表示应用已安装。
-	ErrAppAlreadyInstalled = errors.New("app already installed")
-	// ErrVersionNotFound 表示指定的版本不存在。
-	ErrVersionNotFound = errors.New("version not found")
-	// ErrDependencyConflict 表示依赖冲突。
-	ErrDependencyConflict = errors.New("dependency conflict")
+	ErrAppNotFound          = fmt.Errorf("app not found")
+	ErrAppAlreadyInstalled = fmt.Errorf("app already installed")
+	ErrVersionNotFound     = fmt.Errorf("version not found")
+	ErrDependencyConflict = fmt.Errorf("dependency conflict")
 )
 
-// Manager 定义应用管理接口。
 type Manager interface {
 	Install(ctx context.Context, spec InstallSpec, opts InstallOptions) error
 	Remove(ctx context.Context, name string, opts RemoveOptions) error
@@ -34,84 +29,239 @@ type Manager interface {
 	Search(ctx context.Context, query string, bucket string) ([]SearchResult, error)
 }
 
-// InstallSpec 定义安装规格。
 type InstallSpec struct {
-	Bucket  string // 软件源名称
-	Name    string // 应用名称
-	Version string // 版本号
+	Bucket  string
+	Name    string
+	Version string
 }
 
-// RemoveOptions 包含卸载选项。
 type RemoveOptions struct {
-	Purge bool // 彻底清除
+	Purge bool
 }
 
-// UpdateOptions 包含更新选项。
 type UpdateOptions struct {
-	Force bool // 强制更新
+	Force bool
 }
 
-// SearchResult 表示搜索结果。
 type SearchResult struct {
-	Bucket string           // 软件源名称
-	App    *manifest.AppRef // 应用引用
+	Bucket string
+	App    *manifest.AppRef
 }
 
-// manager 是 Manager 的实现。
 type manager struct {
-	bucketMgr bucket.Manager
-	storage   store.Storage
-	installer Installer
-	config    interface{}
+	bucketMgr  bucket.Manager
+	storage    store.Storage
+	installer  Installer
+	config     interface{}
+	installDir string
 }
 
 var _ Manager = (*manager)(nil)
 
-func NewManager(bucketMgr bucket.Manager, storage store.Storage, installer Installer, config interface{}) Manager {
+func NewManager(bucketMgr bucket.Manager, storage store.Storage, installer Installer, config interface{}, installDir string) Manager {
 	return &manager{
-		bucketMgr: bucketMgr,
-		storage:   storage,
-		installer: installer,
-		config:    config,
+		bucketMgr:  bucketMgr,
+		storage:    storage,
+		installer:  installer,
+		config:     config,
+		installDir: installDir,
 	}
 }
 
 func (m *manager) Install(ctx context.Context, spec InstallSpec, opts InstallOptions) error {
-	// TODO: 实现
-	return nil
+	var bucketName string
+	if spec.Bucket != "" {
+		bucketName = spec.Bucket
+	} else {
+		bucketName = "main"
+	}
+
+	_, err := m.bucketMgr.GetBucket(ctx, bucketName)
+	if err != nil {
+		return fmt.Errorf("获取软件源失败: %w", err)
+	}
+
+	app, err := m.bucketMgr.GetApp(ctx, bucketName, spec.Name)
+	if err != nil {
+		return fmt.Errorf("获取应用信息失败: %w", err)
+	}
+
+	installDir := opts.InstallDir
+	if installDir == "" {
+		installDir = filepath.Join(m.installDir, spec.Name)
+	}
+
+	installOpts := InstallOptions{
+		Arch:       opts.Arch,
+		Force:      opts.Force,
+		InstallDir: installDir,
+	}
+
+	return m.installer.Install(ctx, app, installOpts)
 }
 
 func (m *manager) Remove(ctx context.Context, name string, opts RemoveOptions) error {
-	// TODO: 实现
-	return nil
+	_, err := m.storage.GetInstalledApp(ctx, name)
+	if err != nil {
+		return fmt.Errorf("应用未安装: %w", err)
+	}
+
+	uninstallOpts := UninstallOptions{
+		Purge: opts.Purge,
+	}
+
+	return m.installer.Uninstall(ctx, name, uninstallOpts)
 }
 
 func (m *manager) Update(ctx context.Context, name string, opts UpdateOptions) error {
-	// TODO: 实现
-	return nil
+	installed, err := m.storage.GetInstalledApp(ctx, name)
+	if err != nil {
+		return fmt.Errorf("应用未安装: %w", err)
+	}
+
+	bucketName := installed.Bucket
+	if bucketName == "" {
+		bucketName = "main"
+	}
+
+	app, err := m.bucketMgr.GetApp(ctx, bucketName, name)
+	if err != nil {
+		return fmt.Errorf("获取应用信息失败: %w", err)
+	}
+
+	refreshOpts := RefreshOptions{
+		Force: opts.Force,
+	}
+
+	return m.installer.Refresh(ctx, app, installed, refreshOpts)
 }
 
 func (m *manager) UpdateAll(ctx context.Context, opts UpdateOptions) error {
-	// TODO: 实现
+	installedApps, err := m.storage.ListInstalledApps(ctx)
+	if err != nil {
+		return fmt.Errorf("获取已安装应用列表失败: %w", err)
+	}
+
+	for _, app := range installedApps {
+		if err := m.Update(ctx, app.Name, opts); err != nil {
+			fmt.Fprintf(os.Stderr, "更新 %s 失败: %v\n", app.Name, err)
+		}
+	}
+
 	return nil
 }
 
 func (m *manager) Switch(ctx context.Context, name, version string) error {
-	// TODO: 实现
-	return nil
+	return m.installer.Switch(ctx, name, version)
 }
 
 func (m *manager) ListInstalled() ([]*manifest.InstalledApp, error) {
-	// TODO: 实现
-	return nil, nil
+	return m.storage.ListInstalledApps(context.Background())
 }
 
-func (m *manager) Info(ctx context.Context, bucket, name string) (*manifest.AppInfo, error) {
-	// TODO: 实现
-	return nil, nil
+func (m *manager) Info(ctx context.Context, bucketName, name string) (*manifest.AppInfo, error) {
+	if bucketName == "" {
+		bucketName = "main"
+	}
+
+	app, err := m.bucketMgr.GetApp(ctx, bucketName, name)
+	if err != nil {
+		return nil, fmt.Errorf("获取应用信息失败: %w", err)
+	}
+
+	installed, err := m.storage.GetInstalledApp(ctx, name)
+	isInstalled := err == nil && installed != nil
+
+	info := &manifest.AppInfo{
+		Name:              app.Script.Name,
+		Description:       app.Script.Description,
+		Homepage:          app.Script.Homepage,
+		License:           app.Script.License,
+		Category:          app.Script.Category,
+		Tags:              app.Script.Tags,
+		Version:           app.Meta.Version,
+		Bucket:            app.Script.Bucket,
+		Installed:         isInstalled,
+		InstalledVersion: "",
+	}
+
+	if isInstalled {
+		info.InstalledVersion = installed.Version
+	}
+
+	return info, nil
 }
 
-func (m *manager) Search(ctx context.Context, query string, bucket string) ([]SearchResult, error) {
-	// TODO: 实现
-	return nil, nil
+func (m *manager) Search(ctx context.Context, query string, bucketName string) ([]SearchResult, error) {
+	var results []SearchResult
+
+	if bucketName != "" {
+		buckets := []string{bucketName}
+		for _, b := range buckets {
+			apps, err := m.bucketMgr.ListApps(ctx, b)
+			if err != nil {
+				continue
+			}
+			for _, app := range apps {
+				if matchesQuery(app, query) {
+					results = append(results, SearchResult{
+						Bucket: b,
+						App:    app,
+					})
+				}
+			}
+		}
+	} else {
+		buckets, err := m.bucketMgr.ListBuckets(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, b := range buckets {
+			apps, err := m.bucketMgr.ListApps(ctx, b)
+			if err != nil {
+				continue
+			}
+			for _, app := range apps {
+				if matchesQuery(app, query) {
+					results = append(results, SearchResult{
+						Bucket: b,
+						App:    app,
+					})
+				}
+			}
+		}
+	}
+
+	return results, nil
+}
+
+func matchesQuery(app *manifest.AppRef, query string) bool {
+	lowerQuery := toLower(query)
+	return contains(toLower(app.Name), lowerQuery) ||
+		contains(toLower(app.Description), lowerQuery)
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+func toLower(s string) string {
+	result := make([]byte, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		result[i] = c
+	}
+	return string(result)
 }

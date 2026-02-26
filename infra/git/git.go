@@ -1,7 +1,7 @@
-// Package git 提供 Git 操作功能。
 package git
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,75 +11,77 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 )
 
-type Client struct {
-	worktree *git.Worktree
-	repo     *git.Repository
+type Git interface {
+	Clone(ctx context.Context, url, dest string) error
+	Pull(ctx context.Context, dir string) error
+	Fetch(ctx context.Context, dir string) error
+	GetLatestTag(ctx context.Context, dir string) (string, error)
+	GetCommitHash(ctx context.Context, dir string) (string, error)
+	GetCurrentBranch(ctx context.Context, dir string) (string, error)
 }
 
-func Clone(url, dest string, depth int) (*Client, error) {
+type gitClient struct{}
+
+func New() Git {
+	return &gitClient{}
+}
+
+func (g *gitClient) Clone(ctx context.Context, url, dest string) error {
 	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
-		return nil, fmt.Errorf("创建目标目录: %w", err)
+		return fmt.Errorf("创建目标目录: %w", err)
 	}
 
 	opts := &git.CloneOptions{
 		URL:               url,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}
-	if depth > 0 {
-		opts.Depth = depth
-	}
 
-	repo, err := git.PlainClone(dest, false, opts)
+	_, err := git.PlainClone(dest, false, opts)
 	if err != nil {
-		return nil, fmt.Errorf("克隆仓库: %w", err)
+		return fmt.Errorf("克隆仓库: %w", err)
 	}
 
-	worktree, err := repo.Worktree()
-	if err != nil {
-		return nil, fmt.Errorf("获取工作树: %w", err)
-	}
-
-	return &Client{
-		repo:     repo,
-		worktree: worktree,
-	}, nil
+	return nil
 }
 
-func Open(dir string) (*Client, error) {
+func (g *gitClient) Pull(ctx context.Context, dir string) error {
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
-		return nil, fmt.Errorf("打开仓库: %w", err)
+		return fmt.Errorf("打开仓库: %w", err)
 	}
 
 	worktree, err := repo.Worktree()
 	if err != nil {
-		return nil, fmt.Errorf("获取工作树: %w", err)
+		return fmt.Errorf("获取工作树: %w", err)
 	}
 
-	return &Client{
-		repo:     repo,
-		worktree: worktree,
-	}, nil
-}
-
-func (c *Client) Pull() error {
-	err := c.worktree.Pull(&git.PullOptions{})
+	err = worktree.Pull(&git.PullOptions{})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return fmt.Errorf("拉取更新: %w", err)
 	}
 	return nil
 }
 
-func (c *Client) Fetch() error {
-	err := c.repo.Fetch(&git.FetchOptions{})
+func (g *gitClient) Fetch(ctx context.Context, dir string) error {
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		return fmt.Errorf("打开仓库: %w", err)
+	}
+
+	err = repo.Fetch(&git.FetchOptions{})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return fmt.Errorf("获取更新: %w", err)
 	}
 	return nil
 }
 
-func (c *Client) GetLatestTag() (string, error) {
-	tags, err := c.repo.Tags()
+func (g *gitClient) GetLatestTag(ctx context.Context, dir string) (string, error) {
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		return "", fmt.Errorf("打开仓库: %w", err)
+	}
+
+	tags, err := repo.Tags()
 	if err != nil {
 		return "", fmt.Errorf("获取标签: %w", err)
 	}
@@ -102,56 +104,28 @@ func (c *Client) GetLatestTag() (string, error) {
 	return latestTag, nil
 }
 
-func (c *Client) GetCommitHash() (string, error) {
-	ref, err := c.repo.Head()
+func (g *gitClient) GetCommitHash(ctx context.Context, dir string) (string, error) {
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		return "", fmt.Errorf("打开仓库: %w", err)
+	}
+
+	ref, err := repo.Head()
 	if err != nil {
 		return "", fmt.Errorf("获取 HEAD: %w", err)
 	}
 	return ref.Hash().String(), nil
 }
 
-func (c *Client) GetCurrentBranch() (string, error) {
-	ref, err := c.repo.Head()
+func (g *gitClient) GetCurrentBranch(ctx context.Context, dir string) (string, error) {
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		return "", fmt.Errorf("打开仓库: %w", err)
+	}
+
+	ref, err := repo.Head()
 	if err != nil {
 		return "", fmt.Errorf("获取 HEAD: %w", err)
 	}
 	return ref.Name().Short(), nil
-}
-
-func (c *Client) Checkout(branch string) error {
-	err := c.worktree.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.ReferenceName(branch),
-		Create: false,
-	})
-	if err != nil {
-		return fmt.Errorf("切换分支: %w", err)
-	}
-	return nil
-}
-
-func (c *Client) RemoteURL() (string, error) {
-	remotes, err := c.repo.Remotes()
-	if err != nil {
-		return "", err
-	}
-	if len(remotes) == 0 {
-		return "", fmt.Errorf("没有远程仓库")
-	}
-	cfg, err := c.repo.Config()
-	if err != nil {
-		return "", err
-	}
-	for _, r := range remotes {
-		if r.Config().Name == "origin" {
-			if len(r.Config().URLs) > 0 {
-				return r.Config().URLs[0], nil
-			}
-		}
-	}
-	_ = cfg
-	return "", fmt.Errorf("未找到 origin 远程仓库")
-}
-
-func (c *Client) Close() error {
-	return nil
 }

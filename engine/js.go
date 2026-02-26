@@ -17,6 +17,10 @@ type JSEngine struct {
 	installCtx   map[string]interface{}
 }
 
+func (e *JSEngine) GetVM() *goja.Runtime {
+	return e.vm
+}
+
 func NewJSEngine() *JSEngine {
 	vm := goja.New()
 
