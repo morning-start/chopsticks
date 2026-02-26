@@ -1,0 +1,8 @@
+{
+    "name": "{{.Name}}",
+    "description": "A Chopsticks Bucket (JavaScript)",
+    "homepage": "",
+    "license": "MIT",
+    "author": "",
+    "keywords": ["chopsticks", "bucket", "javascript"]
+}

@@ -1,0 +1,2 @@
+-- Bucket metadata cache (SQLite)
+-- This file stores app metadata for faster loading
