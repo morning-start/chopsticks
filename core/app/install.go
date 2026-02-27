@@ -238,6 +238,10 @@ func (i *installer) buildInstallEnv(name, version, installDir string) map[string
 
 // runScript 执行应用脚本中的生命周期钩子方法
 func (i *installer) runScript(ctx context.Context, app *manifest.App, hookName string, env map[string]string) error {
+	return i.executeScript(ctx, app, hookName, env)
+}
+
+func (i *installer) executeScript(_ context.Context, app *manifest.App, hookName string, env map[string]string) error {
 	if i.jsEngine == nil {
 		return nil
 	}
@@ -251,21 +255,17 @@ func (i *installer) runScript(ctx context.Context, app *manifest.App, hookName s
 		return nil
 	}
 
-	// 加载脚本文件
 	if err := i.jsEngine.LoadFile(scriptPath); err != nil {
 		return fmt.Errorf("加载脚本文件: %w", err)
 	}
 
-	// 转换环境变量类型
 	ctxMap := make(map[string]interface{})
 	for k, v := range env {
 		ctxMap[k] = v
 	}
 
-	// 设置环境变量到引擎上下文
 	i.jsEngine.SetContext(ctxMap)
 
-	// 调用指定的钩子方法
 	if err := i.jsEngine.CallFunction(hookName, ctxMap); err != nil {
 		return fmt.Errorf("执行 %s 钩子: %w", hookName, err)
 	}
