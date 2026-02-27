@@ -9,13 +9,14 @@ import (
 	"chopsticks/core/bucket"
 	"chopsticks/core/manifest"
 	"chopsticks/core/store"
+	"chopsticks/pkg/errors"
 )
 
 var (
-	ErrAppNotFound          = fmt.Errorf("app not found")
-	ErrAppAlreadyInstalled = fmt.Errorf("app already installed")
-	ErrVersionNotFound     = fmt.Errorf("version not found")
-	ErrDependencyConflict = fmt.Errorf("dependency conflict")
+	ErrAppNotFound          = errors.ErrAppNotFound
+	ErrAppAlreadyInstalled  = errors.ErrAppAlreadyInstalled
+	ErrVersionNotFound      = errors.ErrVersionNotFound
+	ErrDependencyConflict   = errors.ErrDependencyConflict
 )
 
 type Manager interface {
@@ -78,12 +79,12 @@ func (m *manager) Install(ctx context.Context, spec InstallSpec, opts InstallOpt
 
 	_, err := m.bucketMgr.GetBucket(ctx, bucketName)
 	if err != nil {
-		return fmt.Errorf("获取软件源失败: %w", err)
+		return errors.Wrap(err, "get bucket")
 	}
 
 	app, err := m.bucketMgr.GetApp(ctx, bucketName, spec.Name)
 	if err != nil {
-		return fmt.Errorf("获取应用信息失败: %w", err)
+		return errors.Wrap(err, "get app info")
 	}
 
 	installDir := opts.InstallDir
@@ -103,7 +104,7 @@ func (m *manager) Install(ctx context.Context, spec InstallSpec, opts InstallOpt
 func (m *manager) Remove(ctx context.Context, name string, opts RemoveOptions) error {
 	_, err := m.storage.GetInstalledApp(ctx, name)
 	if err != nil {
-		return fmt.Errorf("应用未安装: %w", err)
+		return errors.NewAppNotInstalled(name)
 	}
 
 	uninstallOpts := UninstallOptions{
@@ -116,7 +117,7 @@ func (m *manager) Remove(ctx context.Context, name string, opts RemoveOptions) e
 func (m *manager) Update(ctx context.Context, name string, opts UpdateOptions) error {
 	installed, err := m.storage.GetInstalledApp(ctx, name)
 	if err != nil {
-		return fmt.Errorf("应用未安装: %w", err)
+		return errors.NewAppNotInstalled(name)
 	}
 
 	bucketName := installed.Bucket
@@ -126,7 +127,7 @@ func (m *manager) Update(ctx context.Context, name string, opts UpdateOptions) e
 
 	app, err := m.bucketMgr.GetApp(ctx, bucketName, name)
 	if err != nil {
-		return fmt.Errorf("获取应用信息失败: %w", err)
+		return errors.Wrap(err, "get app info")
 	}
 
 	refreshOpts := RefreshOptions{
@@ -139,12 +140,12 @@ func (m *manager) Update(ctx context.Context, name string, opts UpdateOptions) e
 func (m *manager) UpdateAll(ctx context.Context, opts UpdateOptions) error {
 	installedApps, err := m.storage.ListInstalledApps(ctx)
 	if err != nil {
-		return fmt.Errorf("获取已安装应用列表失败: %w", err)
+		return errors.Wrap(err, "list installed apps")
 	}
 
 	for _, app := range installedApps {
 		if err := m.Update(ctx, app.Name, opts); err != nil {
-			fmt.Fprintf(os.Stderr, "更新 %s 失败: %v\n", app.Name, err)
+			fmt.Fprintf(os.Stderr, "update %s failed: %v\n", app.Name, err)
 		}
 	}
 
@@ -166,7 +167,7 @@ func (m *manager) Info(ctx context.Context, bucketName, name string) (*manifest.
 
 	app, err := m.bucketMgr.GetApp(ctx, bucketName, name)
 	if err != nil {
-		return nil, fmt.Errorf("获取应用信息失败: %w", err)
+		return nil, errors.Wrap(err, "get app info")
 	}
 
 	installed, err := m.storage.GetInstalledApp(ctx, name)

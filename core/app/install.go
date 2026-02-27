@@ -15,6 +15,7 @@ import (
 	"chopsticks/engine/archive"
 	"chopsticks/engine/checksum"
 	"chopsticks/engine/fetch"
+	"chopsticks/pkg/errors"
 )
 
 type Installer interface {
@@ -60,14 +61,14 @@ func NewInstaller(storage store.Storage, config interface{}, jsEngine *engine.JS
 
 func (i *installer) Install(ctx context.Context, app *manifest.App, opts InstallOptions) error {
 	if app == nil || app.Script == nil {
-		return fmt.Errorf("无效的应用信息")
+		return errors.Newf(errors.KindInvalidInput, "invalid app info")
 	}
 
 	appName := app.Script.Name
 
 	installed, err := i.storage.GetInstalledApp(ctx, appName)
 	if err == nil && installed != nil && !opts.Force {
-		return fmt.Errorf("应用 %s 已安装 (版本: %s)", appName, installed.Version)
+		return errors.NewAppAlreadyInstalled(appName, installed.Version)
 	}
 
 	installDir := opts.InstallDir
@@ -76,11 +77,11 @@ func (i *installer) Install(ctx context.Context, app *manifest.App, opts Install
 	}
 
 	if err := os.MkdirAll(installDir, 0755); err != nil {
-		return fmt.Errorf("创建安装目录: %w", err)
+		return errors.Wrapf(err, "create install directory %s", installDir)
 	}
 
 	if err := os.MkdirAll(i.downloadDir, 0755); err != nil {
-		return fmt.Errorf("创建下载目录: %w", err)
+		return errors.Wrapf(err, "create download directory %s", i.downloadDir)
 	}
 
 	version := "latest"
@@ -95,42 +96,42 @@ func (i *installer) Install(ctx context.Context, app *manifest.App, opts Install
 
 	downloadInfo, err := i.getDownloadInfo(app, version, arch)
 	if err != nil {
-		return fmt.Errorf("获取下载信息: %w", err)
+		return errors.Wrap(err, "get download info")
 	}
 
 	downloadedPath, err := i.downloadPackage(ctx, downloadInfo)
 	if err != nil {
-		return fmt.Errorf("下载安装包: %w", err)
+		return errors.Wrap(err, "download package")
 	}
 	defer os.Remove(downloadedPath)
 
 	if downloadInfo.Hash != "" {
 		if err := i.verifyChecksum(downloadedPath, downloadInfo.Hash); err != nil {
-			return fmt.Errorf("校验失败: %w", err)
+			return errors.Wrap(err, "verify checksum")
 		}
 	}
 
 	extractDir := filepath.Join(installDir, version)
 	if err := os.MkdirAll(extractDir, 0755); err != nil {
-		return fmt.Errorf("创建版本目录: %w", err)
+		return errors.Wrapf(err, "create version directory %s", extractDir)
 	}
 
 	if err := i.extractPackage(downloadedPath, extractDir); err != nil {
-		return fmt.Errorf("解压安装包: %w", err)
+		return errors.Wrap(err, "extract package")
 	}
 
 	hookEnv := i.buildHookEnv(appName, version, extractDir, downloadedPath)
 
 	if err := i.runScript(ctx, app, "preInstall", hookEnv); err != nil {
-		return fmt.Errorf("preInstall 钩子失败: %w", err)
+		return errors.NewHookFailed("preInstall", err)
 	}
 
 	if err := i.runInstallScript(ctx, app, extractDir, hookEnv); err != nil {
-		return fmt.Errorf("安装脚本执行失败: %w", err)
+		return errors.NewScriptFailed("onInstall", err)
 	}
 
 	if err := i.runScript(ctx, app, "postInstall", hookEnv); err != nil {
-		return fmt.Errorf("postInstall 钩子失败: %w", err)
+		return errors.NewHookFailed("postInstall", err)
 	}
 
 	installedApp := &manifest.InstalledApp{
@@ -143,10 +144,10 @@ func (i *installer) Install(ctx context.Context, app *manifest.App, opts Install
 	}
 
 	if err := i.storage.SaveInstalledApp(ctx, installedApp); err != nil {
-		return fmt.Errorf("保存安装记录: %w", err)
+		return errors.Wrap(err, "save install record")
 	}
 
-	fmt.Printf("✓ %s (%s) 安装成功\n", appName, version)
+	fmt.Printf("✓ %s (%s) installed successfully\n", appName, version)
 	return nil
 }
 
@@ -158,7 +159,7 @@ func (i *installer) getDownloadInfo(app *manifest.App, version, arch string) (*m
 			}
 		}
 	}
-	return nil, fmt.Errorf("未找到 %s/%s 的下载信息", version, arch)
+	return nil, errors.NewVersionNotFound(app.Script.Name, version)
 }
 
 func (i *installer) downloadPackage(ctx context.Context, info *manifest.DownloadInfo) (string, error) {
@@ -169,9 +170,9 @@ func (i *installer) downloadPackage(ctx context.Context, info *manifest.Download
 		return destPath, nil
 	}
 
-	fmt.Printf("下载: %s\n", info.URL)
+	fmt.Printf("downloading: %s\n", info.URL)
 	if err := fetch.DownloadWithContext(ctx, info.URL, destPath); err != nil {
-		return "", err
+		return "", errors.NewDownloadFailed(info.URL, err)
 	}
 
 	return destPath, nil
@@ -205,10 +206,10 @@ func (i *installer) verifyChecksum(filePath, expectedHash string) error {
 
 	ok, err := calc.Verify(filePath, hash)
 	if err != nil {
-		return fmt.Errorf("校验和验证失败: %w", err)
+		return errors.Wrap(err, "checksum verification")
 	}
 	if !ok {
-		return fmt.Errorf("校验和不匹配")
+		return errors.NewChecksumMismatch(hash, "")
 	}
 	return nil
 }
@@ -219,16 +220,16 @@ func (i *installer) extractPackage(archivePath, destDir string) error {
 	}
 
 	if _, err := os.Stat(archivePath); os.IsNotExist(err) {
-		return fmt.Errorf("安装包不存在: %s", archivePath)
+		return errors.Newf(errors.KindNotFound, "archive not found: %s", archivePath)
 	}
 
 	if !archive.IsArchive(archivePath) {
-		return fmt.Errorf("不支持的压缩格式: %s", archivePath)
+		return errors.Newf(errors.KindInvalidInput, "unsupported archive format: %s", archivePath)
 	}
 
-	fmt.Printf("解压: %s\n", filepath.Base(archivePath))
+	fmt.Printf("extracting: %s\n", filepath.Base(archivePath))
 	if err := archive.Extract(archivePath, destDir); err != nil {
-		return fmt.Errorf("解压失败: %w", err)
+		return errors.NewArchiveExtractFailed(archivePath, err)
 	}
 
 	return nil
@@ -272,7 +273,7 @@ func (i *installer) executeScript(_ context.Context, app *manifest.App, hookName
 	}
 
 	if err := i.jsEngine.LoadFile(scriptPath); err != nil {
-		return fmt.Errorf("加载脚本文件: %w", err)
+		return errors.Wrap(err, "load script file")
 	}
 
 	ctxMap := make(map[string]interface{})
@@ -283,7 +284,7 @@ func (i *installer) executeScript(_ context.Context, app *manifest.App, hookName
 	i.jsEngine.SetContext(ctxMap)
 
 	if err := i.jsEngine.CallFunction(hookName, ctxMap); err != nil {
-		return fmt.Errorf("执行 %s 钩子: %w", hookName, err)
+		return errors.NewHookFailed(hookName, err)
 	}
 
 	return nil
@@ -301,40 +302,40 @@ func (i *installer) runInstallScript(ctx context.Context, app *manifest.App, ins
 func (i *installer) Uninstall(ctx context.Context, name string, opts UninstallOptions) error {
 	installed, err := i.storage.GetInstalledApp(ctx, name)
 	if err != nil {
-		return fmt.Errorf("获取安装信息: %w", err)
+		return errors.NewAppNotInstalled(name)
 	}
 
 	app, err := i.loadAppManifest(ctx, installed)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "加载应用清单失败: %v\n", err)
+		fmt.Fprintf(os.Stderr, "load app manifest failed: %v\n", err)
 	} else {
 		if err := i.runScript(ctx, app, "preUninstall", map[string]string{
-		"name":       name,
-		"version":    installed.Version,
-		"installDir": installed.InstallDir,
-		"cookDir":    installed.InstallDir,
-		"arch":       "amd64",
-		"bucket":     installed.Bucket,
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "preUninstall 钩子失败: %v\n", err)
-	}
+			"name":       name,
+			"version":    installed.Version,
+			"installDir": installed.InstallDir,
+			"cookDir":    installed.InstallDir,
+			"arch":       "amd64",
+			"bucket":     installed.Bucket,
+		}); err != nil {
+			fmt.Fprintf(os.Stderr, "preUninstall hook failed: %v\n", err)
+		}
 	}
 
 	installDir := installed.InstallDir
 	if opts.Purge {
 		if err := os.RemoveAll(installDir); err != nil {
-			return fmt.Errorf("删除安装目录: %w", err)
+			return errors.Wrapf(err, "remove install directory %s", installDir)
 		}
 	} else {
 		versionDir := filepath.Join(installDir, installed.Version)
 		if err := os.RemoveAll(versionDir); err != nil {
-			return fmt.Errorf("删除版本目录: %w", err)
+			return errors.Wrapf(err, "remove version directory %s", versionDir)
 		}
 	}
 
 	if app != nil {
 		if err := i.runUninstallScript(ctx, app, installed); err != nil {
-			fmt.Fprintf(os.Stderr, "卸载脚本执行失败: %v\n", err)
+			fmt.Fprintf(os.Stderr, "uninstall script failed: %v\n", err)
 		}
 
 		if err := i.runScript(ctx, app, "postUninstall", map[string]string{
@@ -345,15 +346,15 @@ func (i *installer) Uninstall(ctx context.Context, name string, opts UninstallOp
 			"arch":       "amd64",
 			"bucket":     installed.Bucket,
 		}); err != nil {
-			fmt.Fprintf(os.Stderr, "postUninstall 钩子失败: %v\n", err)
+			fmt.Fprintf(os.Stderr, "postUninstall hook failed: %v\n", err)
 		}
 	}
 
 	if err := i.storage.DeleteInstalledApp(ctx, name); err != nil {
-		return fmt.Errorf("删除安装记录: %w", err)
+		return errors.Wrap(err, "delete install record")
 	}
 
-	fmt.Printf("✓ %s 卸载成功\n", name)
+	fmt.Printf("✓ %s uninstalled successfully\n", name)
 	return nil
 }
 
@@ -376,7 +377,7 @@ func (i *installer) doLoadAppManifest(ctx context.Context, installed *manifest.I
 
 	ref, ok := b.Apps[installed.Name]
 	if !ok {
-		return nil, fmt.Errorf("应用信息不存在")
+		return nil, errors.NewAppNotFound(installed.Name)
 	}
 
 	return &manifest.App{
@@ -414,7 +415,7 @@ func (i *installer) Refresh(ctx context.Context, app *manifest.App, installed *m
 	}
 
 	if err := os.Rename(installed.InstallDir, backupDir); err != nil {
-		return fmt.Errorf("备份当前版本失败: %w", err)
+		return errors.Wrap(err, "backup current version")
 	}
 
 	err := i.Install(ctx, app, InstallOptions{
@@ -424,7 +425,7 @@ func (i *installer) Refresh(ctx context.Context, app *manifest.App, installed *m
 	})
 	if err != nil {
 		os.Rename(backupDir, installed.InstallDir)
-		return fmt.Errorf("更新失败，已回滚: %w", err)
+		return errors.NewUpdateFailed(app.Script.Name, err)
 	}
 
 	os.RemoveAll(backupDir)
@@ -434,29 +435,29 @@ func (i *installer) Refresh(ctx context.Context, app *manifest.App, installed *m
 func (i *installer) Switch(ctx context.Context, name, version string) error {
 	installed, err := i.storage.GetInstalledApp(ctx, name)
 	if err != nil {
-		return fmt.Errorf("应用未安装: %w", err)
+		return errors.NewAppNotInstalled(name)
 	}
 
 	currentVersion := installed.Version
 	if currentVersion == version {
-		return fmt.Errorf("当前已是版本 %s", version)
+		return errors.Newf(errors.KindInvalidInput, "already at version %s", version)
 	}
 
 	newVersionDir := filepath.Join(installed.InstallDir, version)
 	if _, err := os.Stat(newVersionDir); err != nil {
-		return fmt.Errorf("版本 %s 不存在", version)
+		return errors.NewVersionNotFound(name, version)
 	}
 
 	currentVersionDir := filepath.Join(installed.InstallDir, currentVersion)
 	backupDir := filepath.Join(installed.InstallDir, currentVersion+".old")
 
 	if err := os.Rename(currentVersionDir, backupDir); err != nil {
-		return fmt.Errorf("备份当前版本失败: %w", err)
+		return errors.Wrap(err, "backup current version")
 	}
 
 	if err := os.Rename(newVersionDir, currentVersionDir); err != nil {
 		os.Rename(backupDir, currentVersionDir)
-		return fmt.Errorf("切换版本失败: %w", err)
+		return errors.Wrap(err, "switch version")
 	}
 
 	os.RemoveAll(backupDir)
@@ -464,9 +465,9 @@ func (i *installer) Switch(ctx context.Context, name, version string) error {
 	installed.Version = version
 	installed.UpdatedAt = time.Now()
 	if err := i.storage.SaveInstalledApp(ctx, installed); err != nil {
-		return fmt.Errorf("保存版本切换: %w", err)
+		return errors.Wrap(err, "save version switch")
 	}
 
-	fmt.Printf("✓ %s 切换到版本 %s\n", name, version)
+	fmt.Printf("✓ %s switched to version %s\n", name, version)
 	return nil
 }
