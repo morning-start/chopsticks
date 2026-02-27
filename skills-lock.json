@@ -1,11 +1,6 @@
 {
   "version": 1,
   "skills": {
-    "git-doc-isolation": {
-      "source": "morning-start/coze-skills",
-      "sourceType": "github",
-      "computedHash": "f1dc522742d93d9d305c0d33659c44f1397534a038f990f9441530fe6791c83a"
-    },
     "go-code-review": {
       "source": "cxuu/golang-skills",
       "sourceType": "github",
