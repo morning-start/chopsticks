@@ -1,288 +1,375 @@
+// Package output 提供输出格式化功能，包括进度条。
 package output
 
 import (
 	"fmt"
 	"io"
-	"strings"
-	"sync"
-	"time"
+
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 )
 
-type ProgressBar struct {
-	mu        sync.Mutex
-	prefix    string
-	total     int64
-	current   int64
-	startTime time.Time
-	writer    io.Writer
-	width     int
-	spinnerPos int
-	showSpeed bool
-	done      bool
-	spinner   bool
+// ProgressManager mpb 进度管理器
+type ProgressManager struct {
+	progress *mpb.Progress
 }
 
-var spinnerChars = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-
-func NewProgressBar(total int64) *ProgressBar {
-	return &ProgressBar{
-		total:     total,
-		width:     50,
-		showSpeed: true,
-		startTime: time.Now(),
-		writer:    stdout,
+// NewProgressManager 创建新的进度管理器
+func NewProgressManager() *ProgressManager {
+	return &ProgressManager{
+		progress: mpb.New(mpb.WithWidth(64)),
 	}
 }
 
+// NewProgressManagerWithOutput 创建新的进度管理器，指定输出
+func NewProgressManagerWithOutput(w io.Writer) *ProgressManager {
+	return &ProgressManager{
+		progress: mpb.New(mpb.WithWidth(64), mpb.WithOutput(w)),
+	}
+}
+
+// AddDownloadBar 添加下载进度条
+// name: 任务名称
+// total: 总大小（字节）
+// 返回: mpb.Bar 实例
+func (pm *ProgressManager) AddDownloadBar(name string, total int64) *mpb.Bar {
+	return pm.progress.AddBar(total,
+		mpb.PrependDecorators(
+			// 显示任务名称
+			decor.Name(name+" ", decor.WCSyncWidth),
+			// 显示当前/总计
+			decor.Counters(decor.SizeB1024(0), "% .2f / % .2f"),
+		),
+		mpb.AppendDecorators(
+			// 显示百分比
+			decor.Percentage(decor.WCSyncSpace),
+			// 显示速度
+			decor.EwmaSpeed(decor.SizeB1024(0), " % .2f", 60),
+			// 显示剩余时间
+			decor.OnComplete(decor.EwmaETA(decor.ET_STYLE_GO, 60), " 完成"),
+		),
+	)
+}
+
+// AddInstallBar 添加安装进度条（多阶段）
+// name: 应用名称
+// stages: 阶段名称列表
+// 返回: MultiStageBar 实例
+func (pm *ProgressManager) AddInstallBar(name string, stages []string) *MultiStageBar {
+	total := int64(len(stages) * 100) // 每个阶段100个单位
+
+	bar := pm.progress.AddBar(total,
+		mpb.PrependDecorators(
+			// 显示应用名称
+			decor.Name(name+" ", decor.WCSyncWidth),
+			// 显示当前阶段
+			decor.Any(func(s decor.Statistics) string {
+				currentStage := int(s.Current / 100)
+				if currentStage >= len(stages) {
+					currentStage = len(stages) - 1
+				}
+				return fmt.Sprintf("[%s] ", stages[currentStage])
+			}, decor.WCSyncWidth),
+		),
+		mpb.AppendDecorators(
+			// 显示百分比
+			decor.Percentage(decor.WCSyncSpace),
+			// 显示进度
+			decor.CountersNoUnit("%d/%d", decor.WCSyncWidth),
+		),
+	)
+
+	return &MultiStageBar{
+		bar:      bar,
+		stages:   stages,
+		total:    total,
+		perStage: 100,
+	}
+}
+
+// AddBatchBar 添加批量操作进度条
+// total: 总任务数
+// 返回: BatchBar 实例
+func (pm *ProgressManager) AddBatchBar(total int) *BatchBar {
+	return &BatchBar{
+		bar:      pm.progress.AddBar(int64(total)),
+		total:    total,
+		current:  0,
+		itemName: "",
+	}
+}
+
+// Wait 等待所有进度条完成
+func (pm *ProgressManager) Wait() {
+	pm.progress.Wait()
+}
+
+// MultiStageBar 多阶段进度条
+type MultiStageBar struct {
+	bar      *mpb.Bar
+	stages   []string
+	total    int64
+	perStage int64
+	current  int
+}
+
+// SetStage 设置当前阶段
+func (msb *MultiStageBar) SetStage(stage int) {
+	if stage < 0 || stage >= len(msb.stages) {
+		return
+	}
+	msb.current = stage
+	target := int64(stage) * msb.perStage
+	msb.bar.SetCurrent(target)
+}
+
+// CompleteStage 完成当前阶段
+func (msb *MultiStageBar) CompleteStage() {
+	msb.current++
+	target := int64(msb.current) * msb.perStage
+	if target > msb.total {
+		target = msb.total
+	}
+	msb.bar.SetCurrent(target)
+}
+
+// SetProgress 设置当前阶段的进度 (0-100)
+func (msb *MultiStageBar) SetProgress(percent int) {
+	if percent < 0 {
+		percent = 0
+	}
+	if percent > 100 {
+		percent = 100
+	}
+	current := int64(msb.current)*msb.perStage + int64(percent)*msb.perStage/100
+	msb.bar.SetCurrent(current)
+}
+
+// Complete 标记完成
+func (msb *MultiStageBar) Complete() {
+	msb.bar.SetCurrent(msb.total)
+}
+
+// CurrentStage 返回当前阶段索引
+func (msb *MultiStageBar) CurrentStage() int {
+	return msb.current
+}
+
+// TotalStages 返回总阶段数
+func (msb *MultiStageBar) TotalStages() int {
+	return len(msb.stages)
+}
+
+// BatchBar 批量操作进度条
+type BatchBar struct {
+	bar      *mpb.Bar
+	total    int
+	current  int
+	itemName string
+}
+
+// NextItem 进入下一项
+func (bb *BatchBar) NextItem(name string) {
+	bb.current++
+	bb.itemName = name
+	bb.bar.Increment()
+}
+
+// SetItemName 设置当前项名称
+func (bb *BatchBar) SetItemName(name string) {
+	bb.itemName = name
+}
+
+// Current 返回当前进度
+func (bb *BatchBar) Current() int {
+	return bb.current
+}
+
+// Total 返回总任务数
+func (bb *BatchBar) Total() int {
+	return bb.total
+}
+
+// Complete 标记完成
+func (bb *BatchBar) Complete() {
+	bb.bar.SetCurrent(int64(bb.total))
+}
+
+// 兼容旧版 ProgressBar 的 API
+
+// ProgressBar 兼容旧版的进度条结构
+type ProgressBar struct {
+	bar    *mpb.Bar
+	total  int64
+	prefix string
+}
+
+// NewProgressBar 创建新的进度条（兼容旧版）
+func NewProgressBar(total int64) *ProgressBar {
+	return &ProgressBar{
+		total: total,
+	}
+}
+
+// SetPrefix 设置前缀
 func (p *ProgressBar) SetPrefix(prefix string) *ProgressBar {
 	p.prefix = prefix
 	return p
 }
 
+// SetWidth 设置宽度（新版中忽略，由 mpb 管理）
 func (p *ProgressBar) SetWidth(width int) *ProgressBar {
-	p.width = width
 	return p
 }
 
+// SetWriter 设置输出（新版中忽略，由 mpb 管理）
 func (p *ProgressBar) SetWriter(w io.Writer) *ProgressBar {
-	p.writer = w
 	return p
 }
 
+// ShowSpeed 显示速度（新版中默认显示）
 func (p *ProgressBar) ShowSpeed(show bool) *ProgressBar {
-	p.showSpeed = show
 	return p
 }
 
+// UseSpinner 使用旋转器（新版中忽略）
 func (p *ProgressBar) UseSpinner(use bool) *ProgressBar {
-	p.spinner = use
 	return p
 }
 
+// Add 增加进度
 func (p *ProgressBar) Add(n int64) *ProgressBar {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.current += n
+	if p.bar != nil {
+		p.bar.IncrBy(int(n))
+	}
 	return p
 }
 
+// Set 设置进度
 func (p *ProgressBar) Set(n int64) *ProgressBar {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.current = n
+	if p.bar != nil {
+		p.bar.SetCurrent(n)
+	}
 	return p
 }
 
+// Current 获取当前进度
 func (p *ProgressBar) Current() int64 {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.current
+	if p.bar == nil {
+		return 0
+	}
+	return p.bar.Current()
 }
 
+// Total 获取总进度
 func (p *ProgressBar) Total() int64 {
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	return p.total
 }
 
+// Done 标记完成
 func (p *ProgressBar) Done() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.done = true
-	p.current = p.total
-	p.render()
+	if p.bar != nil {
+		p.bar.SetCurrent(p.total)
+	}
 }
 
-func (p *ProgressBar) render() {
-	if p.writer == nil {
-		return
-	}
-
-	if p.spinner {
-		p.renderSpinner()
-		return
-	}
-	p.renderBar()
+// BindToManager 将进度条绑定到管理器
+func (p *ProgressBar) BindToManager(pm *ProgressManager, name string) {
+	p.bar = pm.AddDownloadBar(name, p.total)
 }
 
-func (p *ProgressBar) renderSpinner() {
-	elapsed := time.Since(p.startTime).Seconds()
-	rate := float64(p.current) / elapsed
-
-	var bar strings.Builder
-	if p.prefix != "" {
-		bar.WriteString(p.prefix)
-		bar.WriteString(" ")
-	}
-
-	bar.WriteString(spinnerChars[p.spinnerPos])
-	p.spinnerPos = (p.spinnerPos + 1) % len(spinnerChars)
-
-	bar.WriteString(" ")
-	bar.WriteString(fmt.Sprintf("%d", p.current))
-
-	if p.total > 0 {
-		bar.WriteString("/")
-		bar.WriteString(fmt.Sprintf("%d", p.total))
-	}
-
-	if p.showSpeed && rate > 0 {
-		bar.WriteString(" (")
-		bar.WriteString(formatBytes(int64(rate)))
-		bar.WriteString("/s)")
-	}
-
-	bar.WriteString("\r")
-	fmt.Fprint(p.writer, bar.String())
-}
-
-func (p *ProgressBar) renderBar() {
-	elapsed := time.Since(p.startTime).Seconds()
-	rate := float64(p.current) / elapsed
-
-	var bar strings.Builder
-
-	if p.prefix != "" {
-		bar.WriteString(p.prefix)
-		bar.WriteString(" ")
-	}
-
-	filled := float64(p.current) / float64(p.total) * float64(p.width)
-	filledInt := int(filled)
-
-	bar.WriteString("[")
-	for i := 0; i < p.width; i++ {
-		if i < filledInt {
-			bar.WriteString("=")
-		} else if i == filledInt {
-			bar.WriteString(">")
-		} else {
-			bar.WriteString(" ")
-		}
-	}
-	bar.WriteString("] ")
-
-	percent := float64(p.current) / float64(p.total) * 100
-	bar.WriteString(fmt.Sprintf("%.1f%%", percent))
-
-	bar.WriteString(" ")
-	bar.WriteString(fmt.Sprintf("%d/%d", p.current, p.total))
-
-	if p.showSpeed && rate > 0 {
-		bar.WriteString(" (")
-		bar.WriteString(formatBytes(int64(rate)))
-		bar.WriteString("/s)")
-	}
-
-	if p.done {
-		elapsedStr := formatDuration(elapsed)
-		bar.WriteString(" ")
-		bar.WriteString(elapsedStr)
-	}
-
-	bar.WriteString("\r")
-	fmt.Fprint(p.writer, bar.String())
-}
-
-func (p *ProgressBar) String() string {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if p.total == 0 {
-		return ""
-	}
-
-	elapsed := time.Since(p.startTime).Seconds()
-	rate := float64(p.current) / elapsed
-
-	var sb strings.Builder
-	if p.prefix != "" {
-		sb.WriteString(p.prefix)
-		sb.WriteString(" ")
-	}
-
-	filled := float64(p.current) / float64(p.total) * float64(p.width)
-	filledInt := int(filled)
-
-	sb.WriteString("[")
-	for i := 0; i < p.width; i++ {
-		if i < filledInt {
-			sb.WriteString("=")
-		} else if i == filledInt {
-			sb.WriteString(">")
-		} else {
-			sb.WriteString(" ")
-		}
-	}
-	sb.WriteString("] ")
-
-	percent := float64(p.current) / float64(p.total) * 100
-	sb.WriteString(fmt.Sprintf("%.1f%% ", percent))
-
-	sb.WriteString(fmt.Sprintf("%d/%d", p.current, p.total))
-
-	if p.showSpeed && rate > 0 {
-		sb.WriteString(fmt.Sprintf(" (%.2f/s)", rate))
-	}
-
-	return sb.String()
-}
-
-func formatBytes(n int64) string {
-	const unit = 1024
-	if n < unit {
-		return fmt.Sprintf("%d B", n)
-	}
-	div, exp := int64(unit), 0
-	for n >= unit*10 {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
-}
-
-func formatDuration(seconds float64) string {
-	d := time.Duration(seconds * float64(time.Second))
-	if d < time.Minute {
-		return fmt.Sprintf("%.1fs", d.Seconds())
-	}
-	if d < time.Hour {
-		m := int(d.Minutes())
-		s := int(d.Seconds()) % 60
-		return fmt.Sprintf("%dm%ds", m, s)
-	}
-	h := int(d.Hours())
-	m := int(d.Minutes()) % 60
-	return fmt.Sprintf("%dh%dm", h, m)
-}
-
+// DownloadProgress 下载进度（兼容旧版）
 type DownloadProgress struct {
 	*ProgressBar
 	filename string
 	url      string
 }
 
+// NewDownloadProgress 创建新的下载进度（兼容旧版）
 func NewDownloadProgress(filename string, total int64) *DownloadProgress {
 	return &DownloadProgress{
-		ProgressBar: NewProgressBar(total).SetPrefix("下载"),
+		ProgressBar: NewProgressBar(total),
 		filename:    filename,
 	}
 }
 
+// SetURL 设置 URL
 func (p *DownloadProgress) SetURL(url string) *DownloadProgress {
 	p.url = url
 	return p
 }
 
+// Filename 获取文件名
 func (p *DownloadProgress) Filename() string {
 	return p.filename
 }
 
+// String 返回字符串表示
 func (p *DownloadProgress) String() string {
-	var sb strings.Builder
-	sb.WriteString("下载: ")
-	sb.WriteString(p.filename)
-	sb.WriteString(" ")
-	sb.WriteString(p.ProgressBar.String())
-	return sb.String()
+	return fmt.Sprintf("下载: %s (%d/%d)", p.filename, p.Current(), p.Total())
+}
+
+// BindToManager 绑定到管理器
+func (p *DownloadProgress) BindToManager(pm *ProgressManager) {
+	p.bar = pm.AddDownloadBar(p.filename, p.total)
+}
+
+// ReaderWithProgress 带进度报告的 Reader
+type ReaderWithProgress struct {
+	r   io.Reader
+	bar *mpb.Bar
+}
+
+// NewReaderWithProgress 创建带进度报告的 Reader
+func NewReaderWithProgress(r io.Reader, bar *mpb.Bar) *ReaderWithProgress {
+	return &ReaderWithProgress{
+		r:   r,
+		bar: bar,
+	}
+}
+
+// Read 实现 io.Reader 接口
+func (rp *ReaderWithProgress) Read(p []byte) (n int, err error) {
+	n, err = rp.r.Read(p)
+	if n > 0 && rp.bar != nil {
+		rp.bar.IncrBy(n)
+	}
+	return n, err
+}
+
+// Close 关闭 Reader
+func (rp *ReaderWithProgress) Close() error {
+	if closer, ok := rp.r.(io.Closer); ok {
+		return closer.Close()
+	}
+	return nil
+}
+
+// ProxyReader 创建代理 Reader 用于报告进度
+func (pm *ProgressManager) ProxyReader(r io.Reader, name string, total int64) io.Reader {
+	bar := pm.AddDownloadBar(name, total)
+	return &readerWithBar{
+		Reader: r,
+		bar:    bar,
+	}
+}
+
+type readerWithBar struct {
+	io.Reader
+	bar *mpb.Bar
+}
+
+func (r *readerWithBar) Read(p []byte) (n int, err error) {
+	n, err = r.Reader.Read(p)
+	if n > 0 {
+		r.bar.IncrBy(n)
+	}
+	return
+}
+
+func (r *readerWithBar) Close() error {
+	if closer, ok := r.Reader.(io.Closer); ok {
+		return closer.Close()
+	}
+	return nil
 }

@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"chopsticks/pkg/output"
 )
 
 var defaultClient = &http.Client{
@@ -103,6 +105,11 @@ func Download(url, destPath string) error {
 
 // DownloadWithContext 使用 context 下载文件。
 func DownloadWithContext(ctx context.Context, url, destPath string) error {
+	return DownloadWithProgress(ctx, url, destPath, nil)
+}
+
+// DownloadWithProgress 使用进度条下载文件。
+func DownloadWithProgress(ctx context.Context, url, destPath string, pm *output.ProgressManager) error {
 	client := &http.Client{Timeout: 5 * time.Minute}
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -128,7 +135,16 @@ func DownloadWithContext(ctx context.Context, url, destPath string) error {
 	}
 	defer out.Close()
 
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	// 如果有进度管理器，使用进度条
+	if pm != nil && resp.ContentLength > 0 {
+		filename := filepath.Base(destPath)
+		reader := pm.ProxyReader(resp.Body, filename, resp.ContentLength)
+		_, err = io.Copy(out, reader)
+	} else {
+		_, err = io.Copy(out, resp.Body)
+	}
+
+	if err != nil {
 		return fmt.Errorf("复制响应体: %w", err)
 	}
 	return nil
@@ -136,6 +152,11 @@ func DownloadWithContext(ctx context.Context, url, destPath string) error {
 
 // DownloadFile 使用自定义请求头下载文件。
 func DownloadFile(client *http.Client, url, destPath string, headers map[string]string) error {
+	return DownloadFileWithProgress(client, url, destPath, headers, nil)
+}
+
+// DownloadFileWithProgress 使用进度条下载文件。
+func DownloadFileWithProgress(client *http.Client, url, destPath string, headers map[string]string, pm *output.ProgressManager) error {
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Minute}
 	}
@@ -169,7 +190,16 @@ func DownloadFile(client *http.Client, url, destPath string, headers map[string]
 	}
 	defer out.Close()
 
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	// 如果有进度管理器，使用进度条
+	if pm != nil && resp.ContentLength > 0 {
+		filename := filepath.Base(destPath)
+		reader := pm.ProxyReader(resp.Body, filename, resp.ContentLength)
+		_, err = io.Copy(out, reader)
+	} else {
+		_, err = io.Copy(out, resp.Body)
+	}
+
+	if err != nil {
 		return fmt.Errorf("复制响应体: %w", err)
 	}
 	return nil
