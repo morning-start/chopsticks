@@ -1,7 +1,9 @@
 package engine
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 
 	"chopsticks/engine/fetch"
 	"chopsticks/engine/fsutil"
@@ -53,9 +55,84 @@ func NewJSEngine() *JSEngine {
 	}
 }
 
-var requireFunc = func(_ *goja.Runtime) func(call goja.FunctionCall) (goja.Value, error) {
+var requireFunc = func(vm *goja.Runtime) func(call goja.FunctionCall) (goja.Value, error) {
 	return func(call goja.FunctionCall) (goja.Value, error) {
-		return goja.Undefined(), nil
+		if len(call.Arguments) == 0 {
+			return goja.Undefined(), fmt.Errorf("require() 需要模块名称参数")
+		}
+
+		moduleName := call.Arguments[0].String()
+
+		// 检查内置模块
+		switch moduleName {
+		case "fs":
+			return vm.ToValue(map[string]interface{}{
+				"readFile": func(path string) (string, error) {
+					data, err := os.ReadFile(path)
+					return string(data), err
+				},
+				"writeFile": func(path string, content string) error {
+					return os.WriteFile(path, []byte(content), 0644)
+				},
+				"exists": func(path string) bool {
+					_, err := os.Stat(path)
+					return err == nil
+				},
+				"mkdir": func(path string) error {
+					return os.MkdirAll(path, 0755)
+				},
+			}), nil
+		case "path":
+			return vm.ToValue(map[string]interface{}{
+				"join":  filepath.Join,
+				"dir":   filepath.Dir,
+				"base":  filepath.Base,
+				"ext":   filepath.Ext,
+				"clean": filepath.Clean,
+			}), nil
+		case "os":
+			return vm.ToValue(map[string]interface{}{
+				"getenv": os.Getenv,
+				"setenv": os.Setenv,
+				"homedir": func() string {
+					home, _ := os.UserHomeDir()
+					return home
+				},
+			}), nil
+		}
+
+		// 尝试加载本地文件模块
+		scriptPath := moduleName
+		if !filepath.IsAbs(scriptPath) {
+			// 相对路径，尝试在当前目录查找
+			scriptPath = filepath.Join(".", moduleName)
+		}
+
+		// 添加 .js 扩展名（如果没有）
+		if filepath.Ext(scriptPath) == "" {
+			scriptPath += ".js"
+		}
+
+		// 读取并执行模块文件
+		content, err := os.ReadFile(scriptPath)
+		if err != nil {
+			return goja.Undefined(), fmt.Errorf("无法加载模块 '%s': %w", moduleName, err)
+		}
+
+		// 创建模块导出对象
+		moduleObj := vm.NewObject()
+		exportsObj := vm.NewObject()
+		moduleObj.Set("exports", exportsObj)
+
+		// 在模块上下文中执行代码
+		moduleCode := string(content)
+		_, err = vm.RunScript(moduleName, moduleCode)
+		if err != nil {
+			return goja.Undefined(), fmt.Errorf("执行模块 '%s' 失败: %w", moduleName, err)
+		}
+
+		// 返回模块的 exports
+		return exportsObj, nil
 	}
 }
 
