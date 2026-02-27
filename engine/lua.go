@@ -3,6 +3,7 @@ package engine
 import (
 	"chopsticks/engine/fetch"
 	"chopsticks/engine/fsutil"
+	"chopsticks/engine/registry"
 	"chopsticks/engine/symlink"
 
 	lua "github.com/yuin/gopher-lua"
@@ -23,6 +24,7 @@ func NewLuaEngine() *LuaEngine {
 		&fsutil.Module{},
 		&fetch.Module{},
 		&symlink.Module{},
+		&registry.Module{},
 	)
 	return &LuaEngine{
 		L: L,

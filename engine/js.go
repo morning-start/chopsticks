@@ -7,6 +7,7 @@ import (
 
 	"chopsticks/engine/fetch"
 	"chopsticks/engine/fsutil"
+	"chopsticks/engine/registry"
 	"chopsticks/engine/symlink"
 
 	"github.com/dop251/goja"
@@ -47,6 +48,7 @@ func NewJSEngine() *JSEngine {
 		&fsutil.Module{},
 		&fetch.Module{},
 		&symlink.Module{},
+		&registry.Module{},
 	)
 
 	return &JSEngine{
