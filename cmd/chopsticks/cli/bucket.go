@@ -12,8 +12,8 @@ import (
 	"chopsticks/core/app"
 )
 
-//go:embed template/bucket-js
-//go:embed template/bucket-lua
+//go:embed all:template/bucket-js
+//go:embed all:template/bucket-lua
 var templates embed.FS
 
 // BucketSubcommand 定义 bucket 子命令信息。
@@ -310,6 +310,7 @@ func copyEmbeddedDir(srcPath, destDir, name string) error {
 	for _, entry := range entries {
 		srcFilePath := srcPath + "/" + entry.Name()
 		destFilePath := filepath.Join(destDir, entry.Name())
+		destFilePath = strings.ReplaceAll(destFilePath, "{{.Name}}", name)
 
 		if entry.IsDir() {
 			if err := os.MkdirAll(destFilePath, 0755); err != nil {
