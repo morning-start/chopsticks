@@ -107,6 +107,12 @@ func New(path string) (Storage, error) {
 		if _, err := tx.CreateBucketIfNotExists(bucketsBucket); err != nil {
 			return err
 		}
+		if _, err := tx.CreateBucketIfNotExists(operationsBucket); err != nil {
+			return err
+		}
+		if _, err := tx.CreateBucketIfNotExists(systemOperationsBucket); err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {
