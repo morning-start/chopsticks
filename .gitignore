@@ -429,5 +429,5 @@ $RECYCLE.BIN/
 **/plugins/*
 
 # Task documents - temporary task files should not be committed
-/tasks/
+/temp/
 
