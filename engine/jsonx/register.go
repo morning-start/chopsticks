@@ -11,7 +11,7 @@ import (
 func (m *Module) RegisterLua(L *lua.LState) {
 	mod := L.NewTable()
 
-	L.SetField(mod, "encode", L.NewFunction(func(L *lua.LState) int {
+	L.SetField(mod, "stringify", L.NewFunction(func(L *lua.LState) int {
 		tbl := L.CheckTable(1)
 		data, err := luaTableToJSON(tbl)
 		if err != nil {
@@ -29,7 +29,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetField(mod, "decode", L.NewFunction(func(L *lua.LState) int {
+	L.SetField(mod, "parse", L.NewFunction(func(L *lua.LState) int {
 		jsonStr := L.CheckString(1)
 		var data interface{}
 		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
@@ -49,7 +49,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 func (m *Module) RegisterJS(vm *goja.Runtime) {
 	jsonObj := vm.NewObject()
 
-	jsonObj.Set("encode", func(call goja.FunctionCall) goja.Value {
+	jsonObj.Set("stringify", func(call goja.FunctionCall) goja.Value {
 		data := call.Argument(0).Export()
 		jsonStr, err := json.Marshal(data)
 		if err != nil {
@@ -64,7 +64,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		})
 	})
 
-	jsonObj.Set("decode", func(call goja.FunctionCall) goja.Value {
+	jsonObj.Set("parse", func(call goja.FunctionCall) goja.Value {
 		jsonStr := call.Argument(0).String()
 		var data interface{}
 		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
