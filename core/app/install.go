@@ -236,61 +236,10 @@ func (i *installer) buildInstallEnv(name, version, installDir string) map[string
 	}
 }
 
+// runScript 执行应用脚本中的生命周期钩子方法
 func (i *installer) runScript(ctx context.Context, app *manifest.App, hookName string, env map[string]string) error {
-	return nil
-}
-
-func (i *installer) runHookScript(ctx context.Context, app *manifest.App, scriptPath string, env map[string]string) error {
 	if i.jsEngine == nil {
 		return nil
-	}
-
-	vm := i.jsEngine.GetVM()
-	if vm == nil {
-		return nil
-	}
-
-	vm.Set("console", map[string]interface{}{
-		"log": func(args ...interface{}) {
-			fmt.Println(args...)
-		},
-	})
-
-	for k, v := range env {
-		vm.Set(k, v)
-	}
-
-	scriptContent, err := os.ReadFile(scriptPath)
-	if err != nil {
-		return fmt.Errorf("读取脚本文件: %w", err)
-	}
-
-	_, err = vm.RunScript("hook.js", string(scriptContent))
-	if err != nil {
-		return fmt.Errorf("执行脚本: %w", err)
-	}
-
-	return nil
-}
-
-func (i *installer) runInstallScript(ctx context.Context, app *manifest.App, installDir string, env map[string]string) error {
-	if i.jsEngine == nil {
-		return nil
-	}
-
-	vm := i.jsEngine.GetVM()
-	if vm == nil {
-		return fmt.Errorf("JavaScript 虚拟机未初始化")
-	}
-
-	vm.Set("console", map[string]interface{}{
-		"log": func(args ...interface{}) {
-			fmt.Println(args...)
-		},
-	})
-
-	for k, v := range env {
-		vm.Set(k, v)
 	}
 
 	scriptPath := ""
@@ -302,17 +251,35 @@ func (i *installer) runInstallScript(ctx context.Context, app *manifest.App, ins
 		return nil
 	}
 
-	scriptContent, err := os.ReadFile(scriptPath)
-	if err != nil {
-		return fmt.Errorf("读取脚本文件: %w", err)
+	// 加载脚本文件
+	if err := i.jsEngine.LoadFile(scriptPath); err != nil {
+		return fmt.Errorf("加载脚本文件: %w", err)
 	}
 
-	_, err = vm.RunScript("install.js", string(scriptContent))
-	if err != nil {
-		return fmt.Errorf("执行脚本: %w", err)
+	// 转换环境变量类型
+	ctxMap := make(map[string]interface{})
+	for k, v := range env {
+		ctxMap[k] = v
+	}
+
+	// 设置环境变量到引擎上下文
+	i.jsEngine.SetContext(ctxMap)
+
+	// 调用指定的钩子方法
+	if err := i.jsEngine.CallFunction(hookName, ctxMap); err != nil {
+		return fmt.Errorf("执行 %s 钩子: %w", hookName, err)
 	}
 
 	return nil
+}
+
+// runInstallScript 执行应用脚本的 onInstall 方法
+func (i *installer) runInstallScript(ctx context.Context, app *manifest.App, installDir string, env map[string]string) error {
+	// 添加 installDir 到环境变量
+	env["InstallDir"] = installDir
+
+	// 调用 onInstall 钩子
+	return i.runScript(ctx, app, "onInstall", env)
 }
 
 func (i *installer) Uninstall(ctx context.Context, name string, opts UninstallOptions) error {
@@ -399,8 +366,16 @@ func (i *installer) loadAppManifest(ctx context.Context, installed *manifest.Ins
 	}, nil
 }
 
+// runUninstallScript 执行应用脚本的 onUninstall 方法
 func (i *installer) runUninstallScript(ctx context.Context, app *manifest.App, installed *manifest.InstalledApp) error {
-	return nil
+	env := map[string]string{
+		"AppName":    installed.Name,
+		"Version":    installed.Version,
+		"InstallDir": installed.InstallDir,
+	}
+
+	// 调用 onUninstall 钩子
+	return i.runScript(ctx, app, "onUninstall", env)
 }
 
 func (i *installer) Refresh(ctx context.Context, app *manifest.App, installed *manifest.InstalledApp, opts RefreshOptions) error {
