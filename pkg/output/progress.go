@@ -94,6 +94,10 @@ func (p *ProgressBar) Done() {
 }
 
 func (p *ProgressBar) render() {
+	if p.writer == nil {
+		return
+	}
+
 	if p.spinner {
 		p.renderSpinner()
 		return
