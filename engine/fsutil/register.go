@@ -12,7 +12,7 @@ type Module struct{}
 func (m *Module) RegisterLua(L *lua.LState) {
 	fsTable := L.NewTable()
 
-	fsTable.RawSetString("read", L.NewFunction(func(L *lua.LState) int {
+	fsTable.RawSetString("readFile", L.NewFunction(func(L *lua.LState) int {
 		path := L.CheckString(1)
 		content, err := Read(path)
 		if err != nil {
@@ -24,7 +24,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	fsTable.RawSetString("write", L.NewFunction(func(L *lua.LState) int {
+	fsTable.RawSetString("writeFile", L.NewFunction(func(L *lua.LState) int {
 		path := L.CheckString(1)
 		content := L.CheckString(2)
 		if err := Write(path, content); err != nil {
@@ -105,7 +105,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	fsTable.RawSetString("listdir", L.NewFunction(func(L *lua.LState) int {
+	fsTable.RawSetString("readDir", L.NewFunction(func(L *lua.LState) int {
 		path := L.CheckString(1)
 		entries, err := List(path)
 		if err != nil {
@@ -121,6 +121,52 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
+	fsTable.RawSetString("copy", L.NewFunction(func(L *lua.LState) int {
+		src := L.CheckString(1)
+		dst := L.CheckString(2)
+		if err := Copy(src, dst); err != nil {
+			L.Push(lua.LBool(false))
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+		L.Push(lua.LBool(true))
+		return 1
+	}))
+
+	fsTable.RawSetString("removeAll", L.NewFunction(func(L *lua.LState) int {
+		path := L.CheckString(1)
+		if err := Rmdir(path); err != nil {
+			L.Push(lua.LBool(false))
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+		L.Push(lua.LBool(true))
+		return 1
+	}))
+
+	fsTable.RawSetString("mkdirAll", L.NewFunction(func(L *lua.LState) int {
+		path := L.CheckString(1)
+		if err := Mkdir(path); err != nil {
+			L.Push(lua.LBool(false))
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+		L.Push(lua.LBool(true))
+		return 1
+	}))
+
+	fsTable.RawSetString("isFile", L.NewFunction(func(L *lua.LState) int {
+		path := L.CheckString(1)
+		isFile, err := IsFile(path)
+		if err != nil {
+			L.Push(lua.LBool(false))
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+		L.Push(lua.LBool(isFile))
+		return 1
+	}))
+
 	L.SetGlobal("fs", fsTable)
 }
 
@@ -128,7 +174,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 func (m *Module) RegisterJS(vm *goja.Runtime) {
 	fsObj := vm.NewObject()
 
-	fsObj.Set("read", func(call goja.FunctionCall) goja.Value {
+	fsObj.Set("readFile", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		content, err := Read(path)
 		if err != nil {
@@ -137,7 +183,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"data": content, "error": nil})
 	})
 
-	fsObj.Set("write", func(call goja.FunctionCall) goja.Value {
+	fsObj.Set("writeFile", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		content := call.Argument(1).String()
 		err := Write(path, content)
@@ -196,10 +242,44 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(isDir)
 	})
 
-	fsObj.Set("listdir", func(call goja.FunctionCall) goja.Value {
+	fsObj.Set("readDir", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		entries, _ := List(path)
 		return vm.ToValue(entries)
+	})
+
+	fsObj.Set("copy", func(call goja.FunctionCall) goja.Value {
+		src := call.Argument(0).String()
+		dst := call.Argument(1).String()
+		err := Copy(src, dst)
+		if err != nil {
+			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
+		}
+		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
+	})
+
+	fsObj.Set("removeAll", func(call goja.FunctionCall) goja.Value {
+		path := call.Argument(0).String()
+		err := Rmdir(path)
+		if err != nil {
+			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
+		}
+		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
+	})
+
+	fsObj.Set("mkdirAll", func(call goja.FunctionCall) goja.Value {
+		path := call.Argument(0).String()
+		err := Mkdir(path)
+		if err != nil {
+			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
+		}
+		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
+	})
+
+	fsObj.Set("isFile", func(call goja.FunctionCall) goja.Value {
+		path := call.Argument(0).String()
+		isFile, _ := IsFile(path)
+		return vm.ToValue(isFile)
 	})
 
 	vm.Set("fs", fsObj)

@@ -15,8 +15,8 @@ import (
 var _ Engine = (*JSEngine)(nil)
 
 type JSEngine struct {
-	vm           *goja.Runtime
-	installCtx   map[string]interface{}
+	vm         *goja.Runtime
+	installCtx map[string]interface{}
 }
 
 func (e *JSEngine) GetVM() *goja.Runtime {
@@ -40,8 +40,8 @@ func NewJSEngine() *JSEngine {
 	vm.Set("module", vm.NewObject())
 	vm.Set("exports", vm.NewObject())
 
-	vm.RunString(dishBaseClass)
-	vm.RunString(dishContextClass)
+	vm.RunString(appBaseClass)
+	vm.RunString(installContextClass)
 
 	RegisterJSAll(vm,
 		&fsutil.Module{},
@@ -136,15 +136,15 @@ var requireFunc = func(vm *goja.Runtime) func(call goja.FunctionCall) (goja.Valu
 	}
 }
 
-const dishBaseClass = `
-class Dish {
+const appBaseClass = `
+class App {
     constructor(config) {
         this.name = config.name || '';
         this.description = config.description || '';
         this.homepage = config.homepage || '';
         this.license = config.license || 'MIT';
         this.version = config.version || '0.0.0';
-        this.bow = config.bow || 'main';
+        this.bucket = config.bucket || 'main';
         this.category = config.category || '';
         this.tags = config.tags || [];
         this.maintainer = config.maintainer || '';
@@ -177,14 +177,16 @@ class Dish {
 }
 `
 
-const dishContextClass = `
-class DishContext {
+const installContextClass = `
+class InstallContext {
     constructor(data) {
         this.version = data.version || 'latest';
         this.arch = data.arch || 'amd64';
         this.cookDir = data.cookDir || '';
-        this.dishName = data.dishName || '';
-        this.bow = data.bow || 'main';
+        this.name = data.name || '';
+        this.bucket = data.bucket || 'main';
+        this.downloadPath = data.downloadPath || '';
+        this.installDir = data.installDir || '';
     }
 }
 `
@@ -219,7 +221,7 @@ func (e *JSEngine) CallFunction(name string, args ...interface{}) error {
 	return err
 }
 
-func (e *JSEngine) GetDishInstance() (map[string]interface{}, error) {
+func (e *JSEngine) GetAppInstance() (map[string]interface{}, error) {
 	exports := e.vm.Get("exports")
 	if exports == goja.Undefined() {
 		return nil, nil
@@ -237,31 +239,41 @@ func (e *JSEngine) GetDishInstance() (map[string]interface{}, error) {
 	return result, nil
 }
 
-func (e *JSEngine) CallDishMethod(methodName string, ctx map[string]interface{}) error {
+// GetDishInstance 已弃用，请使用 GetAppInstance
+func (e *JSEngine) GetDishInstance() (map[string]interface{}, error) {
+	return e.GetAppInstance()
+}
+
+func (e *JSEngine) CallAppMethod(methodName string, ctx map[string]interface{}) error {
 	obj := e.vm.Get("exports")
 	if obj == goja.Undefined() {
 		return nil
 	}
 
-	dishObj := obj.ToObject(e.vm)
-	dishVal := dishObj.Get("dish")
-	if dishVal == goja.Undefined() {
+	appObj := obj.ToObject(e.vm)
+	appVal := appObj.Get("app")
+	if appVal == goja.Undefined() {
 		return nil
 	}
 
-	fn, ok := goja.AssertFunction(dishVal)
+	fn, ok := goja.AssertFunction(appVal)
 	if !ok {
 		return nil
 	}
 
-	dishInstance := dishVal.ToObject(e.vm)
+	appInstance := appVal.ToObject(e.vm)
 	ctxObj := e.vm.NewObject()
 	for k, v := range ctx {
 		ctxObj.Set(k, v)
 	}
 
-	_, err := fn(dishInstance, ctxObj)
+	_, err := fn(appInstance, ctxObj)
 	return err
+}
+
+// CallDishMethod 已弃用，请使用 CallAppMethod
+func (e *JSEngine) CallDishMethod(methodName string, ctx map[string]interface{}) error {
+	return e.CallAppMethod(methodName, ctx)
 }
 
 func (e *JSEngine) Close() {

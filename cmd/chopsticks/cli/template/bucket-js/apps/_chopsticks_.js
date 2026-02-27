@@ -98,12 +98,12 @@
 /**
  * @typedef {Object} FS
  * @property {function(string, string=): string} readFile
- * @property {function(string, string): void} writeFile
- * @property {function(string, string): void} copy
- * @property {function(string): void} remove
- * @property {function(string): void} removeAll
- * @property {function(string): void} mkdir
- * @property {function(string): void} mkdirAll
+ * @property {function(string, string): boolean} writeFile
+ * @property {function(string, string): boolean} copy
+ * @property {function(string): boolean} remove
+ * @property {function(string): boolean} removeAll
+ * @property {function(string): boolean} mkdir
+ * @property {function(string): boolean} mkdirAll
  * @property {function(string): string[]} readDir
  * @property {function(string): boolean} exists
  * @property {function(string): boolean} isDir
@@ -204,46 +204,46 @@
  * @property {AppMetadata} metadata
  */
 class App {
-    /**
-     * @param {AppMetadata} metadata
-     */
-    constructor(metadata) {
-        /** @type {AppMetadata} */
-        this.metadata = metadata;
-    }
+  /**
+   * @param {AppMetadata} metadata
+   */
+  constructor(metadata) {
+    /** @type {AppMetadata} */
+    this.metadata = metadata;
+  }
 
-    /**
-     * 检查最新版本
-     * @returns {Promise<string>}
-     */
-    async checkVersion() {
-        throw new Error('Not implemented');
-    }
+  /**
+   * 检查最新版本
+   * @returns {Promise<string>}
+   */
+  async checkVersion() {
+    throw new Error("Not implemented");
+  }
 
-    /**
-     * 获取下载信息
-     * @param {string} version
-     * @param {string} arch
-     * @returns {Promise<DownloadInfo>}
-     */
-    async getDownloadInfo(version, arch) {
-        throw new Error('Not implemented');
-    }
+  /**
+   * 获取下载信息
+   * @param {string} version
+   * @param {string} arch
+   * @returns {Promise<DownloadInfo>}
+   */
+  async getDownloadInfo(version, arch) {
+    throw new Error("Not implemented");
+  }
 
-    /**
-     * 安全调用钩子函数
-     * @template T
-     * @param {function(): Promise<T>} fn
-     * @returns {Promise<{success: boolean, value?: T, error?: string}>}
-     */
-    async safeCall(fn) {
-        try {
-            const value = await fn();
-            return { success: true, value };
-        } catch (error) {
-            return { success: false, error: String(error) };
-        }
+  /**
+   * 安全调用钩子函数
+   * @template T
+   * @param {function(): Promise<T>} fn
+   * @returns {Promise<{success: boolean, value?: T, error?: string}>}
+   */
+  async safeCall(fn) {
+    try {
+      const value = await fn();
+      return { success: true, value };
+    } catch (error) {
+      return { success: false, error: String(error) };
     }
+  }
 }
 
 /**
