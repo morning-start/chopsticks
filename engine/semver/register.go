@@ -10,7 +10,9 @@ type Module struct{}
 
 // RegisterLua 向 Lua 状态注册 semver 函数。
 func (m *Module) RegisterLua(L *lua.LState) {
-	L.SetGlobal("semver_parse", L.NewFunction(func(L *lua.LState) int {
+	semverTable := L.NewTable()
+
+	semverTable.RawSetString("parse", L.NewFunction(func(L *lua.LState) int {
 		version := L.CheckString(1)
 		v, err := Parse(version)
 		if err != nil {
@@ -28,7 +30,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("semver_compare", L.NewFunction(func(L *lua.LState) int {
+	semverTable.RawSetString("compare", L.NewFunction(func(L *lua.LState) int {
 		v1 := L.CheckString(1)
 		v2 := L.CheckString(2)
 
@@ -42,7 +44,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("semver_gt", L.NewFunction(func(L *lua.LState) int {
+	semverTable.RawSetString("gt", L.NewFunction(func(L *lua.LState) int {
 		v1 := L.CheckString(1)
 		v2 := L.CheckString(2)
 
@@ -63,7 +65,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("semver_lt", L.NewFunction(func(L *lua.LState) int {
+	semverTable.RawSetString("lt", L.NewFunction(func(L *lua.LState) int {
 		v1 := L.CheckString(1)
 		v2 := L.CheckString(2)
 
@@ -84,7 +86,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("semver_eq", L.NewFunction(func(L *lua.LState) int {
+	semverTable.RawSetString("eq", L.NewFunction(func(L *lua.LState) int {
 		v1 := L.CheckString(1)
 		v2 := L.CheckString(2)
 
@@ -105,7 +107,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("semver_gte", L.NewFunction(func(L *lua.LState) int {
+	semverTable.RawSetString("gte", L.NewFunction(func(L *lua.LState) int {
 		v1 := L.CheckString(1)
 		v2 := L.CheckString(2)
 
@@ -126,7 +128,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("semver_lte", L.NewFunction(func(L *lua.LState) int {
+	semverTable.RawSetString("lte", L.NewFunction(func(L *lua.LState) int {
 		v1 := L.CheckString(1)
 		v2 := L.CheckString(2)
 
@@ -147,7 +149,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("semver_satisfies", L.NewFunction(func(L *lua.LState) int {
+	semverTable.RawSetString("satisfies", L.NewFunction(func(L *lua.LState) int {
 		version := L.CheckString(1)
 		constraint := L.CheckString(2)
 
@@ -160,11 +162,15 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		L.Push(lua.LBool(ok))
 		return 1
 	}))
+
+	L.SetGlobal("semver", semverTable)
 }
 
 // RegisterJS 向 JavaScript 运行时注册 semver 函数。
 func (m *Module) RegisterJS(vm *goja.Runtime) {
-	vm.Set("semver_parse", func(call goja.FunctionCall) goja.Value {
+	semverObj := vm.NewObject()
+
+	semverObj.Set("parse", func(call goja.FunctionCall) goja.Value {
 		version := call.Argument(0).String()
 		v, err := Parse(version)
 		if err != nil {
@@ -181,7 +187,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		})
 	})
 
-	vm.Set("semver_compare", func(call goja.FunctionCall) goja.Value {
+	semverObj.Set("compare", func(call goja.FunctionCall) goja.Value {
 		v1 := call.Argument(0).String()
 		v2 := call.Argument(1).String()
 
@@ -192,7 +198,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "data": result})
 	})
 
-	vm.Set("semver_gt", func(call goja.FunctionCall) goja.Value {
+	semverObj.Set("gt", func(call goja.FunctionCall) goja.Value {
 		v1 := call.Argument(0).String()
 		v2 := call.Argument(1).String()
 
@@ -207,7 +213,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "data": ver1.GT(ver2)})
 	})
 
-	vm.Set("semver_lt", func(call goja.FunctionCall) goja.Value {
+	semverObj.Set("lt", func(call goja.FunctionCall) goja.Value {
 		v1 := call.Argument(0).String()
 		v2 := call.Argument(1).String()
 
@@ -222,7 +228,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "data": ver1.LT(ver2)})
 	})
 
-	vm.Set("semver_eq", func(call goja.FunctionCall) goja.Value {
+	semverObj.Set("eq", func(call goja.FunctionCall) goja.Value {
 		v1 := call.Argument(0).String()
 		v2 := call.Argument(1).String()
 
@@ -237,7 +243,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "data": ver1.EQ(ver2)})
 	})
 
-	vm.Set("semver_gte", func(call goja.FunctionCall) goja.Value {
+	semverObj.Set("gte", func(call goja.FunctionCall) goja.Value {
 		v1 := call.Argument(0).String()
 		v2 := call.Argument(1).String()
 
@@ -252,7 +258,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "data": ver1.GTE(ver2)})
 	})
 
-	vm.Set("semver_lte", func(call goja.FunctionCall) goja.Value {
+	semverObj.Set("lte", func(call goja.FunctionCall) goja.Value {
 		v1 := call.Argument(0).String()
 		v2 := call.Argument(1).String()
 
@@ -267,7 +273,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "data": ver1.LTE(ver2)})
 	})
 
-	vm.Set("semver_satisfies", func(call goja.FunctionCall) goja.Value {
+	semverObj.Set("satisfies", func(call goja.FunctionCall) goja.Value {
 		version := call.Argument(0).String()
 		constraint := call.Argument(1).String()
 
@@ -277,4 +283,6 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		}
 		return vm.ToValue(map[string]interface{}{"success": true, "data": ok})
 	})
+
+	vm.Set("semver", semverObj)
 }
