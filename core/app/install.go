@@ -339,7 +339,7 @@ func (i *installer) loadAppManifest(ctx context.Context, installed *manifest.Ins
 	return i.doLoadAppManifest(ctx, installed)
 }
 
-func (i *installer) doLoadAppManifest(_ context.Context, installed *manifest.InstalledApp) (*manifest.App, error) {
+func (i *installer) doLoadAppManifest(ctx context.Context, installed *manifest.InstalledApp) (*manifest.App, error) {
 	bucketName := installed.Bucket
 	if bucketName == "" {
 		bucketName = "main"
@@ -347,7 +347,7 @@ func (i *installer) doLoadAppManifest(_ context.Context, installed *manifest.Ins
 
 	bucketPath := filepath.Join(i.installBase, "..", "buckets", bucketName)
 	loader := bucket.NewLoader()
-	b, err := loader.Load(bucketPath)
+	b, err := loader.Load(ctx, bucketPath)
 	if err != nil {
 		return nil, err
 	}

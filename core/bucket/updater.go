@@ -34,15 +34,12 @@ func NewUpdater(loader Loader) Updater {
 
 // Update 更新整个软件源。
 func (u *updater) Update(ctx context.Context, bucket *manifest.Bucket) error {
-	// 对于 Git 仓库，执行 git pull
 	gitDir := filepath.Join(bucket.Path, ".git")
 	if _, err := os.Stat(gitDir); err == nil {
-		// TODO: 执行 git pull
 		return fmt.Errorf("Git 更新暂未实现")
 	}
 
-	// 重新扫描应用
-	apps, err := u.loader.ScanApps(bucket.Path)
+	apps, err := u.loader.ScanApps(ctx, bucket.Path)
 	if err != nil {
 		return fmt.Errorf("重新扫描应用: %w", err)
 	}

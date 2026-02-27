@@ -179,7 +179,7 @@ func (m *manager) GetApp(ctx context.Context, bucket, name string) (*manifest.Ap
 	}
 
 	loader := NewLoader()
-	b, err := loader.Load(bucketPath)
+	b, err := loader.Load(ctx, bucketPath)
 	if err != nil {
 		return nil, fmt.Errorf("加载软件源失败: %w", err)
 	}
@@ -209,7 +209,7 @@ func (m *manager) ListApps(ctx context.Context, bucket string) (map[string]*mani
 	}
 
 	loader := NewLoader()
-	b, err := loader.Load(bucketPath)
+	b, err := loader.Load(ctx, bucketPath)
 	if err != nil {
 		return nil, fmt.Errorf("加载软件源失败: %w", err)
 	}
