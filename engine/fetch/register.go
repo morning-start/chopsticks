@@ -12,7 +12,9 @@ type Module struct{}
 
 // RegisterLua 向 Lua 状态注册 fetch 函数。
 func (m *Module) RegisterLua(L *lua.LState) {
-	L.SetGlobal("download", L.NewFunction(func(L *lua.LState) int {
+	fetchTable := L.NewTable()
+
+	fetchTable.RawSetString("download", L.NewFunction(func(L *lua.LState) int {
 		url := L.CheckString(1)
 		dest := L.CheckString(2)
 		if err := Download(url, dest); err != nil {
@@ -24,7 +26,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("http_get", L.NewFunction(func(L *lua.LState) int {
+	fetchTable.RawSetString("get", L.NewFunction(func(L *lua.LState) int {
 		url := L.CheckString(1)
 		resp, err := Get(nil, url)
 		if err != nil {
@@ -36,7 +38,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("http_post", L.NewFunction(func(L *lua.LState) int {
+	fetchTable.RawSetString("post", L.NewFunction(func(L *lua.LState) int {
 		url := L.CheckString(1)
 		body := L.CheckAny(2)
 		contentType := L.OptString(3, "")
@@ -50,22 +52,21 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("http_request", L.NewFunction(func(L *lua.LState) int {
+	fetchTable.RawSetString("request", L.NewFunction(func(L *lua.LState) int {
 		url := L.CheckString(1)
-		method := L.OptString(2, "GET")
-		headers := L.OptTable(3, nil)
-		body := L.CheckAny(4)
+		options := L.CheckTable(2)
 
-		opts := &RequestOptions{
-			Method: method,
-			Body:   bodyToInterface(L, body),
+		opts := &RequestOptions{Method: "GET"}
+		if method := L.GetField(options, "method"); method != lua.LNil {
+			opts.Method = method.String()
 		}
-
-		if headers != nil {
-			opts.Headers = map[string]string{}
-			for k, v := range tableToMap(L, headers) {
-				opts.Headers[k] = v
+		if headers := L.GetField(options, "headers"); headers != lua.LNil {
+			if headersTbl, ok := headers.(*lua.LTable); ok {
+				opts.Headers = tableToMap(L, headersTbl)
 			}
+		}
+		if body := L.GetField(options, "body"); body != lua.LNil {
+			opts.Body = bodyToInterface(L, body)
 		}
 
 		resp, err := Request(nil, url, opts)
@@ -78,7 +79,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("http_download", L.NewFunction(func(L *lua.LState) int {
+	fetchTable.RawSetString("downloadFile", L.NewFunction(func(L *lua.LState) int {
 		url := L.CheckString(1)
 		dest := L.CheckString(2)
 		headers := L.OptTable(3, nil)
@@ -97,7 +98,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("parse_url", L.NewFunction(func(L *lua.LState) int {
+	fetchTable.RawSetString("parseURL", L.NewFunction(func(L *lua.LState) int {
 		urlStr := L.CheckString(1)
 		info, err := ParseURL(urlStr)
 		if err != nil {
@@ -121,7 +122,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("build_url", L.NewFunction(func(L *lua.LState) int {
+	fetchTable.RawSetString("buildURL", L.NewFunction(func(L *lua.LState) int {
 		baseURL := L.CheckString(1)
 		params := L.CheckTable(2)
 
@@ -137,7 +138,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("get_json", L.NewFunction(func(L *lua.LState) int {
+	fetchTable.RawSetString("getJSON", L.NewFunction(func(L *lua.LState) int {
 		url := L.CheckString(1)
 		result := L.CheckTable(2)
 		err := GetJSON(nil, url, result)
@@ -151,7 +152,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 2
 	}))
 
-	L.SetGlobal("post_json", L.NewFunction(func(L *lua.LState) int {
+	fetchTable.RawSetString("postJSON", L.NewFunction(func(L *lua.LState) int {
 		url := L.CheckString(1)
 		body := L.CheckTable(2)
 		result := L.OptTable(3, nil)
@@ -169,23 +170,27 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("new_http_client", L.NewFunction(func(L *lua.LState) int {
+	fetchTable.RawSetString("newClient", L.NewFunction(func(L *lua.LState) int {
 		timeout := L.OptNumber(1, 30)
 		NewClientWithTimeout(time.Duration(float64(timeout)) * time.Second)
 		L.Push(lua.LString("http_client"))
 		return 1
 	}))
 
-	L.SetGlobal("set_default_timeout", L.NewFunction(func(L *lua.LState) int {
+	fetchTable.RawSetString("setDefaultTimeout", L.NewFunction(func(L *lua.LState) int {
 		timeout := L.CheckNumber(1)
 		SetDefaultTimeout(time.Duration(float64(timeout)) * time.Second)
 		return 0
 	}))
+
+	L.SetGlobal("fetch", fetchTable)
 }
 
 // RegisterJS 向 JavaScript 运行时注册 fetch 函数。
 func (m *Module) RegisterJS(vm *goja.Runtime) {
-	vm.Set("download", func(call goja.FunctionCall) goja.Value {
+	fetchObj := vm.NewObject()
+
+	fetchObj.Set("download", func(call goja.FunctionCall) goja.Value {
 		url := call.Argument(0).String()
 		dest := call.Argument(1).String()
 		err := Download(url, dest)
@@ -195,7 +200,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
 	})
 
-	vm.Set("http_get", func(call goja.FunctionCall) goja.Value {
+	fetchObj.Set("get", func(call goja.FunctionCall) goja.Value {
 		url := call.Argument(0).String()
 		resp, err := Get(nil, url)
 		if err != nil {
@@ -204,7 +209,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "data": respToJS(resp)})
 	})
 
-	vm.Set("http_post", func(call goja.FunctionCall) goja.Value {
+	fetchObj.Set("post", func(call goja.FunctionCall) goja.Value {
 		url := call.Argument(0).String()
 		body := call.Argument(1).Export()
 		contentType := call.Argument(2).String()
@@ -215,7 +220,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "data": respToJS(resp)})
 	})
 
-	vm.Set("http_request", func(call goja.FunctionCall) goja.Value {
+	fetchObj.Set("request", func(call goja.FunctionCall) goja.Value {
 		url := call.Argument(0).String()
 		options := call.Argument(1).Export()
 
@@ -244,7 +249,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "data": respToJS(resp)})
 	})
 
-	vm.Set("http_download", func(call goja.FunctionCall) goja.Value {
+	fetchObj.Set("downloadFile", func(call goja.FunctionCall) goja.Value {
 		url := call.Argument(0).String()
 		dest := call.Argument(1).String()
 		var headers map[string]string
@@ -265,7 +270,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
 	})
 
-	vm.Set("parse_url", func(call goja.FunctionCall) goja.Value {
+	fetchObj.Set("parseURL", func(call goja.FunctionCall) goja.Value {
 		urlStr := call.Argument(0).String()
 		info, err := ParseURL(urlStr)
 		if err != nil {
@@ -283,7 +288,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		})
 	})
 
-	vm.Set("build_url", func(call goja.FunctionCall) goja.Value {
+	fetchObj.Set("buildURL", func(call goja.FunctionCall) goja.Value {
 		baseURL := call.Argument(0).String()
 		params := call.Argument(1).Export()
 
@@ -303,7 +308,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "data": result})
 	})
 
-	vm.Set("get_json", func(call goja.FunctionCall) goja.Value {
+	fetchObj.Set("getJSON", func(call goja.FunctionCall) goja.Value {
 		url := call.Argument(0).String()
 		result := call.Argument(1)
 		err := GetJSON(nil, url, result)
@@ -313,7 +318,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "data": result})
 	})
 
-	vm.Set("post_json", func(call goja.FunctionCall) goja.Value {
+	fetchObj.Set("postJSON", func(call goja.FunctionCall) goja.Value {
 		url := call.Argument(0).String()
 		body := call.Argument(1).Export()
 		result := call.Argument(2)
@@ -324,7 +329,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": true, "data": result})
 	})
 
-	vm.Set("new_http_client", func(call goja.FunctionCall) goja.Value {
+	fetchObj.Set("newClient", func(call goja.FunctionCall) goja.Value {
 		timeout := float64(30)
 		if t := call.Argument(0).ToFloat(); t > 0 {
 			timeout = t
@@ -333,16 +338,18 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(client)
 	})
 
-	vm.Set("set_default_timeout", func(call goja.FunctionCall) goja.Value {
+	fetchObj.Set("setDefaultTimeout", func(call goja.FunctionCall) goja.Value {
 		timeout := call.Argument(0).ToFloat()
 		SetDefaultTimeout(time.Duration(timeout) * time.Second)
 		return nil
 	})
+
+	vm.Set("fetch", fetchObj)
 }
 
 func respToLua(L *lua.LState, resp *Response) *lua.LTable {
 	tbl := L.NewTable()
-	tbl.RawSetString("status_code", lua.LNumber(resp.StatusCode))
+	tbl.RawSetString("status", lua.LNumber(resp.StatusCode))
 	tbl.RawSetString("body", lua.LString(resp.Body))
 
 	headersTbl := L.NewTable()
@@ -355,10 +362,10 @@ func respToLua(L *lua.LState, resp *Response) *lua.LTable {
 
 func respToJS(resp *Response) map[string]interface{} {
 	return map[string]interface{}{
-		"status_code": resp.StatusCode,
-		"body":        resp.Body,
-		"headers":     resp.Headers,
-		"raw_body":    string(resp.RawBody),
+		"status":  resp.StatusCode,
+		"body":    resp.Body,
+		"headers": resp.Headers,
+		"rawBody": string(resp.RawBody),
 	}
 }
 
