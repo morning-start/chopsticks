@@ -336,6 +336,10 @@ func (i *installer) Uninstall(ctx context.Context, name string, opts UninstallOp
 }
 
 func (i *installer) loadAppManifest(ctx context.Context, installed *manifest.InstalledApp) (*manifest.App, error) {
+	return i.doLoadAppManifest(ctx, installed)
+}
+
+func (i *installer) doLoadAppManifest(_ context.Context, installed *manifest.InstalledApp) (*manifest.App, error) {
 	bucketName := installed.Bucket
 	if bucketName == "" {
 		bucketName = "main"
