@@ -480,11 +480,11 @@ output.dimf("路径: %s", path);
 output.dimln("(可选)");
 
 // 带图标的输出
-output.successCheck("安装完成");      // ✓
-output.errorCross("安装失败");        // ✗
-output.warningSign("配置警告");       // ⚠
-output.infoSign("提示信息");          // ℹ
-output.arrow("下一步");               // →
+output.successCheck("安装完成"); // ✓
+output.errorCross("安装失败"); // ✗
+output.warningSign("配置警告"); // ⚠
+output.infoSign("提示信息"); // ℹ
+output.arrow("下一步"); // →
 ```
 
 ### 16.2 颜色控制
@@ -519,11 +519,11 @@ const installBar = pm.addInstallBar("nodejs", stages);
 // 显示: nodejs [下载] 25% 1/4
 
 // 设置当前阶段
-installBar.setStage(0);        // 下载阶段
-installBar.completeStage();    // 完成当前阶段，自动进入下一阶段
+installBar.setStage(0); // 下载阶段
+installBar.completeStage(); // 完成当前阶段，自动进入下一阶段
 
 // 设置阶段内进度 (0-100)
-installBar.setProgress(50);    // 当前阶段完成 50%
+installBar.setProgress(50); // 当前阶段完成 50%
 
 // 标记完成
 installBar.complete();

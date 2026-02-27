@@ -22,7 +22,7 @@ func Execute(ctx context.Context, appInstance app.Application) error {
 	cliApp := &cli.App{
 		Name:    "chopsticks",
 		Usage:   "Windows 包管理器 - 开发者友好的 Scoop 替代品",
-		Version: "0.2.0-alpha",
+		Version: "0.5.0-alpha",
 		Authors: []*cli.Author{
 			{
 				Name:  "Chopsticks Team",

@@ -198,25 +198,25 @@ func NewApp() *cli.App {
 
 **主要命令**:
 
-| 命令         | 功能       | 实现文件          | 别名                    |
-| ------------ | ---------- | ----------------- | ----------------------- |
-| `install`    | 安装应用   | `install.go`      | `i`                     |
-| `uninstall`  | 卸载应用   | `uninstall.go`    | `remove`, `rm`          |
-| `update`     | 更新应用   | `update.go`       | `upgrade`, `up`         |
-| `search`     | 搜索应用   | `search.go`       | `find`, `s`             |
-| `list`       | 列出应用   | `list.go`         | `ls`                    |
-| `bucket`     | 软件源管理 | `bucket.go`       | `b`                     |
-| `completion` | 自动补全   | `completion.go`   | -                       |
+| 命令         | 功能       | 实现文件        | 别名            |
+| ------------ | ---------- | --------------- | --------------- |
+| `install`    | 安装应用   | `install.go`    | `i`             |
+| `uninstall`  | 卸载应用   | `uninstall.go`  | `remove`, `rm`  |
+| `update`     | 更新应用   | `update.go`     | `upgrade`, `up` |
+| `search`     | 搜索应用   | `search.go`     | `find`, `s`     |
+| `list`       | 列出应用   | `list.go`       | `ls`            |
+| `bucket`     | 软件源管理 | `bucket.go`     | `b`             |
+| `completion` | 自动补全   | `completion.go` | -               |
 
 **全局选项**:
 
-| 选项           | 简写 | 说明               | 环境变量              |
-| -------------- | ---- | ------------------ | --------------------- |
-| `--config`     | `-c` | 指定配置文件路径   | `CHOPSTICKS_CONFIG`   |
-| `--verbose`    | `-v` | 启用详细输出       | `CHOPSTICKS_VERBOSE`  |
-| `--no-color`   | -    | 禁用彩色输出       | `NO_COLOR`            |
-| `--help`       | `-h` | 显示帮助信息       | -                     |
-| `--version`    | `-V` | 显示版本信息       | -                     |
+| 选项         | 简写 | 说明             | 环境变量             |
+| ------------ | ---- | ---------------- | -------------------- |
+| `--config`   | `-c` | 指定配置文件路径 | `CHOPSTICKS_CONFIG`  |
+| `--verbose`  | `-v` | 启用详细输出     | `CHOPSTICKS_VERBOSE` |
+| `--no-color` | -    | 禁用彩色输出     | `NO_COLOR`           |
+| `--help`     | `-h` | 显示帮助信息     | -                    |
+| `--version`  | `-V` | 显示版本信息     | -                    |
 
 ### 2. Core 层 (core/)
 
@@ -420,14 +420,14 @@ func WarningSign(msg string)       // ⚠ 警告
 
 **颜色主题**:
 
-| 类型     | 颜色 | 样式   | 使用场景           |
-| -------- | ---- | ------ | ------------------ |
-| Success  | 绿色 | 加粗   | 操作成功、完成状态 |
-| Error    | 红色 | 加粗   | 错误消息、失败状态 |
-| Warning  | 黄色 | 正常   | 警告、注意事项     |
-| Info     | 蓝色 | 正常   | 一般信息、提示     |
-| Highlight| 青色 | 加粗   | 重要内容、强调     |
-| Dim      | 灰色 | 正常   | 次要信息、元数据   |
+| 类型      | 颜色 | 样式 | 使用场景           |
+| --------- | ---- | ---- | ------------------ |
+| Success   | 绿色 | 加粗 | 操作成功、完成状态 |
+| Error     | 红色 | 加粗 | 错误消息、失败状态 |
+| Warning   | 黄色 | 正常 | 警告、注意事项     |
+| Info      | 蓝色 | 正常 | 一般信息、提示     |
+| Highlight | 青色 | 加粗 | 重要内容、强调     |
+| Dim       | 灰色 | 正常 | 次要信息、元数据   |
 
 #### 4.2 进度显示 (progress.go)
 
@@ -447,11 +447,11 @@ func (pm *ProgressManager) Wait()
 
 **进度条类型**:
 
-| 类型         | 说明                     | 显示内容                          |
-| ------------ | ------------------------ | --------------------------------- |
-| 下载进度条   | 文件下载进度             | 名称、已下载/总大小、百分比、速度、剩余时间 |
-| 安装进度条   | 多阶段安装进度           | 应用名、当前阶段、总体百分比        |
-| 批量进度条   | 批量操作进度             | 当前项/总项数、当前处理项名称        |
+| 类型       | 说明           | 显示内容                                    |
+| ---------- | -------------- | ------------------------------------------- |
+| 下载进度条 | 文件下载进度   | 名称、已下载/总大小、百分比、速度、剩余时间 |
+| 安装进度条 | 多阶段安装进度 | 应用名、当前阶段、总体百分比                |
+| 批量进度条 | 批量操作进度   | 当前项/总项数、当前处理项名称               |
 
 ### 5. Infra 层 (infra/)
 
@@ -575,17 +575,17 @@ sequenceDiagram
 
 ### 核心依赖
 
-| 库                               | 用途             | 版本                  |
-| -------------------------------- | ---------------- | --------------------- |
-| `github.com/dop251/goja`         | JavaScript 引擎  | v0.0.0-20260106131823 |
-| `github.com/yuin/gopher-lua`     | Lua 引擎         | v1.1.1                |
-| `github.com/go-git/go-git/v5`    | Git 操作         | v5.11.0               |
-| `github.com/mattn/go-sqlite3`    | SQLite 数据库    | v1.14.24              |
-| `github.com/ulikunitz/xz`        | XZ 压缩支持      | v0.5.11               |
-| `golang.org/x/sys`               | Windows 系统调用 | v0.32.0               |
-| `github.com/urfave/cli/v2`       | CLI 框架         | v2.x                  |
-| `github.com/vbauerster/mpb/v8`   | 多进度条显示     | v8.x                  |
-| `github.com/fatih/color`         | 终端彩色输出     | v1.x                  |
+| 库                             | 用途             | 版本                  |
+| ------------------------------ | ---------------- | --------------------- |
+| `github.com/dop251/goja`       | JavaScript 引擎  | v0.0.0-20260106131823 |
+| `github.com/yuin/gopher-lua`   | Lua 引擎         | v1.1.1                |
+| `github.com/go-git/go-git/v5`  | Git 操作         | v5.11.0               |
+| `github.com/mattn/go-sqlite3`  | SQLite 数据库    | v1.14.24              |
+| `github.com/ulikunitz/xz`      | XZ 压缩支持      | v0.5.11               |
+| `golang.org/x/sys`             | Windows 系统调用 | v0.32.0               |
+| `github.com/urfave/cli/v2`     | CLI 框架         | v2.x                  |
+| `github.com/vbauerster/mpb/v8` | 多进度条显示     | v8.x                  |
+| `github.com/fatih/color`       | 终端彩色输出     | v1.x                  |
 
 ### 选型理由
 
@@ -722,3 +722,4 @@ bucket/
 
 _最后更新: 2026-02-27_
 _架构版本: v1.2_
+_软件版本: v0.5.0-alpha_
