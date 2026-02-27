@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"fmt"
+	"chopsticks/pkg/output"
 
 	"github.com/urfave/cli/v2"
 )
@@ -33,17 +33,20 @@ func searchCommand() *cli.Command {
 // searchAction 处理搜索命令。
 func searchAction(c *cli.Context) error {
 	if c.NArg() < 1 {
-		return cli.Exit("错误: 缺少搜索关键词\n用法: chopsticks search <query>", 1)
+		output.Errorln("错误: 缺少搜索关键词")
+		output.Dimln("用法: chopsticks search <query>")
+		return cli.Exit("", 1)
 	}
 
 	query := c.Args().First()
 	bucketName := c.String("bucket")
 
-	fmt.Printf("搜索: %s\n", query)
+	output.Info("搜索: ")
+	output.Highlightln(query)
 	if bucketName != "" {
-		fmt.Printf("软件源: %s\n", bucketName)
+		output.Dim("软件源: ")
+		output.Infoln(bucketName)
 	}
-	fmt.Println()
 
 	ctx := getContext(c)
 	application := getApp()
@@ -51,26 +54,26 @@ func searchAction(c *cli.Context) error {
 	// 调用 app manager 搜索
 	results, err := application.AppManager().Search(ctx, query, bucketName)
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("搜索失败: %v", err), 1)
+		output.ErrorCrossf("搜索失败: %v", err)
+		return cli.Exit("", 1)
 	}
 
 	// 显示结果
-	fmt.Println("搜索结果:")
-	fmt.Println("-----------")
+	output.Highlightln("\n搜索结果:")
+	output.Dimln("-----------")
 
 	if len(results) == 0 {
-		fmt.Println("未找到匹配的应用")
+		output.Warningln("未找到匹配的应用")
 		return nil
 	}
 
 	for _, result := range results {
-		fmt.Printf("  %s\n", result.App.Name)
+		output.Success(result.App.Name)
 		if result.App.Description != "" {
-			fmt.Printf("    描述: %s\n", result.App.Description)
+			output.Dimf("    描述: %s\n", result.App.Description)
 		}
-		fmt.Printf("    版本: %s\n", result.App.Version)
-		fmt.Printf("    软件源: %s\n", result.Bucket)
-		fmt.Println()
+		output.Dimf("    版本: %s\n", result.App.Version)
+		output.Dimf("    软件源: %s\n", result.Bucket)
 	}
 
 	return nil

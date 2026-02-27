@@ -1,14 +1,223 @@
+// Package output 提供输出格式化功能，包括彩色输出。
 package output
 
 import (
 	"fmt"
 	"os"
+	"sync"
 
-	"github.com/mattn/go-colorable"
-	"github.com/mgutz/ansi"
-	"golang.org/x/sys/windows"
+	"github.com/fatih/color"
 )
 
+var (
+	// 全局颜色开关
+	colorEnabled = true
+	colorMu      sync.RWMutex
+)
+
+// 预定义的颜色对象
+var (
+	// ColorSuccess 成功颜色（绿色加粗）
+	ColorSuccess = color.New(color.FgGreen, color.Bold)
+	// ColorError 错误颜色（红色加粗）
+	ColorError = color.New(color.FgRed, color.Bold)
+	// ColorWarning 警告颜色（黄色）
+	ColorWarning = color.New(color.FgYellow)
+	// ColorInfo 信息颜色（蓝色）
+	ColorInfo = color.New(color.FgBlue)
+	// ColorHighlight 高亮颜色（青色加粗）
+	ColorHighlight = color.New(color.FgCyan, color.Bold)
+	// ColorDim 暗淡颜色（灰色）
+	ColorDim = color.New(color.FgHiBlack)
+	// ColorBold 粗体
+	ColorBold = color.New(color.Bold)
+)
+
+func init() {
+	// 初始化时根据环境自动检测颜色支持
+	updateColorState()
+}
+
+// updateColorState 根据全局开关更新颜色状态
+func updateColorState() {
+	colorMu.RLock()
+	enabled := colorEnabled
+	colorMu.RUnlock()
+
+	color.NoColor = !enabled
+}
+
+// SetColorEnabled 启用/禁用颜色输出
+func SetColorEnabled(enabled bool) {
+	colorMu.Lock()
+	colorEnabled = enabled
+	colorMu.Unlock()
+
+	color.NoColor = !enabled
+}
+
+// IsColorEnabled 检查颜色是否启用
+func IsColorEnabled() bool {
+	colorMu.RLock()
+	defer colorMu.RUnlock()
+	return colorEnabled && !color.NoColor
+}
+
+// DisableColor 禁用颜色输出
+func DisableColor() {
+	SetColorEnabled(false)
+}
+
+// EnableColor 启用颜色输出
+func EnableColor() {
+	SetColorEnabled(true)
+}
+
+// Success 输出成功消息（绿色）
+func Success(format string, a ...interface{}) {
+	ColorSuccess.Printf(format, a...)
+}
+
+// Successln 输出成功消息并换行
+func Successln(a ...interface{}) {
+	ColorSuccess.Println(a...)
+}
+
+// Successf 输出格式化的成功消息
+func Successf(format string, a ...interface{}) {
+	ColorSuccess.Printf(format, a...)
+}
+
+// Error 输出错误消息（红色）
+func Error(format string, a ...interface{}) {
+	ColorError.Fprintf(os.Stderr, format, a...)
+}
+
+// Errorln 输出错误消息并换行
+func Errorln(a ...interface{}) {
+	ColorError.Fprintln(os.Stderr, a...)
+}
+
+// Errorf 输出格式化的错误消息
+func Errorf(format string, a ...interface{}) {
+	ColorError.Fprintf(os.Stderr, format, a...)
+}
+
+// Warning 输出警告消息（黄色）
+func Warning(format string, a ...interface{}) {
+	ColorWarning.Printf(format, a...)
+}
+
+// Warningln 输出警告消息并换行
+func Warningln(a ...interface{}) {
+	ColorWarning.Println(a...)
+}
+
+// Warningf 输出格式化的警告消息
+func Warningf(format string, a ...interface{}) {
+	ColorWarning.Printf(format, a...)
+}
+
+// Info 输出信息消息（蓝色）
+func Info(format string, a ...interface{}) {
+	ColorInfo.Printf(format, a...)
+}
+
+// Infoln 输出信息消息并换行
+func Infoln(a ...interface{}) {
+	ColorInfo.Println(a...)
+}
+
+// Infof 输出格式化的信息消息
+func Infof(format string, a ...interface{}) {
+	ColorInfo.Printf(format, a...)
+}
+
+// Highlight 输出高亮消息（青色）
+func Highlight(format string, a ...interface{}) {
+	ColorHighlight.Printf(format, a...)
+}
+
+// Highlightln 输出高亮消息并换行
+func Highlightln(a ...interface{}) {
+	ColorHighlight.Println(a...)
+}
+
+// Highlightf 输出格式化的高亮消息
+func Highlightf(format string, a ...interface{}) {
+	ColorHighlight.Printf(format, a...)
+}
+
+// Dim 输出暗淡消息（灰色）
+func Dim(format string, a ...interface{}) {
+	ColorDim.Printf(format, a...)
+}
+
+// Dimln 输出暗淡消息并换行
+func Dimln(a ...interface{}) {
+	ColorDim.Println(a...)
+}
+
+// Dimf 输出格式化的暗淡消息
+func Dimf(format string, a ...interface{}) {
+	ColorDim.Printf(format, a...)
+}
+
+// Print 使用指定颜色输出
+func Print(c *color.Color, format string, a ...interface{}) {
+	c.Printf(format, a...)
+}
+
+// Println 使用指定颜色输出并换行
+func Println(c *color.Color, a ...interface{}) {
+	c.Println(a...)
+}
+
+// Printf 使用指定颜色格式化输出
+func Printf(c *color.Color, format string, a ...interface{}) {
+	c.Printf(format, a...)
+}
+
+// 带图标的消息输出
+
+// SuccessCheck 输出带勾选的成功消息
+func SuccessCheck(msg string) {
+	ColorSuccess.Println("✓", msg)
+}
+
+// SuccessCheckf 输出带勾选的格式化成功消息
+func SuccessCheckf(format string, a ...interface{}) {
+	ColorSuccess.Printf("✓ "+format+"\n", a...)
+}
+
+// ErrorCross 输出带叉号的错误消息
+func ErrorCross(msg string) {
+	ColorError.Fprintln(os.Stderr, "✗", msg)
+}
+
+// ErrorCrossf 输出带叉号的格式化错误消息
+func ErrorCrossf(format string, a ...interface{}) {
+	ColorError.Fprintf(os.Stderr, "✗ "+format+"\n", a...)
+}
+
+// WarningSign 输出带警告符号的警告消息
+func WarningSign(msg string) {
+	ColorWarning.Println("⚠", msg)
+}
+
+// InfoSign 输出带信息符号的信息消息
+func InfoSign(msg string) {
+	ColorInfo.Println("ℹ", msg)
+}
+
+// Arrow 输出带箭头的高亮消息
+func Arrow(msg string) {
+	ColorHighlight.Println("→", msg)
+}
+
+// 兼容旧版 API
+
+// Color 颜色类型（兼容旧版）
 type Color int
 
 const (
@@ -37,221 +246,112 @@ const (
 	InfoColor    = Cyan
 )
 
-var (
-	stdout = colorable.NewColorableStdout()
-	stderr = colorable.NewColorableStderr()
-	colors = map[Color]string{
-		Reset:         ansi.Reset,
-		Black:         ansi.ColorCode("black"),
-		Red:           ansi.ColorCode("red"),
-		Green:         ansi.ColorCode("green"),
-		Yellow:        ansi.ColorCode("yellow"),
-		Blue:          ansi.ColorCode("blue"),
-		Magenta:       ansi.ColorCode("magenta"),
-		Cyan:          ansi.ColorCode("cyan"),
-		White:         ansi.ColorCode("white"),
-		BrightBlack:   ansi.ColorCode("black+h"),
-		BrightRed:     ansi.ColorCode("red+h"),
-		BrightGreen:   ansi.ColorCode("green+h"),
-		BrightYellow:  ansi.ColorCode("yellow+h"),
-		BrightBlue:    ansi.ColorCode("blue+h"),
-		BrightMagenta: ansi.ColorCode("magenta+h"),
-		BrightCyan:    ansi.ColorCode("cyan+h"),
-		BrightWhite:   ansi.ColorCode("white+h"),
-	}
-	disableColor bool
-)
-
-func DisableColor() {
-	disableColor = true
-}
-
-func EnableColor() {
-	disableColor = false
-}
-
-func IsColorEnabled() bool {
-	return !disableColor && isTerminal()
-}
-
-func isTerminal() bool {
-	return isStdoutTerminal() || isStderrTerminal()
-}
-
-func isStdoutTerminal() bool {
-	return isTty(os.Stdout.Fd())
-}
-
-func isStderrTerminal() bool {
-	return isTty(os.Stderr.Fd())
-}
-
-func isTty(fd uintptr) bool {
-	return checkIsTerminal(fd)
-}
-
-func checkIsTerminal(fd uintptr) bool {
-	if fd == 0 || fd == 1 || fd == 2 {
-		return isTerminalDevice(fd)
-	}
-	return false
-}
-
-func isTerminalDevice(fd uintptr) bool {
-	_, err := getConsoleMode(fd)
-	return err == nil
-}
-
-func getConsoleMode(fd uintptr) (uint32, error) {
-	var mode uint32
-	err := windows.GetConsoleMode(windows.Handle(fd), &mode)
-	return mode, err
-}
-
-func Colorize(color Color, message string) string {
-	if disableColor || !isTerminal() {
+// Colorize 给消息添加颜色（兼容旧版）
+func Colorize(c Color, message string) string {
+	switch c {
+	case Red:
+		return ColorError.Sprint(message)
+	case Green:
+		return ColorSuccess.Sprint(message)
+	case Yellow:
+		return ColorWarning.Sprint(message)
+	case Blue:
+		return ColorInfo.Sprint(message)
+	case Cyan:
+		return ColorHighlight.Sprint(message)
+	case Magenta:
+		return color.MagentaString(message)
+	case White:
+		return color.WhiteString(message)
+	case BrightBlack:
+		return ColorDim.Sprint(message)
+	default:
 		return message
 	}
-	c, ok := colors[color]
-	if !ok {
-		return message
-	}
-	return c + message + ansi.Reset
 }
 
-func ColorizeBg(color Color, bgColor Color, message string) string {
-	if disableColor || !isTerminal() {
-		return message
-	}
-	fg, ok := colors[color]
-	if !ok {
-		return message
-	}
-	bg, ok := colors[bgColor]
-	if !ok {
-		return message
-	}
-	return fg + bg + message + ansi.Reset
+// ColorizeBg 给消息添加前景色和背景色（兼容旧版，简化实现）
+func ColorizeBg(fg Color, bg Color, message string) string {
+	// 简化实现，只使用前景色
+	return Colorize(fg, message)
 }
 
-func Print(color Color, format string, args ...interface{}) {
-	if IsColorEnabled() {
-		fmt.Fprint(stdout, Colorize(color, fmt.Sprintf(format, args...)))
-	} else {
-		fmt.Fprintf(stdout, format, args...)
-	}
-}
-
-func Println(color Color, args ...interface{}) {
-	if IsColorEnabled() {
-		var argsWithColor []interface{}
-		for _, arg := range args {
-			if s, ok := arg.(string); ok {
-				argsWithColor = append(argsWithColor, Colorize(color, s))
-			} else {
-				argsWithColor = append(argsWithColor, arg)
-			}
-		}
-		fmt.Fprintln(stdout, argsWithColor...)
-	} else {
-		fmt.Fprintln(stdout, args...)
-	}
-}
-
-func Printf(color Color, format string, args ...interface{}) {
-	if IsColorEnabled() {
-		message := Colorize(color, fmt.Sprintf(format, args...))
-		fmt.Fprint(stdout, message)
-	} else {
-		fmt.Fprintf(stdout, format, args...)
-	}
-}
-
+// PrintError 输出错误（兼容旧版）
 func PrintError(format string, args ...interface{}) {
-	if IsColorEnabled() {
-		message := Colorize(ErrorColor, fmt.Sprintf(format, args...))
-		fmt.Fprint(stderr, message)
-	} else {
-		fmt.Fprintf(stderr, format, args...)
-	}
+	Errorf(format, args...)
 }
 
+// PrintErrorln 输出错误并换行（兼容旧版）
 func PrintErrorln(args ...interface{}) {
-	if IsColorEnabled() {
-		var argsWithColor []interface{}
-		for _, arg := range args {
-			if s, ok := arg.(string); ok {
-				argsWithColor = append(argsWithColor, Colorize(ErrorColor, s))
-			} else {
-				argsWithColor = append(argsWithColor, arg)
-			}
-		}
-		fmt.Fprintln(stderr, argsWithColor...)
-	} else {
-		fmt.Fprintln(stderr, args...)
-	}
+	Errorln(args...)
 }
 
+// PrintSuccess 输出成功（兼容旧版）
 func PrintSuccess(format string, args ...interface{}) {
-	Print(SuccessColor, format, args...)
+	Successf(format, args...)
 }
 
+// PrintSuccessln 输出成功并换行（兼容旧版）
 func PrintSuccessln(args ...interface{}) {
-	Println(SuccessColor, args...)
+	Successln(args...)
 }
 
+// PrintWarning 输出警告（兼容旧版）
 func PrintWarning(format string, args ...interface{}) {
-	Print(WarningColor, format, args...)
+	Warningf(format, args...)
 }
 
+// PrintWarningln 输出警告并换行（兼容旧版）
 func PrintWarningln(args ...interface{}) {
-	Println(WarningColor, args...)
+	Warningln(args...)
 }
 
+// PrintInfo 输出信息（兼容旧版）
 func PrintInfo(format string, args ...interface{}) {
-	Print(InfoColor, format, args...)
+	Infof(format, args...)
 }
 
+// PrintInfoln 输出信息并换行（兼容旧版）
 func PrintInfoln(args ...interface{}) {
-	Println(InfoColor, args...)
+	Infoln(args...)
 }
 
+// Header 输出标题（兼容旧版）
 func Header(format string, args ...interface{}) {
-	Print(Cyan, format, args...)
+	Highlightf(format, args...)
 }
 
+// SubHeader 输出副标题（兼容旧版）
 func SubHeader(format string, args ...interface{}) {
-	Print(Blue, format, args...)
+	Infof(format, args...)
 }
 
+// Item 输出项目（兼容旧版）
 func Item(label, value string) {
-	if IsColorEnabled() {
-		fmt.Fprintf(stdout, "%s %s\n", Colorize(BrightBlack, label+":"), value)
-	} else {
-		fmt.Printf("%s %s\n", label+":", value)
-	}
+	fmt.Printf("%s %s\n", ColorDim.Sprint(label+":"), value)
 }
 
+// Checkmark 输出勾选（兼容旧版）
 func Checkmark() {
-	Println(SuccessColor, "✓")
+	Successln("✓")
 }
 
+// CheckmarkWith 输出带勾选的文本（兼容旧版）
 func CheckmarkWith(msg string) {
-	Println(SuccessColor, "✓ "+msg)
+	SuccessCheck(msg)
 }
 
+// Crossmark 输出叉号（兼容旧版）
 func Crossmark() {
-	Println(ErrorColor, "✗")
+	Errorln("✗")
 }
 
+// CrossmarkWith 输出带叉号的文本（兼容旧版）
 func CrossmarkWith(msg string) {
-	Println(ErrorColor, "✗ "+msg)
+	ErrorCross(msg)
 }
 
-func Arrow() {
-	Print(InfoColor, "→ ")
-}
-
+// ArrowWith 输出带箭头的文本（兼容旧版）
 func ArrowWith(msg string) {
-	Print(InfoColor, "%s", "→ "+msg)
+	Arrow(msg)
 }

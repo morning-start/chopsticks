@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"chopsticks/core/app"
+	"chopsticks/pkg/output"
 
 	"github.com/urfave/cli/v2"
 )
@@ -60,6 +61,10 @@ func Execute(ctx context.Context, appInstance app.Application) error {
 			// 设置上下文
 			c.App.Metadata = map[string]interface{}{
 				"context": ctx,
+			}
+			// 处理 --no-color 选项
+			if c.Bool("no-color") {
+				output.DisableColor()
 			}
 			return nil
 		},

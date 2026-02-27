@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"fmt"
+	"chopsticks/pkg/output"
 
 	"github.com/urfave/cli/v2"
 )
@@ -37,36 +37,35 @@ func listAction(c *cli.Context) error {
 
 	if installed {
 		// 列出已安装的软件包
-		fmt.Println("已安装的软件包:")
-		fmt.Println("--------------")
+		output.Highlightln("已安装的软件包:")
+		output.Dimln("--------------")
 
 		apps, err := application.AppManager().ListInstalled()
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("获取已安装列表失败: %v", err), 1)
+			output.ErrorCrossf("获取已安装列表失败: %v", err)
+			return cli.Exit("", 1)
 		}
 
 		if len(apps) == 0 {
-			fmt.Println("  暂无已安装的软件包")
+			output.Dimln("  (暂无已安装的软件包)")
 			return nil
 		}
 
 		for _, a := range apps {
-			fmt.Printf("  %s@%s\n", a.Name, a.Version)
-			fmt.Printf("    软件源: %s\n", a.Bucket)
-			fmt.Printf("    安装目录: %s\n", a.InstallDir)
-			fmt.Println()
+			output.Successf("  %s@%s\n", a.Name, a.Version)
+			output.Dimf("    软件源: %s\n", a.Bucket)
+			output.Dimf("    安装目录: %s\n", a.InstallDir)
 		}
 	} else {
 		// 列出可用软件包
-		fmt.Println("可用软件包:")
-		fmt.Println("----------")
-		fmt.Println("  使用 'chopsticks search <query>' 搜索特定软件包")
-		fmt.Println()
-		fmt.Println("  常用软件包:")
-		fmt.Println("    git        - Distributed version control system")
-		fmt.Println("    nodejs     - JavaScript runtime")
-		fmt.Println("    python     - Python programming language")
-		fmt.Println("    vscode     - Visual Studio Code editor")
+		output.Highlightln("可用软件包:")
+		output.Dimln("----------")
+		output.Infoln("  使用 'chopsticks search <query>' 搜索特定软件包")
+		output.Highlightln("\n  常用软件包:")
+		output.Item("git", "Distributed version control system")
+		output.Item("nodejs", "JavaScript runtime")
+		output.Item("python", "Python programming language")
+		output.Item("vscode", "Visual Studio Code editor")
 	}
 
 	return nil

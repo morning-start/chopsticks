@@ -2,9 +2,9 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"chopsticks/core/app"
+	"chopsticks/pkg/output"
 
 	"github.com/urfave/cli/v2"
 )
@@ -48,7 +48,9 @@ func installCommand() *cli.Command {
 // installAction 处理安装命令。
 func installAction(c *cli.Context) error {
 	if c.NArg() < 1 {
-		return cli.Exit("错误: 缺少软件包名称\n用法: chopsticks install <package>[@version]", 1)
+		output.Errorln("错误: 缺少软件包名称")
+		output.Dimln("用法: chopsticks install <package>[@version]")
+		return cli.Exit("", 1)
 	}
 
 	spec := c.Args().First()
@@ -58,14 +60,16 @@ func installAction(c *cli.Context) error {
 	arch := c.String("arch")
 	bucket := c.String("bucket")
 
-	fmt.Printf("正在安装 %s", name)
+	output.Info("正在安装 ")
+	output.Highlight(name)
 	if version != "" {
-		fmt.Printf("@%s", version)
+		output.Dim("@")
+		output.Info(version)
 	}
 	if force {
-		fmt.Print(" (强制)")
+		output.Warning(" (强制)")
 	}
-	fmt.Println("...")
+	fmt.Println()
 
 	ctx := getContext(c)
 	application := getApp()
@@ -82,11 +86,11 @@ func installAction(c *cli.Context) error {
 	}
 
 	if err := application.AppManager().Install(ctx, installSpec, opts); err != nil {
-		fmt.Fprintf(os.Stderr, "✗ 安装失败: %v\n", err)
+		output.ErrorCross(fmt.Sprintf("安装失败: %v", err))
 		return cli.Exit("", 1)
 	}
 
-	fmt.Printf("✓ %s 安装成功\n", name)
+	output.SuccessCheck(fmt.Sprintf("%s 安装成功", name))
 	return nil
 }
 

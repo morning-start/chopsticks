@@ -1,10 +1,8 @@
 package cli
 
 import (
-	"fmt"
-	"os"
-
 	"chopsticks/core/app"
+	"chopsticks/pkg/output"
 
 	"github.com/urfave/cli/v2"
 )
@@ -51,27 +49,29 @@ func updateAction(c *cli.Context) error {
 	}
 
 	if updateAll {
-		fmt.Println("正在更新所有软件包...")
+		output.Infoln("正在更新所有软件包...")
 		if err := application.AppManager().UpdateAll(ctx, opts); err != nil {
-			fmt.Fprintf(os.Stderr, "✗ 更新失败: %v\n", err)
+			output.ErrorCrossf("更新失败: %v", err)
 			return cli.Exit("", 1)
 		}
-		fmt.Println("✓ 所有软件包更新成功")
+		output.SuccessCheck("所有软件包更新成功")
 		return nil
 	}
 
 	if c.NArg() < 1 {
-		return cli.Exit("错误: 缺少软件包名称\n用法: chopsticks update [package] [--all]", 1)
+		output.Errorln("错误: 缺少软件包名称")
+		output.Dimln("用法: chopsticks update [package] [--all]")
+		return cli.Exit("", 1)
 	}
 
 	pkgName := c.Args().First()
 
-	fmt.Printf("正在更新 %s...\n", pkgName)
+	output.Infof("正在更新 %s...\n", pkgName)
 	if err := application.AppManager().Update(ctx, pkgName, opts); err != nil {
-		fmt.Fprintf(os.Stderr, "✗ 更新失败: %v\n", err)
+		output.ErrorCrossf("更新失败: %v", err)
 		return cli.Exit("", 1)
 	}
 
-	fmt.Printf("✓ %s 更新成功\n", pkgName)
+	output.SuccessCheckf("%s 更新成功", pkgName)
 	return nil
 }
