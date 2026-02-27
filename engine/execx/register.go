@@ -80,8 +80,10 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		args := call.Arguments
 		if len(args) == 0 {
 			return vm.ToValue(map[string]interface{}{
-				"success": false,
-				"error":   "no command specified",
+				"exitCode": -1,
+				"stdout":   "",
+				"stderr":   "no command specified",
+				"success":  false,
 			})
 		}
 
@@ -94,22 +96,28 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		result, err := Exec(name, execArgs...)
 		if err != nil {
 			return vm.ToValue(map[string]interface{}{
-				"success": false,
-				"error":   err.Error(),
+				"exitCode": -1,
+				"stdout":   "",
+				"stderr":   err.Error(),
+				"success":  false,
 			})
 		}
 
 		return vm.ToValue(map[string]interface{}{
-			"success": true,
-			"data":    result,
+			"exitCode": result.ExitCode,
+			"stdout":   result.Stdout,
+			"stderr":   result.Stderr,
+			"success":  result.Success,
 		})
 	})
 
 	execObj.Set("shell", func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) == 0 {
 			return vm.ToValue(map[string]interface{}{
-				"success": false,
-				"error":   "no command specified",
+				"exitCode": -1,
+				"stdout":   "",
+				"stderr":   "no command specified",
+				"success":  false,
 			})
 		}
 
@@ -117,22 +125,28 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		result, err := ExecShell(command)
 		if err != nil {
 			return vm.ToValue(map[string]interface{}{
-				"success": false,
-				"error":   err.Error(),
+				"exitCode": -1,
+				"stdout":   "",
+				"stderr":   err.Error(),
+				"success":  false,
 			})
 		}
 
 		return vm.ToValue(map[string]interface{}{
-			"success": true,
-			"data":    result,
+			"exitCode": result.ExitCode,
+			"stdout":   result.Stdout,
+			"stderr":   result.Stderr,
+			"success":  result.Success,
 		})
 	})
 
 	execObj.Set("powershell", func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) == 0 {
 			return vm.ToValue(map[string]interface{}{
-				"success": false,
-				"error":   "no command specified",
+				"exitCode": -1,
+				"stdout":   "",
+				"stderr":   "no command specified",
+				"success":  false,
 			})
 		}
 
@@ -140,14 +154,18 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		result, err := ExecPowerShell(command)
 		if err != nil {
 			return vm.ToValue(map[string]interface{}{
-				"success": false,
-				"error":   err.Error(),
+				"exitCode": -1,
+				"stdout":   "",
+				"stderr":   err.Error(),
+				"success":  false,
 			})
 		}
 
 		return vm.ToValue(map[string]interface{}{
-			"success": true,
-			"data":    result,
+			"exitCode": result.ExitCode,
+			"stdout":   result.Stdout,
+			"stderr":   result.Stderr,
+			"success":  result.Success,
 		})
 	})
 
