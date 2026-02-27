@@ -16,14 +16,23 @@ type Module struct {
 	appsPath    string
 	shimsPath   string
 	persistPath string
+	cachePath   string
+	configPath  string
 }
 
 // NewModule 创建新的 chopsticks 模块。
 func NewModule(appsPath, shimsPath, persistPath string) *Module {
+	// 获取缓存目录
+	cachePath := filepath.Join(os.Getenv("LOCALAPPDATA"), "chopsticks", "cache")
+	// 获取配置目录
+	configPath := filepath.Join(os.Getenv("APPDATA"), "chopsticks")
+
 	return &Module{
 		appsPath:    appsPath,
 		shimsPath:   shimsPath,
 		persistPath: persistPath,
+		cachePath:   cachePath,
+		configPath:  configPath,
 	}
 }
 
@@ -336,4 +345,40 @@ func (m *Module) RemoveShortcut(name string) error {
 	}
 
 	return nil
+}
+
+// GetCacheDir 返回缓存目录。
+func (m *Module) GetCacheDir() string {
+	return m.cachePath
+}
+
+// GetConfigDir 返回配置目录。
+func (m *Module) GetConfigDir() string {
+	return m.configPath
+}
+
+// DeleteEnv 删除环境变量。
+func (m *Module) DeleteEnv(key string) error {
+	// 打开用户环境变量注册表键
+	keyReg, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.READ|registry.WRITE)
+	if err != nil {
+		return fmt.Errorf("打开注册表键: %w", err)
+	}
+	defer keyReg.Close()
+
+	// 删除环境变量
+	if err := keyReg.DeleteValue(key); err != nil {
+		if err == registry.ErrNotExist {
+			return nil // 不存在则忽略
+		}
+		return fmt.Errorf("删除环境变量: %w", err)
+	}
+
+	// 通知系统环境变量已更改
+	return notifyEnvironmentChange()
+}
+
+// GetPath 获取 PATH 环境变量。
+func (m *Module) GetPath() string {
+	return os.Getenv("PATH")
 }

@@ -135,6 +135,35 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
+	L.SetField(mod, "get_cache_dir", L.NewFunction(func(L *lua.LState) int {
+		result := m.GetCacheDir()
+		L.Push(lua.LString(result))
+		return 1
+	}))
+
+	L.SetField(mod, "get_config_dir", L.NewFunction(func(L *lua.LState) int {
+		result := m.GetConfigDir()
+		L.Push(lua.LString(result))
+		return 1
+	}))
+
+	L.SetField(mod, "delete_env", L.NewFunction(func(L *lua.LState) int {
+		key := L.CheckString(1)
+		if err := m.DeleteEnv(key); err != nil {
+			L.Push(lua.LBool(false))
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+		L.Push(lua.LBool(true))
+		return 1
+	}))
+
+	L.SetField(mod, "get_path", L.NewFunction(func(L *lua.LState) int {
+		result := m.GetPath()
+		L.Push(lua.LString(result))
+		return 1
+	}))
+
 	L.SetGlobal("chopsticks", mod)
 }
 
@@ -265,6 +294,32 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 			})
 		}
 		return vm.ToValue(map[string]interface{}{"success": true})
+	})
+
+	chopsticksObj.Set("getCacheDir", func(call goja.FunctionCall) goja.Value {
+		result := m.GetCacheDir()
+		return vm.ToValue(result)
+	})
+
+	chopsticksObj.Set("getConfigDir", func(call goja.FunctionCall) goja.Value {
+		result := m.GetConfigDir()
+		return vm.ToValue(result)
+	})
+
+	chopsticksObj.Set("deleteEnv", func(call goja.FunctionCall) goja.Value {
+		key := call.Argument(0).String()
+		if err := m.DeleteEnv(key); err != nil {
+			return vm.ToValue(map[string]interface{}{
+				"success": false,
+				"error":   err.Error(),
+			})
+		}
+		return vm.ToValue(map[string]interface{}{"success": true})
+	})
+
+	chopsticksObj.Set("getPath", func(call goja.FunctionCall) goja.Value {
+		result := m.GetPath()
+		return vm.ToValue(result)
 	})
 
 	vm.Set("chopsticks", chopsticksObj)
