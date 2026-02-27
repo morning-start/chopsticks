@@ -182,10 +182,17 @@ func (i *installer) verifyChecksum(filePath, expectedHash string) error {
 		return nil
 	}
 
-	hash := strings.TrimSpace(strings.Split(expectedHash, ":")[0])
-	calc := checksum.New(checksum.SHA256)
+	alg := "sha256"
+	hash := expectedHash
 
-	switch strings.ToLower(hash) {
+	parts := strings.SplitN(expectedHash, ":", 2)
+	if len(parts) == 2 {
+		alg = strings.TrimSpace(strings.ToLower(parts[0]))
+		hash = strings.TrimSpace(parts[1])
+	}
+
+	calc := checksum.New(checksum.SHA256)
+	switch alg {
 	case "md5":
 		calc = checksum.New(checksum.MD5)
 	case "sha256":
@@ -196,7 +203,7 @@ func (i *installer) verifyChecksum(filePath, expectedHash string) error {
 		calc = checksum.New(checksum.SHA256)
 	}
 
-	ok, err := calc.Verify(filePath, expectedHash)
+	ok, err := calc.Verify(filePath, hash)
 	if err != nil {
 		return fmt.Errorf("校验和验证失败: %w", err)
 	}
