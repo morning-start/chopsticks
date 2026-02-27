@@ -10,7 +10,7 @@ import (
 
 	"chopsticks/core/manifest"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 // InstallOperation 表示一个安装操作记录。
@@ -80,7 +80,7 @@ func New(path string) (Storage, error) {
 		return nil, fmt.Errorf("创建数据库目录: %w", err)
 	}
 
-	db, err := sql.Open("sqlite3", path+"?_foreign_keys=on")
+	db, err := sql.Open("sqlite", path+"?_fk=on")
 	if err != nil {
 		return nil, fmt.Errorf("打开 sqlite 数据库: %w", err)
 	}
