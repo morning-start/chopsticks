@@ -6,6 +6,7 @@ import (
 
 	"github.com/mattn/go-colorable"
 	"github.com/mgutz/ansi"
+	"golang.org/x/sys/windows"
 )
 
 type Color int
@@ -102,7 +103,9 @@ func isTerminalDevice(fd uintptr) bool {
 }
 
 func getConsoleMode(fd uintptr) (uint32, error) {
-	return 0, nil
+	var mode uint32
+	err := windows.GetConsoleMode(windows.Handle(fd), &mode)
+	return mode, err
 }
 
 func Colorize(color Color, message string) string {
