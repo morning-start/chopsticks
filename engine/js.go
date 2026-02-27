@@ -7,6 +7,7 @@ import (
 
 	"chopsticks/engine/fetch"
 	"chopsticks/engine/fsutil"
+	"chopsticks/engine/installerx"
 	"chopsticks/engine/registry"
 	"chopsticks/engine/symlink"
 
@@ -49,6 +50,7 @@ func NewJSEngine() *JSEngine {
 		&fetch.Module{},
 		&symlink.Module{},
 		&registry.Module{},
+		&installerx.Module{},
 	)
 
 	return &JSEngine{

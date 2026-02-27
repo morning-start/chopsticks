@@ -3,6 +3,7 @@ package engine
 import (
 	"chopsticks/engine/fetch"
 	"chopsticks/engine/fsutil"
+	"chopsticks/engine/installerx"
 	"chopsticks/engine/registry"
 	"chopsticks/engine/symlink"
 
@@ -25,6 +26,7 @@ func NewLuaEngine() *LuaEngine {
 		&fetch.Module{},
 		&symlink.Module{},
 		&registry.Module{},
+		&installerx.Module{},
 	)
 	return &LuaEngine{
 		L: L,
