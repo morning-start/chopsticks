@@ -86,6 +86,14 @@ func isStderrTerminal() bool {
 }
 
 func isTty(fd uintptr) bool {
+	return checkIsTerminal(fd)
+}
+
+func checkIsTerminal(fd uintptr) bool {
+	return isTerm(fd)
+}
+
+func isTerm(fd uintptr) bool {
 	return false
 }
 
