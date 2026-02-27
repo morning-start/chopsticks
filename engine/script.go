@@ -30,11 +30,13 @@ type ScriptExecutor interface {
 
 // InstallContext 包含安装上下文。
 type InstallContext struct {
-	Version    string `json:"version"`
-	Arch       string `json:"arch"`
-	InstallDir string `json:"install_dir"`
-	AppName    string `json:"app_name"`
-	Bucket     string `json:"bucket"`
+	Version      string `json:"version"`
+	Arch         string `json:"arch"`
+	InstallDir   string `json:"installDir"`
+	CookDir      string `json:"cookDir"`
+	Name         string `json:"name"`
+	Bucket       string `json:"bucket"`
+	DownloadPath string `json:"downloadPath"`
 }
 
 // Dependency 定义依赖。
@@ -168,9 +170,11 @@ func (e *luaScriptExecutor) callInstallHook(hookName string, ctx *InstallContext
 	ctxTable := L.NewTable()
 	L.SetField(ctxTable, "version", lua.LString(ctx.Version))
 	L.SetField(ctxTable, "arch", lua.LString(ctx.Arch))
-	L.SetField(ctxTable, "install_dir", lua.LString(ctx.InstallDir))
-	L.SetField(ctxTable, "app_name", lua.LString(ctx.AppName))
+	L.SetField(ctxTable, "installDir", lua.LString(ctx.InstallDir))
+	L.SetField(ctxTable, "cookDir", lua.LString(ctx.CookDir))
+	L.SetField(ctxTable, "name", lua.LString(ctx.Name))
 	L.SetField(ctxTable, "bucket", lua.LString(ctx.Bucket))
+	L.SetField(ctxTable, "downloadPath", lua.LString(ctx.DownloadPath))
 
 	err := L.CallByParam(lua.P{
 		Fn:      fn,

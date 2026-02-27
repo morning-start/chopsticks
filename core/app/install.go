@@ -119,17 +119,17 @@ func (i *installer) Install(ctx context.Context, app *manifest.App, opts Install
 		return fmt.Errorf("解压安装包: %w", err)
 	}
 
-	env := i.buildInstallEnv(appName, version, extractDir)
+	hookEnv := i.buildHookEnv(appName, version, extractDir, downloadedPath)
 
-	if err := i.runScript(ctx, app, "preInstall", env); err != nil {
+	if err := i.runScript(ctx, app, "preInstall", hookEnv); err != nil {
 		return fmt.Errorf("preInstall 钩子失败: %w", err)
 	}
 
-	if err := i.runInstallScript(ctx, app, extractDir, env); err != nil {
+	if err := i.runInstallScript(ctx, app, extractDir, hookEnv); err != nil {
 		return fmt.Errorf("安装脚本执行失败: %w", err)
 	}
 
-	if err := i.runScript(ctx, app, "postInstall", env); err != nil {
+	if err := i.runScript(ctx, app, "postInstall", hookEnv); err != nil {
 		return fmt.Errorf("postInstall 钩子失败: %w", err)
 	}
 
@@ -236,11 +236,20 @@ func (i *installer) extractPackage(archivePath, destDir string) error {
 
 func (i *installer) buildInstallEnv(name, version, installDir string) map[string]string {
 	return map[string]string{
-		"AppName":    name,
-		"Version":    version,
-		"InstallDir": installDir,
-		"Arch":       "amd64",
+		"name":        name,
+		"version":     version,
+		"installDir":  installDir,
+		"cookDir":     installDir,
+		"arch":        "amd64",
+		"bucket":      "main",
 	}
+}
+
+// buildHookEnv 构建钩子函数的环境变量，包含 downloadPath
+func (i *installer) buildHookEnv(name, version, installDir, downloadPath string) map[string]string {
+	env := i.buildInstallEnv(name, version, installDir)
+	env["downloadPath"] = downloadPath
+	return env
 }
 
 // runScript 执行应用脚本中的生命周期钩子方法
@@ -300,12 +309,15 @@ func (i *installer) Uninstall(ctx context.Context, name string, opts UninstallOp
 		fmt.Fprintf(os.Stderr, "加载应用清单失败: %v\n", err)
 	} else {
 		if err := i.runScript(ctx, app, "preUninstall", map[string]string{
-			"AppName":    name,
-			"Version":    installed.Version,
-			"InstallDir": installed.InstallDir,
-		}); err != nil {
-			fmt.Fprintf(os.Stderr, "preUninstall 钩子失败: %v\n", err)
-		}
+		"name":       name,
+		"version":    installed.Version,
+		"installDir": installed.InstallDir,
+		"cookDir":    installed.InstallDir,
+		"arch":       "amd64",
+		"bucket":     installed.Bucket,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "preUninstall 钩子失败: %v\n", err)
+	}
 	}
 
 	installDir := installed.InstallDir
@@ -326,9 +338,12 @@ func (i *installer) Uninstall(ctx context.Context, name string, opts UninstallOp
 		}
 
 		if err := i.runScript(ctx, app, "postUninstall", map[string]string{
-			"AppName":    name,
-			"Version":    installed.Version,
-			"InstallDir": installed.InstallDir,
+			"name":       name,
+			"version":    installed.Version,
+			"installDir": installed.InstallDir,
+			"cookDir":    installed.InstallDir,
+			"arch":       "amd64",
+			"bucket":     installed.Bucket,
 		}); err != nil {
 			fmt.Fprintf(os.Stderr, "postUninstall 钩子失败: %v\n", err)
 		}
@@ -380,9 +395,12 @@ func (i *installer) doLoadAppManifest(ctx context.Context, installed *manifest.I
 // runUninstallScript 执行应用脚本的 onUninstall 方法
 func (i *installer) runUninstallScript(ctx context.Context, app *manifest.App, installed *manifest.InstalledApp) error {
 	env := map[string]string{
-		"AppName":    installed.Name,
-		"Version":    installed.Version,
-		"InstallDir": installed.InstallDir,
+		"name":       installed.Name,
+		"version":    installed.Version,
+		"installDir": installed.InstallDir,
+		"cookDir":    installed.InstallDir,
+		"arch":       "amd64",
+		"bucket":     installed.Bucket,
 	}
 
 	// 调用 onUninstall 钩子
