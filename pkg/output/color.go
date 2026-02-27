@@ -90,11 +90,19 @@ func isTty(fd uintptr) bool {
 }
 
 func checkIsTerminal(fd uintptr) bool {
-	return isTerm(fd)
+	if fd == 0 || fd == 1 || fd == 2 {
+		return isTerminalDevice(fd)
+	}
+	return false
 }
 
-func isTerm(fd uintptr) bool {
-	return false
+func isTerminalDevice(fd uintptr) bool {
+	_, err := getConsoleMode(fd)
+	return err == nil
+}
+
+func getConsoleMode(fd uintptr) (uint32, error) {
+	return 0, nil
 }
 
 func Colorize(color Color, message string) string {
