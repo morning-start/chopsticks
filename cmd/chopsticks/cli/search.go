@@ -32,22 +32,30 @@ func SearchCommand(ctx context.Context, application app.Application, args []stri
 	}
 	fmt.Println()
 
-	// TODO: 调用 app manager 搜索
-	// results, err := application.AppManager().Search(ctx, query, bucketName)
-	// if err != nil {
-	//     return fmt.Errorf("搜索失败: %w", err)
-	// }
+	// 调用 app manager 搜索
+	results, err := application.AppManager().Search(ctx, query, bucketName)
+	if err != nil {
+		return fmt.Errorf("搜索失败: %w", err)
+	}
 
 	// 显示结果
 	fmt.Println("搜索结果:")
 	fmt.Println("-----------")
 
-	// 模拟搜索结果
-	fmt.Printf("  git\n")
-	fmt.Printf("    描述: Distributed version control system\n")
-	fmt.Printf("    版本: 2.43.0\n")
-	fmt.Printf("    软件源: main\n")
-	fmt.Println()
+	if len(results) == 0 {
+		fmt.Println("未找到匹配的应用")
+		return nil
+	}
+
+	for _, result := range results {
+		fmt.Printf("  %s\n", result.App.Name)
+		if result.App.Description != "" {
+			fmt.Printf("    描述: %s\n", result.App.Description)
+		}
+		fmt.Printf("    版本: %s\n", result.App.Version)
+		fmt.Printf("    软件源: %s\n", result.Bucket)
+		fmt.Println()
+	}
 
 	return nil
 }
