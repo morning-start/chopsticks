@@ -1,30 +1,43 @@
 package cli
 
 import (
-	"context"
 	"fmt"
-	"os"
 
-	"chopsticks/core/app"
+	"github.com/urfave/cli/v2"
 )
 
-// SearchCommand 处理搜索命令。
-func SearchCommand(ctx context.Context, application app.Application, args []string) error {
-	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "用法: chopsticks search <query> [--bucket <bucket>]")
-		return fmt.Errorf("缺少搜索关键词")
+// searchCommand 返回 search 命令定义。
+func searchCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "search",
+		Aliases:   []string{"find", "s"},
+		Usage:     "搜索软件包",
+		ArgsUsage: "<query>",
+		Description: `在软件源中搜索软件包。
+
+示例:
+  chopsticks search git
+  chopsticks find editor
+  chopsticks search node --bucket main`,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "bucket",
+				Aliases: []string{"b"},
+				Usage:   "指定软件源进行搜索",
+			},
+		},
+		Action: searchAction,
+	}
+}
+
+// searchAction 处理搜索命令。
+func searchAction(c *cli.Context) error {
+	if c.NArg() < 1 {
+		return cli.Exit("错误: 缺少搜索关键词\n用法: chopsticks search <query>", 1)
 	}
 
-	query := args[0]
-	bucketName := ""
-
-	// 解析 --bucket 参数
-	for i, arg := range args[1:] {
-		if arg == "--bucket" && i+1 < len(args[1:]) {
-			bucketName = args[1:][i+1]
-			break
-		}
-	}
+	query := c.Args().First()
+	bucketName := c.String("bucket")
 
 	fmt.Printf("搜索: %s\n", query)
 	if bucketName != "" {
@@ -32,10 +45,13 @@ func SearchCommand(ctx context.Context, application app.Application, args []stri
 	}
 	fmt.Println()
 
+	ctx := getContext(c)
+	application := getApp()
+
 	// 调用 app manager 搜索
 	results, err := application.AppManager().Search(ctx, query, bucketName)
 	if err != nil {
-		return fmt.Errorf("搜索失败: %w", err)
+		return cli.Exit(fmt.Sprintf("搜索失败: %v", err), 1)
 	}
 
 	// 显示结果

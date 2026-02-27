@@ -1,23 +1,39 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 
-	"chopsticks/core/app"
+	"github.com/urfave/cli/v2"
 )
 
-// ListCommand 处理列表命令。
-func ListCommand(ctx context.Context, application app.Application, args []string) error {
-	installed := false
+// listCommand 返回 list 命令定义。
+func listCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "list",
+		Aliases:   []string{"ls"},
+		Usage:     "列出软件包",
+		ArgsUsage: " ",
+		Description: `列出已安装的软件包或可用软件包。
 
-	// 解析 --installed 参数
-	for _, arg := range args {
-		if arg == "--installed" {
-			installed = true
-			break
-		}
+示例:
+  chopsticks list
+  chopsticks list --installed
+  chopsticks ls`,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "installed",
+				Aliases: []string{"i"},
+				Usage:   "只显示已安装的软件包",
+			},
+		},
+		Action: listAction,
 	}
+}
+
+// listAction 处理列表命令。
+func listAction(c *cli.Context) error {
+	installed := c.Bool("installed")
+	application := getApp()
 
 	if installed {
 		// 列出已安装的软件包
@@ -26,7 +42,7 @@ func ListCommand(ctx context.Context, application app.Application, args []string
 
 		apps, err := application.AppManager().ListInstalled()
 		if err != nil {
-			return fmt.Errorf("获取已安装列表失败: %w", err)
+			return cli.Exit(fmt.Sprintf("获取已安装列表失败: %v", err), 1)
 		}
 
 		if len(apps) == 0 {
