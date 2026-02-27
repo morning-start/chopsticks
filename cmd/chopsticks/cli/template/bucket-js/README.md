@@ -2,12 +2,6 @@
 
 A Chopsticks Bucket (JavaScript).
 
-## Install Dependencies
-
-```bash
-npm install
-```
-
 ## Add to Chopsticks
 
 ```bash
