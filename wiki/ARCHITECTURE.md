@@ -7,7 +7,8 @@
 ## 目录
 
 1. [架构概览](#架构概览)
-2. [系统架构图](#系统架构图)
+2. [系统架构图](#
+   系统架构图)
 3. [核心模块](#核心模块)
 4. [数据流](#数据流)
 5. [技术选型](#技术选型)
@@ -42,7 +43,7 @@ Chopsticks 采用分层架构设计，遵循以下原则：
 │                      Core 层                                 │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
 │  │    App      │  │   Bucket    │  │       Store         │  │
-│  │  Manager    │  │  Manager    │  │   (SQLite/BoltDB)   │  │
+│  │  Manager    │  │  Manager    │  │   (SQLite)          │  │
 │  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘  │
 │         │                │                    │             │
 │  ┌──────┴────────────────┴────────────────────┴──────┐      │
@@ -104,14 +105,13 @@ graph TB
 
     subgraph STORE[Storage Layer]
         SQLITE[(SQLite)]
-        BOLT[(BoltDB)]
         STORAGE[Storage Interface]
     end
 
     subgraph ENGINE[Engine Layer]
         JS[JS Engine<br/>goja]
         LUA[Lua Engine<br/>gopher-lua]
-        SCRIPT[Script Loader]
+        SCRIPT[Script Executor]
     end
 
     subgraph API[Engine API Layer]
@@ -154,7 +154,7 @@ graph TB
     API --> FS & FETCH & EXEC & ARCH & CHECK & PATH & LOG & JSON & SYM & REG & SEMVER & CHOPX
 
     APP_MGR & BUCKET_MGR --> STORAGE
-    STORAGE --> SQLITE & BOLT
+    STORAGE --> SQLITE
 
     INSTALLER --> INST
     BUCKET_MGR --> GIT
@@ -164,30 +164,32 @@ graph TB
 
 ## 核心模块
 
-### 1. CLI 层 (cmd/chopsticks)
+### 1. CLI 层 (cmd/chopsticks/cli/)
 
 负责命令行界面和用户交互。
 
 ```go
 // cmd/chopsticks/cli/commands.go
-type Command interface {
-    Execute(args []string) error
-    GetName() string
-    GetAliases() []string
-    GetDescription() string
+type Command struct {
+    Name        string   // 主命令名（用户友好）
+    Aliases     []string // 别名（内部名或其他别名）
+    Description string   // 描述
+    Usage       string   // 用法
+    Examples    []string // 示例
 }
 ```
 
 **主要命令**:
 
-| 命令        | 功能       | 实现文件     |
-| ----------- | ---------- | ------------ |
-| `install`   | 安装应用   | `serve.go`   |
-| `uninstall` | 卸载应用   | `clear.go`   |
-| `update`    | 更新应用   | `refresh.go` |
-| `search`    | 搜索应用   | `search.go`  |
-| `list`      | 列出应用   | `list.go`    |
-| `bucket`    | 软件源管理 | `bucket.go`  |
+| 命令         | 功能       | 实现文件        | 别名                       |
+| ------------ | ---------- | --------------- | -------------------------- |
+| `install`    | 安装应用   | `serve.go`      | `serve`, `i`               |
+| `uninstall`  | 卸载应用   | `clear.go`      | `clear`, `rm`, `remove`    |
+| `update`     | 更新应用   | `refresh.go`    | `refresh`, `up`, `upgrade` |
+| `search`     | 搜索应用   | `search.go`     | `find`, `s`                |
+| `list`       | 列出应用   | `list.go`       | `ls`                       |
+| `bucket`     | 软件源管理 | `bucket.go`     | -                          |
+| `completion` | 自动补全   | `completion.go` | -                          |
 
 ### 2. Core 层 (core/)
 
@@ -198,16 +200,17 @@ type Command interface {
 ```go
 // core/app/manager.go
 type Manager interface {
-    Install(app *manifest.App, version string) error
-    Uninstall(app *manifest.App, purge bool) error
-    Update(app *manifest.App) error
-    List() ([]*manifest.InstalledApp, error)
-    Get(name string) (*manifest.App, error)
+    Install(ctx context.Context, bucket, name string, opts InstallOptions) error
+    Remove(ctx context.Context, name string, opts RemoveOptions) error
+    Update(ctx context.Context, name string, opts UpdateOptions) error
+    List(ctx context.Context) ([]*manifest.InstalledApp, error)
+    Search(ctx context.Context, query string) ([]*manifest.App, error)
 }
 ```
 
 **组件**:
 
+- `app.go` - 应用入口和配置
 - `manager.go` - 应用管理器接口和实现
 - `install.go` - 安装流程协调
 - `installer.go` - 安装器实现
@@ -229,7 +232,7 @@ type Manager interface {
 
 #### 2.3 Store (core/store/)
 
-数据持久化层，支持 SQLite 和 BoltDB。
+数据持久化层，使用 SQLite。
 
 ```go
 // core/store/storage.go
@@ -241,16 +244,14 @@ type Storage interface {
     DeleteBucket(name string) error
 
     // App operations
-    SaveApp(app *manifest.App) error
-    GetApp(bucket, name string) (*manifest.App, error)
-    ListApps(bucket string) ([]*manifest.App, error)
-    SearchApps(query string) ([]*manifest.App, error)
-
-    // Installed operations
     SaveInstalled(app *manifest.InstalledApp) error
     GetInstalled(name string) (*manifest.InstalledApp, error)
     ListInstalled() ([]*manifest.InstalledApp, error)
     DeleteInstalled(name string) error
+
+    // Operations tracking
+    SaveOperation(op *Operation) error
+    GetOperations(appID string) ([]*Operation, error)
 }
 ```
 
@@ -268,19 +269,6 @@ CREATE TABLE buckets (
     local_path TEXT
 );
 
--- apps 表
-CREATE TABLE apps (
-    id TEXT PRIMARY KEY,
-    bucket_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    version TEXT,
-    description TEXT,
-    homepage TEXT,
-    license TEXT,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (bucket_id) REFERENCES buckets(id)
-);
-
 -- installed 表
 CREATE TABLE installed (
     id TEXT PRIMARY KEY,
@@ -292,34 +280,39 @@ CREATE TABLE installed (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (bucket_id) REFERENCES buckets(id)
 );
+
+-- operations 表
+CREATE TABLE operations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    app_id TEXT NOT NULL,
+    operation_type TEXT NOT NULL,
+    details TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 ### 3. Engine 层 (engine/)
 
-Engine 层负责脚本执行环境，向 JavaScript/Lua 脚本暴露系统能力。该层分为两个部分：
+Engine 层负责脚本执行环境，向 JavaScript/Lua 脚本暴露系统能力。
 
 #### 3.1 脚本引擎 (Script Engines)
-
-脚本引擎是 Engine 层的核心，负责加载和执行 JavaScript/Lua 脚本。
 
 ```go
 // engine/engine.go
 type Engine interface {
-    LoadScript(path string) error
-    Execute(method string, ctx *Context) (interface{}, error)
-    RegisterModule(name string, module Module) error
+    LoadFile(path string) error
+    CallFunction(name string, args ...interface{}) error
+    Close()
 }
 
-// engine/js.go - JavaScript 引擎
+// engine/js_engine.go - JavaScript 引擎
 type JSEngine struct {
-    runtime *goja.Runtime
-    modules map[string]Module
+    vm *goja.Runtime
 }
 
-// engine/lua.go - Lua 引擎
+// engine/lua_engine.go - Lua 引擎
 type LuaEngine struct {
-    state   *lua.LState
-    modules map[string]Module
+    state *lua.LState
 }
 ```
 
@@ -332,61 +325,40 @@ type LuaEngine struct {
 
 #### 3.2 Engine API 模块
 
-Engine API 模块是脚本引擎向外部脚本暴露的接口集合。这些模块不是与引擎同层次的关系，而是**被引擎依赖和调用**，通过引擎暴露给脚本使用。
+Engine API 模块是脚本引擎向外部脚本暴露的接口集合。
 
-| 模块          | 文件                                | 功能描述              |
-| ------------- | ----------------------------------- | --------------------- |
-| `fsutil`      | `engine/fsutil/fsutil.go`           | 文件读写、目录操作    |
-| `fetch`       | `engine/fetch/fetch.go`             | HTTP 请求、文件下载   |
-| `execx`       | `engine/execx/execx.go`             | 命令执行              |
-| `archive`     | `engine/archive/archive.go`         | 压缩解压 (zip/7z/tar) |
-| `checksum`    | `engine/checksum/checksum.go`       | 校验和验证            |
-| `pathx`       | `engine/pathx/pathx.go`             | 路径操作              |
-| `logx`        | `engine/logx/logx.go`               | 日志记录              |
-| `jsonx`       | `engine/jsonx/jsonx.go`             | JSON 处理             |
-| `symlink`     | `engine/symlink/symlink.go`         | 符号链接              |
-| `registry`    | `engine/registry/registry.go`       | Windows 注册表        |
-| `semver`      | `engine/semver/semver.go`           | 版本比较              |
-| `chopsticksx` | `engine/chopsticksx/chopsticksx.go` | 系统 API              |
-
-**层次关系**：
-
-```
-┌─────────────────────────────────────────┐
-│           Engine 层                      │
-│  ┌─────────────────────────────────┐    │
-│  │      脚本引擎 (JS/Lua)           │    │
-│  │   - 加载和执行脚本               │    │
-│  │   - 管理脚本生命周期             │    │
-│  └──────────────┬──────────────────┘    │
-│                 │ 依赖/调用              │
-│                 ▼                       │
-│  ┌─────────────────────────────────┐    │
-│  │     Engine API 模块             │    │
-│  │   - 向脚本暴露系统能力          │    │
-│  │   - 被引擎注册和调用            │    │
-│  └─────────────────────────────────┘    │
-└─────────────────────────────────────────┘
-```
+| 模块          | 文件                               | 功能描述              |
+| ------------- | ---------------------------------- | --------------------- |
+| `fsutil`      | `engine/fsutil/fsutil.go`          | 文件读写、目录操作    |
+| `fetch`       | `engine/fetch/fetch.go`            | HTTP 请求、文件下载   |
+| `execx`       | `engine/execx/execx.go`            | 命令执行              |
+| `archive`     | `engine/archive/archive.go`        | 压缩解压 (zip/7z/tar) |
+| `checksum`    | `engine/checksum/checksum.go`      | 校验和验证            |
+| `pathx`       | `engine/pathx/pathx.go`            | 路径操作              |
+| `logx`        | `engine/logx/logx.go`              | 日志记录              |
+| `jsonx`       | `engine/jsonx/json.go`             | JSON 处理             |
+| `symlink`     | `engine/symlink/symlink.go`        | 符号链接              |
+| `registry`    | `engine/registry/registry.go`      | Windows 注册表        |
+| `semver`      | `engine/semver/semver.go`          | 版本比较              |
+| `chopsticksx` | `engine/chopsticksx/chopsticks.go` | 系统 API              |
 
 **模块注册机制**:
 
 ```go
 // 引擎初始化时注册所有 API 模块
-// 这些模块通过引擎暴露给脚本使用
 func (e *JSEngine) initModules() {
-    e.RegisterModule("fs", fsutil.New())
-    e.RegisterModule("fetch", fetch.New())
-    e.RegisterModule("exec", execx.New())
-    e.RegisterModule("archive", archive.New())
-    e.RegisterModule("checksum", checksum.New())
-    e.RegisterModule("path", pathx.New())
-    e.RegisterModule("log", logx.New())
-    e.RegisterModule("JSON", jsonx.New())
-    e.RegisterModule("symlink", symlink.New())
-    e.RegisterModule("registry", registry.New())
-    e.RegisterModule("semver", semver.New())
-    e.RegisterModule("chopsticks", chopsticksx.New())
+    e.registerModule("fs", fsutil.New())
+    e.registerModule("fetch", fetch.New())
+    e.registerModule("exec", execx.New())
+    e.registerModule("archive", archive.New())
+    e.registerModule("checksum", checksum.New())
+    e.registerModule("path", pathx.New())
+    e.registerModule("log", logx.New())
+    e.registerModule("JSON", jsonx.New())
+    e.registerModule("symlink", symlink.New())
+    e.registerModule("registry", registry.New())
+    e.registerModule("semver", semver.New())
+    e.registerModule("chopsticks", chopsticksx.New())
 }
 ```
 
@@ -402,8 +374,6 @@ type Client interface {
     Clone(url, dest string) error
     Pull(dir string) error
     Fetch(dir string) error
-    GetLatestTag(dir string) (string, error)
-    GetCommitHash(dir string) (string, error)
 }
 ```
 
@@ -435,34 +405,34 @@ sequenceDiagram
 
     User->>CLI: chopsticks install git
     CLI->>AppMgr: Install("git", "")
-    AppMgr->>Store: GetApp("git")
-    Store-->>AppMgr: App{...}
+    AppMgr->>Store: GetInstalled("git")
+    Store-->>AppMgr: InstalledApp{...}
 
     AppMgr->>Engine: LoadScript(app.Path)
     Engine->>Engine: 初始化运行时
     Engine-->>AppMgr: 脚本加载完成
 
-    AppMgr->>Engine: Execute("checkVersion")
+    AppMgr->>Engine: CallFunction("checkVersion")
     Engine->>Engine: 执行 checkVersion()
     Engine-->>AppMgr: "2.43.0"
 
-    AppMgr->>Engine: Execute("getDownloadInfo", version, arch)
+    AppMgr->>Engine: CallFunction("getDownloadInfo", version, arch)
     Engine-->>AppMgr: {url, filename, type}
 
     AppMgr->>FS: 下载文件到缓存
     FS-->>AppMgr: 下载完成
 
-    AppMgr->>Engine: Execute("onPreDownload", ctx)
+    AppMgr->>Engine: CallFunction("onPreInstall", ctx)
     Engine-->>AppMgr: 钩子执行完成
 
     AppMgr->>FS: 解压到 CookDir
     FS-->>AppMgr: 解压完成
 
-    AppMgr->>Engine: Execute("onPostExtract", ctx)
-    Engine-->>AppMgr: 钩子执行完成
-
-    AppMgr->>Engine: Execute("onInstall", ctx)
+    AppMgr->>Engine: CallFunction("onInstall", ctx)
     Engine-->>AppMgr: 自定义安装完成
+
+    AppMgr->>Engine: CallFunction("onPostInstall", ctx)
+    Engine-->>AppMgr: 钩子执行完成
 
     AppMgr->>Store: SaveInstalled(app)
     Store-->>AppMgr: 保存完成
@@ -479,7 +449,6 @@ sequenceDiagram
     participant CLI
     participant BucketMgr as Bucket Manager
     participant Git as Git Client
-    participant Engine as Script Engine
     participant Store as Storage
 
     User->>CLI: chopsticks bucket update
@@ -492,10 +461,8 @@ sequenceDiagram
         BucketMgr->>Git: Pull(bucket.Path)
         Git-->>BucketMgr: 更新完成
 
-        BucketMgr->>Engine: 扫描 apps/ 目录
-        Engine-->>BucketMgr: 应用列表
-
-        BucketMgr->>Store: SaveApp(app)
+        BucketMgr->>BucketMgr: 扫描 apps/ 目录
+        BucketMgr->>Store: SaveBucket(bucket)
         Store-->>BucketMgr: 保存完成
     end
 
@@ -524,7 +491,6 @@ sequenceDiagram
 | `github.com/go-git/go-git/v5` | Git 操作         | v5.11.0               |
 | `github.com/mattn/go-sqlite3` | SQLite 数据库    | v1.14.24              |
 | `github.com/ulikunitz/xz`     | XZ 压缩支持      | v0.5.11               |
-| `go.etcd.io/bbolt`            | BoltDB (备选)    | v1.4.3                |
 | `golang.org/x/sys`            | Windows 系统调用 | v0.32.0               |
 
 ### 选型理由
@@ -658,4 +624,4 @@ bucket/
 ---
 
 _最后更新: 2026-02-27_
-_架构版本: v1.0_
+_架构版本: v1.1_

@@ -15,18 +15,79 @@
 - Bucket 软件源管理功能
 - Git 仓库集成（克隆、更新）
 - 应用搜索和列表功能
-- 操作日志持久化
-- 配置文件支持
+- Shell 自动补全支持
+- 并行下载和更新
+- 结构化错误处理系统
 
 ### Changed
 
 - 优化脚本引擎启动性能
 - 改进错误提示信息
+- 统一代码命名规范
 
 ### Fixed
 
 - 修复路径处理中的边界情况
 - 修复并发下载时的资源竞争问题
+
+---
+
+## [0.4.0-alpha] - 2026-02-27
+
+### Added
+
+- **Shell 自动补全**: 支持 Bash、Zsh、PowerShell、Fish
+- **并行处理**: 多文件并发下载和软件源并行更新
+- **结构化错误处理**: 新增 `pkg/errors` 包
+  - 基础错误类型 (ErrNotFound, ErrAlreadyExists 等)
+  - 应用相关错误 (ErrAppNotFound, ErrInstallFailed 等)
+  - 软件源相关错误 (ErrBucketNotFound, ErrBucketLoadFailed 等)
+  - 错误分类 `ErrorKind` (KindNotFound, KindIO, KindNetwork 等)
+- **单元测试**: 核心模块测试覆盖
+  - `pkg/errors` - 错误类型和包装功能
+  - `pkg/config` - 配置加载和验证
+  - `pkg/parallel` - 并行任务处理
+  - `core/store` - 数据库操作
+  - `core/app` - 应用管理逻辑
+  - `core/bucket` - 软件源管理
+  - `engine/*` - 各引擎 API 模块
+
+### Changed
+
+- **代码重构**: 统一文件命名规范
+  - `js.go` → `js_engine.go`
+  - `lua.go` → `lua_engine.go`
+  - `script.go` → `script_executor.go`
+  - `execx/execx.go` → `execx/exec.go`
+  - `jsonx/jsonx.go` → `jsonx/json.go`
+  - `logx/logx.go` → `logx/log.go`
+  - `pathx/pathx.go` → `pathx/path.go`
+  - `chopsticksx/chopsticksx.go` → `chopsticksx/chopsticks.go`
+
+### Documentation
+
+- 更新架构设计文档
+- 更新 API 参考文档
+
+---
+
+## [0.3.0-alpha] - 2026-03-14
+
+### Added
+
+- **应用生命周期管理**:
+  - 完整的安装流程（下载、校验、解压、钩子执行）
+  - 完整的卸载流程（钩子执行、目录清理）
+  - 完整的更新流程（备份、更新、迁移）
+- **Bucket 管理**: 软件源添加、删除、更新、列表
+- **Git 集成**: 仓库克隆和拉取更新
+- **搜索功能**: 跨软件源应用搜索
+- **列表功能**: 已安装应用列表
+
+### Changed
+
+- 优化存储层接口设计
+- 改进应用管理器实现
 
 ---
 
@@ -49,7 +110,7 @@
 - **版本模块 (semver)**: 语义化版本比较
 - **系统 API 模块 (chopsticksx)**: 获取安装目录、创建 shim 等
 - **CLI 命令框架**: 基于 cobra 的命令行框架
-- **数据存储层**: SQLite 和 BoltDB 双存储支持
+- **数据存储层**: SQLite 存储支持
 - **Bucket 模板**: JavaScript 和 Lua 两种模板
 
 ### Changed
@@ -116,10 +177,11 @@
 | ----------- | ---------- | --------- | ------------- |
 | 0.1.0-alpha | 2026-02-14 | ✅ 已发布 | 基础架构      |
 | 0.2.0-alpha | 2026-02-27 | ✅ 已发布 | 引擎 API 完善 |
-| 0.3.0-alpha | 2026-03-14 | 🚧 开发中 | 核心功能实现  |
-| 0.4.0-beta  | 2026-03-28 | ⏳ 计划中 | 功能完善      |
-| 0.5.0-beta  | 2026-04-11 | ⏳ 计划中 | 稳定化        |
-| 1.0.0       | 2026-04-25 | ⏳ 计划中 | 正式版本      |
+| 0.3.0-alpha | 2026-03-14 | ✅ 已发布 | 核心功能实现  |
+| 0.4.0-alpha | 2026-02-27 | ✅ 已发布 | 质量提升      |
+| 0.5.0-beta  | 2026-04-11 | 🚧 开发中 | 体验优化      |
+| 0.6.0-beta  | 2026-04-25 | ⏳ 计划中 | 稳定化        |
+| 1.0.0       | 2026-05-09 | ⏳ 计划中 | 正式版本      |
 
 ---
 

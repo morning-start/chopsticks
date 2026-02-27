@@ -70,12 +70,12 @@
 
 #### 3.1.3 CLI 操作
 
-| 命令                      | 说明                   | 别名            |
-| ------------------------- | ---------------------- | --------------- |
-| `source add <name> <url>` | 添加远程或本地软件源   | bucket, s       |
-| `source list`             | 列出所有已添加的软件源 | bucket ls, s ls |
-| `source update [name]`    | 从远程仓库拉取最新应用 | bucket up, s up |
-| `source remove <name>`    | 删除软件源             | bucket rm, s rm |
+| 命令                      | 说明                   | 别名              |
+| ------------------------- | ---------------------- | ----------------- |
+| `bucket add <name> <url>` | 添加远程或本地软件源   | bow, b            |
+| `bucket list`             | 列出所有已添加的软件源 | bucket ls, bow ls |
+| `bucket update [name]`    | 从远程仓库拉取最新应用 | bucket up, bow up |
+| `bucket remove <name>`    | 删除软件源             | bucket rm, bow rm |
 
 #### 3.1.4 共享工具
 
@@ -225,20 +225,20 @@ flowchart TD
 
 #### 3.4.1 主命令
 
-| 命令         | 内部名  | 别名        | 说明         |
-| ------------ | ------- | ----------- | ------------ |
-| `install`    | serve   | i           | 安装软件     |
-| `uninstall`  | clear   | rm, remove  | 卸载软件     |
-| `update`     | refresh | up, upgrade | 更新软件     |
-| `search`     | find    | s           | 搜索软件     |
-| `list`       | ls      | -           | 列出软件     |
-| `source`     | bucket  | s           | 软件源管理   |
-| `completion` | -       | -           | 生成补全脚本 |
-| `help`       | --help  | -h          | 显示帮助     |
+| 命令         | 实现文件      | 别名                     | 说明         |
+| ------------ | ------------- | ------------------------ | ------------ |
+| `install`    | serve.go      | `serve`, `i`             | 安装软件     |
+| `uninstall`  | clear.go      | `clear`, `rm`, `remove`  | 卸载软件     |
+| `update`     | refresh.go    | `refresh`, `up`, `upgrade`| 更新软件    |
+| `search`     | search.go     | `find`, `s`              | 搜索软件     |
+| `list`       | list.go       | `ls`                     | 列出软件     |
+| `bucket`     | bucket.go     | -                        | 软件源管理   |
+| `completion` | completion.go | -                        | 生成补全脚本 |
+| `help`       | root.go       | `--help`, `-h`           | 显示帮助     |
 
 #### 3.4.2 子命令
 
-**source 子命令**：
+**bucket 子命令**：
 
 | 子命令   | 别名        | 说明       |
 | -------- | ----------- | ---------- |
@@ -820,5 +820,5 @@ CREATE TABLE installed (
 
 ---
 
-_最后更新：2026-02-26_
-_版本：v0.2.0-alpha_
+_最后更新：2026-02-27_
+_版本：v0.3.0-alpha_
