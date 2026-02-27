@@ -10,7 +10,9 @@ type Module struct{}
 
 // RegisterLua 向 Lua 状态注册 checksum 函数。
 func (m *Module) RegisterLua(L *lua.LState) {
-	L.SetGlobal("checksum_md5", L.NewFunction(func(L *lua.LState) int {
+	checksumTable := L.NewTable()
+
+	checksumTable.RawSetString("md5", L.NewFunction(func(L *lua.LState) int {
 		path := L.CheckString(1)
 		sum, err := CalculateFile(path, MD5)
 		if err != nil {
@@ -22,7 +24,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("checksum_sha256", L.NewFunction(func(L *lua.LState) int {
+	checksumTable.RawSetString("sha256", L.NewFunction(func(L *lua.LState) int {
 		path := L.CheckString(1)
 		sum, err := CalculateFile(path, SHA256)
 		if err != nil {
@@ -34,7 +36,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("checksum_sha512", L.NewFunction(func(L *lua.LState) int {
+	checksumTable.RawSetString("sha512", L.NewFunction(func(L *lua.LState) int {
 		path := L.CheckString(1)
 		sum, err := CalculateFile(path, SHA512)
 		if err != nil {
@@ -46,7 +48,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("checksum_verify", L.NewFunction(func(L *lua.LState) int {
+	checksumTable.RawSetString("verify", L.NewFunction(func(L *lua.LState) int {
 		path := L.CheckString(1)
 		expected := L.CheckString(2)
 		alg := L.OptString(3, "sha256")
@@ -73,7 +75,7 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
-	L.SetGlobal("checksum_string", L.NewFunction(func(L *lua.LState) int {
+	checksumTable.RawSetString("string", L.NewFunction(func(L *lua.LState) int {
 		data := L.CheckString(1)
 		alg := L.OptString(2, "sha256")
 
@@ -93,11 +95,15 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		L.Push(lua.LString(sum))
 		return 1
 	}))
+
+	L.SetGlobal("checksum", checksumTable)
 }
 
 // RegisterJS 向 JavaScript 运行时注册 checksum 函数。
 func (m *Module) RegisterJS(vm *goja.Runtime) {
-	vm.Set("checksum_md5", func(call goja.FunctionCall) goja.Value {
+	checksumObj := vm.NewObject()
+
+	checksumObj.Set("md5", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		sum, err := CalculateFile(path, MD5)
 		if err != nil {
@@ -106,7 +112,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"data": sum, "error": nil})
 	})
 
-	vm.Set("checksum_sha256", func(call goja.FunctionCall) goja.Value {
+	checksumObj.Set("sha256", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		sum, err := CalculateFile(path, SHA256)
 		if err != nil {
@@ -115,7 +121,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"data": sum, "error": nil})
 	})
 
-	vm.Set("checksum_sha512", func(call goja.FunctionCall) goja.Value {
+	checksumObj.Set("sha512", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		sum, err := CalculateFile(path, SHA512)
 		if err != nil {
@@ -124,7 +130,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"data": sum, "error": nil})
 	})
 
-	vm.Set("checksum_verify", func(call goja.FunctionCall) goja.Value {
+	checksumObj.Set("verify", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		expected := call.Argument(1).String()
 		alg := call.Argument(2).String()
@@ -151,7 +157,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		return vm.ToValue(map[string]interface{}{"success": ok, "error": nil})
 	})
 
-	vm.Set("checksum_string", func(call goja.FunctionCall) goja.Value {
+	checksumObj.Set("string", func(call goja.FunctionCall) goja.Value {
 		data := call.Argument(0).String()
 		alg := call.Argument(1).String()
 		if alg == "" {
@@ -173,4 +179,6 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		sum := New(algorithm).CalculateString(data)
 		return vm.ToValue(map[string]interface{}{"data": sum, "error": nil})
 	})
+
+	vm.Set("checksum", checksumObj)
 }
