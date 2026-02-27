@@ -10,6 +10,7 @@ import (
 	"text/template"
 
 	"chopsticks/core/app"
+	"chopsticks/core/bucket"
 )
 
 //go:embed all:template/bucket-js
@@ -142,26 +143,48 @@ func BucketCommand(ctx context.Context, application app.Application, args []stri
 	}
 }
 
-func bucketAdd(_ context.Context, _ app.Application, args []string) error {
+func bucketAdd(ctx context.Context, application app.Application, args []string) error {
 	if len(args) < 2 {
-		fmt.Fprintln(os.Stderr, "用法: chopsticks bucket add <name> <url>")
+		fmt.Fprintln(os.Stderr, "用法: chopsticks bucket add <name> <url> [--branch <branch>]")
 		return fmt.Errorf("缺少参数")
 	}
 
 	name := args[0]
 	url := args[1]
 
+	// 解析可选参数
+	branch := ""
+	for i, arg := range args[2:] {
+		if arg == "--branch" && i+1 < len(args[2:]) {
+			branch = args[2:][i+1]
+			break
+		}
+	}
+
+	opts := bucket.AddOptions{
+		Branch: branch,
+	}
+
 	fmt.Printf("添加软件源: %s\n", name)
 	fmt.Printf("  URL: %s\n", url)
+	if opts.Branch != "" {
+		fmt.Printf("  分支: %s\n", opts.Branch)
+	}
+	fmt.Println()
+
+	// 调用 BucketManager 添加软件源
+	if err := application.BucketManager().Add(ctx, name, url, opts); err != nil {
+		return fmt.Errorf("添加软件源失败: %w", err)
+	}
 
 	fmt.Printf("✓ 软件源 %s 添加成功\n", name)
 	fmt.Println()
 	fmt.Println("下一步:")
-	fmt.Printf("  chopsticks search %s\n", name)
+	fmt.Printf("  chopsticks search <应用名>\n")
 	return nil
 }
 
-func bucketRemove(_ context.Context, _ app.Application, args []string) error {
+func bucketRemove(ctx context.Context, application app.Application, args []string) error {
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "用法: chopsticks bucket remove <name> [--purge]")
 		return fmt.Errorf("缺少软件源名称")
@@ -169,29 +192,86 @@ func bucketRemove(_ context.Context, _ app.Application, args []string) error {
 
 	name := args[0]
 
+	// 解析 --purge 参数
+	purge := false
+	for _, arg := range args[1:] {
+		if arg == "--purge" {
+			purge = true
+			break
+		}
+	}
+
 	fmt.Printf("删除软件源: %s\n", name)
+	if purge {
+		fmt.Println("  模式: 完全删除（包括本地文件）")
+	}
+	fmt.Println()
+
+	// 调用 BucketManager 删除软件源
+	if err := application.BucketManager().Remove(ctx, name, purge); err != nil {
+		return fmt.Errorf("删除软件源失败: %w", err)
+	}
+
 	fmt.Printf("✓ 软件源 %s 已删除\n", name)
 	return nil
 }
 
-func bucketList(_ context.Context, _ app.Application, _ []string) error {
+func bucketList(ctx context.Context, application app.Application, _ []string) error {
+	// 获取所有软件源
+	buckets, err := application.BucketManager().ListBuckets(ctx)
+	if err != nil {
+		return fmt.Errorf("获取软件源列表失败: %w", err)
+	}
+
 	fmt.Println("已添加的软件源:")
 	fmt.Println("--------------")
-	fmt.Println("  main    https://github.com/chopsticks-bows/main (默认)")
+
+	if len(buckets) == 0 {
+		fmt.Println("  (暂无软件源)")
+	} else {
+		for _, name := range buckets {
+			// 获取详细信息
+			bucket, err := application.BucketManager().GetBucket(ctx, name)
+			if err != nil {
+				fmt.Printf("  %-10s (无法获取详细信息)\n", name)
+				continue
+			}
+			url := bucket.Repository.URL
+			if url == "" {
+				url = "本地"
+			}
+			fmt.Printf("  %-10s %s\n", name, url)
+		}
+	}
+
 	fmt.Println()
 	fmt.Println("使用 'chopsticks bucket add <name> <url>' 添加更多软件源")
 	return nil
 }
 
-func bucketUpdate(_ context.Context, _ app.Application, args []string) error {
+func bucketUpdate(ctx context.Context, application app.Application, args []string) error {
 	if len(args) == 0 {
+		// 更新所有软件源
 		fmt.Println("更新所有软件源...")
+		fmt.Println()
+
+		if err := application.BucketManager().UpdateAll(ctx); err != nil {
+			return fmt.Errorf("更新软件源失败: %w", err)
+		}
+
 		fmt.Println("✓ 所有软件源更新成功")
 		return nil
 	}
 
+	// 更新指定软件源
 	name := args[0]
 	fmt.Printf("更新软件源: %s...\n", name)
+	fmt.Println()
+
+	if err := application.BucketManager().Update(ctx, name); err != nil {
+		return fmt.Errorf("更新软件源失败: %w", err)
+	}
+
 	fmt.Printf("✓ 软件源 %s 更新成功\n", name)
 	return nil
 }
