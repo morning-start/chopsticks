@@ -3,6 +3,7 @@ package fetch
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -97,8 +98,17 @@ func Post(client *http.Client, requestURL string, body interface{}, contentType 
 
 // Download 从 url 下载文件到 destPath。
 func Download(url, destPath string) error {
+	return DownloadWithContext(context.Background(), url, destPath)
+}
+
+// DownloadWithContext 使用 context 下载文件。
+func DownloadWithContext(ctx context.Context, url, destPath string) error {
 	client := &http.Client{Timeout: 5 * time.Minute}
-	resp, err := client.Get(url)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("创建请求: %w", err)
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("获取 url: %w", err)
 	}

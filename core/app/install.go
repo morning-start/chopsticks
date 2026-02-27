@@ -170,7 +170,7 @@ func (i *installer) downloadPackage(ctx context.Context, info *manifest.Download
 	}
 
 	fmt.Printf("下载: %s\n", info.URL)
-	if err := fetch.Download(info.URL, destPath); err != nil {
+	if err := fetch.DownloadWithContext(ctx, info.URL, destPath); err != nil {
 		return "", err
 	}
 
