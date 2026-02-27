@@ -47,19 +47,27 @@ Chopsticks 采用分层架构设计，遵循以下原则：
 │         │                │                    │             │
 │  ┌──────┴────────────────┴────────────────────┴──────┐      │
 │  │                    Engine 层                       │      │
-│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  │      │
-│  │  │   JS    │ │   Lua   │ │ Archive │ │Checksum │  │      │
-│  │  │ Engine  │ │ Engine  │ │         │ │         │  │      │
-│  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘  │      │
-│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  │      │
-│  │  │  Fetch  │ │  FSUtil │ │  Exec   │ │  Path   │  │      │
-│  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘  │      │
+│  │        ┌─────────┐      ┌─────────┐               │      │
+│  │        │   JS    │      │   Lua   │               │      │
+│  │        │ Engine  │      │ Engine  │               │      │
+│  │        └────┬────┘      └────┬────┘               │      │
+│  │             │                │                     │      │
+│  │             └────────────────┘                     │      │
+│  │                      │                             │      │
+│  │                      ▼                             │      │
+│  │  ┌─────────────────────────────────────────────┐   │      │
+│  │  │           Engine API 模块 (向脚本暴露)         │   │      │
+│  │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐        │   │      │
+│  │  │  │  Fetch  │ │  FSUtil │ │  Exec   │        │   │      │
+│  │  │  │ Archive │ │Checksum │ │  Path   │ ...    │   │      │
+│  │  │  └─────────┘ └─────────┘ └─────────┘        │   │      │
+│  │  └─────────────────────────────────────────────┘   │      │
 │  └────────────────────────────────────────────────────┘      │
 └──────────────────────────────────────────────────────────────┘
         │
         ▼
 ┌──────────────────────────────────────────────────────────────┐
-│                      Infra Layer                                │
+│                      Infra 层                                 │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
 │  │     Git     │  │  Installer  │  │   System (Windows)  │  │
 │  │  (go-git)   │  │  Handler    │  │                     │  │
@@ -106,7 +114,7 @@ graph TB
         SCRIPT[Script Loader]
     end
 
-    subgraph MODULES[Engine Modules]
+    subgraph API[Engine API Layer]
         FS[fsutil]
         FETCH[fetch]
         EXEC[execx]
@@ -142,7 +150,8 @@ graph TB
     INSTALLER & UNINSTALLER & UPDATER --> SCRIPT
     SCRIPT --> JS & LUA
 
-    JS & LUA --> FS & FETCH & EXEC & ARCH & CHECK & PATH & LOG & JSON & SYM & REG & SEMVER & CHOPX
+    JS & LUA --> API
+    API --> FS & FETCH & EXEC & ARCH & CHECK & PATH & LOG & JSON & SYM & REG & SEMVER & CHOPX
 
     APP_MGR & BUCKET_MGR --> STORAGE
     STORAGE --> SQLITE & BOLT
@@ -287,9 +296,11 @@ CREATE TABLE installed (
 
 ### 3. Engine 层 (engine/)
 
-脚本引擎和 API 模块，向 JavaScript/Lua 脚本暴露系统能力。
+Engine 层负责脚本执行环境，向 JavaScript/Lua 脚本暴露系统能力。该层分为两个部分：
 
-#### 3.1 脚本引擎
+#### 3.1 脚本引擎 (Script Engines)
+
+脚本引擎是 Engine 层的核心，负责加载和执行 JavaScript/Lua 脚本。
 
 ```go
 // engine/engine.go
@@ -312,7 +323,16 @@ type LuaEngine struct {
 }
 ```
 
-#### 3.2 API 模块
+**引擎职责**：
+
+- 初始化脚本运行时环境
+- 加载和执行应用脚本
+- 管理脚本生命周期
+- 调用生命周期钩子（checkVersion、getDownloadInfo、onInstall 等）
+
+#### 3.2 Engine API 模块
+
+Engine API 模块是脚本引擎向外部脚本暴露的接口集合。这些模块不是与引擎同层次的关系，而是**被引擎依赖和调用**，通过引擎暴露给脚本使用。
 
 | 模块          | 文件                                | 功能描述              |
 | ------------- | ----------------------------------- | --------------------- |
@@ -329,10 +349,31 @@ type LuaEngine struct {
 | `semver`      | `engine/semver/semver.go`           | 版本比较              |
 | `chopsticksx` | `engine/chopsticksx/chopsticksx.go` | 系统 API              |
 
+**层次关系**：
+
+```
+┌─────────────────────────────────────────┐
+│           Engine 层                      │
+│  ┌─────────────────────────────────┐    │
+│  │      脚本引擎 (JS/Lua)           │    │
+│  │   - 加载和执行脚本               │    │
+│  │   - 管理脚本生命周期             │    │
+│  └──────────────┬──────────────────┘    │
+│                 │ 依赖/调用              │
+│                 ▼                       │
+│  ┌─────────────────────────────────┐    │
+│  │     Engine API 模块             │    │
+│  │   - 向脚本暴露系统能力          │    │
+│  │   - 被引擎注册和调用            │    │
+│  └─────────────────────────────────┘    │
+└─────────────────────────────────────────┘
+```
+
 **模块注册机制**:
 
 ```go
-// 引擎初始化时注册所有模块
+// 引擎初始化时注册所有 API 模块
+// 这些模块通过引擎暴露给脚本使用
 func (e *JSEngine) initModules() {
     e.RegisterModule("fs", fsutil.New())
     e.RegisterModule("fetch", fetch.New())
