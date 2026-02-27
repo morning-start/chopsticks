@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -325,5 +326,43 @@ func ExtractTarBz2(src, dest string) error {
 }
 
 func Extract7z(src, dest string) error {
-	return fmt.Errorf("7z 格式需要调用系统 7z 命令，请确保已安装 7-Zip")
+	// 尝试使用系统安装的 7z 命令
+	// 首先检查常见的 7z 安装路径
+	sevenZipPaths := []string{
+		`C:\Program Files\7-Zip\7z.exe`,
+		`C:\Program Files (x86)\7-Zip\7z.exe`,
+	}
+
+	var sevenZipPath string
+	for _, path := range sevenZipPaths {
+		if _, err := os.Stat(path); err == nil {
+			sevenZipPath = path
+			break
+		}
+	}
+
+	// 如果在常见路径找不到，尝试从 PATH 环境变量查找
+	if sevenZipPath == "" {
+		if path, err := exec.LookPath("7z"); err == nil {
+			sevenZipPath = path
+		}
+	}
+
+	if sevenZipPath == "" {
+		return fmt.Errorf("未找到 7z 命令，请确保已安装 7-Zip 并添加到 PATH")
+	}
+
+	// 创建目标目录
+	if err := os.MkdirAll(dest, 0755); err != nil {
+		return fmt.Errorf("创建目标目录: %w", err)
+	}
+
+	// 使用 7z 命令解压
+	cmd := exec.Command(sevenZipPath, "x", "-y", "-o"+dest, src)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("7z 解压失败: %w\n输出: %s", err, string(output))
+	}
+
+	return nil
 }
