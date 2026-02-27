@@ -33,4 +33,5 @@ function M:onPostInstall(ctx)
     log:info("Installation complete")
 end
 
-return M
+return
+ M
