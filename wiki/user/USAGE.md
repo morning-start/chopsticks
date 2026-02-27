@@ -157,12 +157,12 @@ Chopsticks 支持多种命令格式，您可以自由选择：
 
 | 主命令      | 别名                       | 说明       |
 | ----------- | -------------------------- | ---------- |
-| `install`   | `serve`, `i`               | 安装软件   |
-| `uninstall` | `clear`, `remove`, `rm`    | 卸载软件   |
-| `update`    | `refresh`, `upgrade`, `up` | 更新软件   |
+| `install`   | `i`                        | 安装软件   |
+| `uninstall` | `remove`, `rm`             | 卸载软件   |
+| `update`    | `upgrade`, `up`            | 更新软件   |
 | `search`    | `find`, `s`                | 搜索软件   |
 | `list`      | `ls`                       | 列出软件   |
-| `source`    | `bucket`, `s`              | 软件源管理 |
+| `bucket`    | `b`                        | 软件源管理 |
 | `sync`      | -                          | 设备同步   |
 
 ---
@@ -239,9 +239,53 @@ chopsticks install git --verbose
 chopsticks install git --debug
 ```
 
+### 6.4 禁用彩色输出
+
+```bash
+# 使用 --no-color 选项禁用彩色输出
+chopsticks install git --no-color
+
+# 或者设置环境变量
+$env:NO_COLOR = "1"
+chopsticks install git
+```
+
 ---
 
-## 7. 故障排除
+## 7. 界面说明
+
+### 7.1 彩色输出
+
+Chopsticks 使用彩色输出提升可读性：
+
+| 颜色   | 含义           | 示例                     |
+| ------ | -------------- | ------------------------ |
+| 🟢 绿色 | 成功、完成     | ✓ git 安装成功           |
+| 🔴 红色 | 错误、失败     | ✗ 安装失败: 网络错误     |
+| 🟡 黄色 | 警告、注意     | ⚠ 配置文件已存在         |
+| 🔵 蓝色 | 信息、提示     | ℹ 正在下载...            |
+| 🔷 青色 | 高亮、强调     | → 下一步: 配置环境变量   |
+| ⚪ 灰色 | 次要信息       | 路径: C:\Users\...       |
+
+### 7.2 进度显示
+
+安装软件时会显示进度条：
+
+```
+# 下载进度
+nodejs.zip 12.5 MB / 50.0 MB [25%] 2.5 MB/s  ETA 15s
+
+# 安装进度（多阶段）
+nodejs [下载] 25% 1/4
+nodejs [解压] 50% 2/4
+nodejs [安装] 75% 3/4
+nodejs [配置] 100% 4/4
+✓ nodejs 安装成功
+```
+
+---
+
+## 8. 故障排除
 
 ### 7.1 常见问题
 
@@ -279,7 +323,7 @@ chopsticks cache clean
 
 ---
 
-## 8. 配置文件
+## 9. 配置文件
 
 ### 8.1 配置文件位置
 
@@ -305,7 +349,7 @@ retry: 3
 
 ---
 
-## 9. 设备同步
+## 10. 设备同步
 
 ### 9.1 功能概述
 
@@ -365,5 +409,5 @@ chopsticks sync install --skip-installed
 
 ---
 
-_最后更新：2026-02-26_
-_版本：v0.1.0-alpha_
+_最后更新：2026-02-27_
+_版本：v0.2.0-alpha_

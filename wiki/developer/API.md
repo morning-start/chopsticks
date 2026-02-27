@@ -444,7 +444,108 @@ module.exports = new GitApp();
 
 ---
 
-## 16. 错误处理
+## 16. 输出模块 (output)
+
+### 16.1 彩色输出
+
+```javascript
+// 成功消息（绿色）
+output.success("安装成功");
+output.successf("%s 安装完成", "git");
+output.successln("✓ 操作完成");
+
+// 错误消息（红色）
+output.error("安装失败");
+output.errorf("错误: %s", err.message);
+output.errorln("✗ 操作失败");
+
+// 警告消息（黄色）
+output.warning("注意: 配置文件已存在");
+output.warningf("警告: %s", message);
+output.warningln("⚠ 请检查配置");
+
+// 信息消息（蓝色）
+output.info("正在下载...");
+output.infof("下载进度: %d%%", 50);
+output.infoln("ℹ 提示信息");
+
+// 高亮消息（青色）
+output.highlight("重要: 请备份数据");
+output.highlightf("→ 下一步: %s", "配置环境变量");
+output.highlightln("→ 开始安装");
+
+// 暗淡消息（灰色）
+output.dim("详细信息...");
+output.dimf("路径: %s", path);
+output.dimln("(可选)");
+
+// 带图标的输出
+output.successCheck("安装完成");      // ✓
+output.errorCross("安装失败");        // ✗
+output.warningSign("配置警告");       // ⚠
+output.infoSign("提示信息");          // ℹ
+output.arrow("下一步");               // →
+```
+
+### 16.2 颜色控制
+
+```javascript
+// 禁用颜色输出
+output.disableColor();
+
+// 启用颜色输出
+output.enableColor();
+
+// 检查颜色是否启用
+const enabled = output.isColorEnabled();
+```
+
+### 16.3 进度显示
+
+```javascript
+// 创建进度管理器
+const pm = output.newProgressManager();
+
+// 添加下载进度条
+const bar = pm.addDownloadBar("nodejs.zip", fileSize);
+// 显示: nodejs.zip 12.5 MB / 50.0 MB [25%] 2.5 MB/s  ETA 15s
+
+// 更新进度
+bar.incrBy(bytesRead);
+
+// 添加安装进度条（多阶段）
+const stages = ["下载", "解压", "安装", "配置"];
+const installBar = pm.addInstallBar("nodejs", stages);
+// 显示: nodejs [下载] 25% 1/4
+
+// 设置当前阶段
+installBar.setStage(0);        // 下载阶段
+installBar.completeStage();    // 完成当前阶段，自动进入下一阶段
+
+// 设置阶段内进度 (0-100)
+installBar.setProgress(50);    // 当前阶段完成 50%
+
+// 标记完成
+installBar.complete();
+
+// 添加批量操作进度条
+const batchBar = pm.addBatchBar(totalApps);
+// 显示: [3/10] 当前应用名
+
+// 进入下一项
+batchBar.nextItem("git");
+batchBar.nextItem("nodejs");
+
+// 标记完成
+batchBar.complete();
+
+// 等待所有进度条完成
+pm.wait();
+```
+
+---
+
+## 17. 错误处理
 
 ```javascript
 async checkVersion() {
@@ -469,4 +570,4 @@ async checkVersion() {
 
 ---
 
-_最后更新：2026-02-26_
+_最后更新：2026-02-27_

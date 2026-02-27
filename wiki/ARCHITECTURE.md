@@ -166,30 +166,57 @@ graph TB
 
 ### 1. CLI 层 (cmd/chopsticks/cli/)
 
-负责命令行界面和用户交互。
+负责命令行界面和用户交互。基于 `urfave/cli/v2` 框架实现。
 
 ```go
-// cmd/chopsticks/cli/commands.go
-type Command struct {
-    Name        string   // 主命令名（用户友好）
-    Aliases     []string // 别名（内部名或其他别名）
-    Description string   // 描述
-    Usage       string   // 用法
-    Examples    []string // 示例
+// cmd/chopsticks/cli/app.go
+func NewApp() *cli.App {
+    return &cli.App{
+        Name:    "chopsticks",
+        Usage:   "Windows 包管理器",
+        Version: "0.2.0-alpha",
+        Commands: []*cli.Command{
+            installCommand(),
+            uninstallCommand(),
+            updateCommand(),
+            searchCommand(),
+            listCommand(),
+            bucketCommand(),
+            completionCommand(),
+        },
+    }
 }
 ```
 
+**CLI 框架特性**:
+
+- **声明式命令定义**: 使用结构体定义命令，清晰直观
+- **自动帮助生成**: 框架自动生成帮助信息
+- **类型安全的 Flag 解析**: 支持 String、Bool、Int 等多种类型
+- **优雅的子命令支持**: bucket 等子命令使用框架原生支持
+- **Shell 自动补全**: 内置补全脚本生成功能
+
 **主要命令**:
 
-| 命令         | 功能       | 实现文件        | 别名                       |
-| ------------ | ---------- | --------------- | -------------------------- |
-| `install`    | 安装应用   | `serve.go`      | `serve`, `i`               |
-| `uninstall`  | 卸载应用   | `clear.go`      | `clear`, `rm`, `remove`    |
-| `update`     | 更新应用   | `refresh.go`    | `refresh`, `up`, `upgrade` |
-| `search`     | 搜索应用   | `search.go`     | `find`, `s`                |
-| `list`       | 列出应用   | `list.go`       | `ls`                       |
-| `bucket`     | 软件源管理 | `bucket.go`     | -                          |
-| `completion` | 自动补全   | `completion.go` | -                          |
+| 命令         | 功能       | 实现文件          | 别名                    |
+| ------------ | ---------- | ----------------- | ----------------------- |
+| `install`    | 安装应用   | `install.go`      | `i`                     |
+| `uninstall`  | 卸载应用   | `uninstall.go`    | `remove`, `rm`          |
+| `update`     | 更新应用   | `update.go`       | `upgrade`, `up`         |
+| `search`     | 搜索应用   | `search.go`       | `find`, `s`             |
+| `list`       | 列出应用   | `list.go`         | `ls`                    |
+| `bucket`     | 软件源管理 | `bucket.go`       | `b`                     |
+| `completion` | 自动补全   | `completion.go`   | -                       |
+
+**全局选项**:
+
+| 选项           | 简写 | 说明               | 环境变量              |
+| -------------- | ---- | ------------------ | --------------------- |
+| `--config`     | `-c` | 指定配置文件路径   | `CHOPSTICKS_CONFIG`   |
+| `--verbose`    | `-v` | 启用详细输出       | `CHOPSTICKS_VERBOSE`  |
+| `--no-color`   | -    | 禁用彩色输出       | `NO_COLOR`            |
+| `--help`       | `-h` | 显示帮助信息       | -                     |
+| `--version`    | `-V` | 显示版本信息       | -                     |
 
 ### 2. Core 层 (core/)
 
@@ -362,11 +389,75 @@ func (e *JSEngine) initModules() {
 }
 ```
 
-### 4. Infra 层 (infra/)
+### 4. Output 层 (pkg/output/)
+
+输出格式化和用户界面增强。
+
+#### 4.1 彩色输出 (color.go)
+
+基于 `fatih/color` 库实现终端彩色输出。
+
+```go
+// pkg/output/color.go
+var (
+    ColorSuccess   = color.New(color.FgGreen, color.Bold)   // 绿色加粗
+    ColorError     = color.New(color.FgRed, color.Bold)     // 红色加粗
+    ColorWarning   = color.New(color.FgYellow)              // 黄色
+    ColorInfo      = color.New(color.FgBlue)                // 蓝色
+    ColorHighlight = color.New(color.FgCyan, color.Bold)    // 青色加粗
+    ColorDim       = color.New(color.FgHiBlack)             // 灰色
+)
+
+// 便捷函数
+func Success(format string, a ...interface{})
+func Error(format string, a ...interface{})
+func Warning(format string, a ...interface{})
+func Info(format string, a ...interface{})
+func SuccessCheck(msg string)      // ✓ 成功
+func ErrorCross(msg string)        // ✗ 错误
+func WarningSign(msg string)       // ⚠ 警告
+```
+
+**颜色主题**:
+
+| 类型     | 颜色 | 样式   | 使用场景           |
+| -------- | ---- | ------ | ------------------ |
+| Success  | 绿色 | 加粗   | 操作成功、完成状态 |
+| Error    | 红色 | 加粗   | 错误消息、失败状态 |
+| Warning  | 黄色 | 正常   | 警告、注意事项     |
+| Info     | 蓝色 | 正常   | 一般信息、提示     |
+| Highlight| 青色 | 加粗   | 重要内容、强调     |
+| Dim      | 灰色 | 正常   | 次要信息、元数据   |
+
+#### 4.2 进度显示 (progress.go)
+
+基于 `mpb/v8` 库实现多进度条显示。
+
+```go
+// pkg/output/progress.go
+type ProgressManager struct {
+    progress *mpb.Progress
+}
+
+func (pm *ProgressManager) AddDownloadBar(name string, total int64) *mpb.Bar
+func (pm *ProgressManager) AddInstallBar(name string, stages []string) *MultiStageBar
+func (pm *ProgressManager) AddBatchBar(total int) *BatchBar
+func (pm *ProgressManager) Wait()
+```
+
+**进度条类型**:
+
+| 类型         | 说明                     | 显示内容                          |
+| ------------ | ------------------------ | --------------------------------- |
+| 下载进度条   | 文件下载进度             | 名称、已下载/总大小、百分比、速度、剩余时间 |
+| 安装进度条   | 多阶段安装进度           | 应用名、当前阶段、总体百分比        |
+| 批量进度条   | 批量操作进度             | 当前项/总项数、当前处理项名称        |
+
+### 5. Infra 层 (infra/)
 
 基础设施服务。
 
-#### 4.1 Git 客户端 (infra/git/)
+#### 5.1 Git 客户端 (infra/git/)
 
 ```go
 // infra/git/git.go
@@ -377,7 +468,7 @@ type Client interface {
 }
 ```
 
-#### 4.2 安装程序处理 (infra/installer/)
+#### 5.2 安装程序处理 (infra/installer/)
 
 ```go
 // infra/installer/installer.go
@@ -484,14 +575,17 @@ sequenceDiagram
 
 ### 核心依赖
 
-| 库                            | 用途             | 版本                  |
-| ----------------------------- | ---------------- | --------------------- |
-| `github.com/dop251/goja`      | JavaScript 引擎  | v0.0.0-20260106131823 |
-| `github.com/yuin/gopher-lua`  | Lua 引擎         | v1.1.1                |
-| `github.com/go-git/go-git/v5` | Git 操作         | v5.11.0               |
-| `github.com/mattn/go-sqlite3` | SQLite 数据库    | v1.14.24              |
-| `github.com/ulikunitz/xz`     | XZ 压缩支持      | v0.5.11               |
-| `golang.org/x/sys`            | Windows 系统调用 | v0.32.0               |
+| 库                               | 用途             | 版本                  |
+| -------------------------------- | ---------------- | --------------------- |
+| `github.com/dop251/goja`         | JavaScript 引擎  | v0.0.0-20260106131823 |
+| `github.com/yuin/gopher-lua`     | Lua 引擎         | v1.1.1                |
+| `github.com/go-git/go-git/v5`    | Git 操作         | v5.11.0               |
+| `github.com/mattn/go-sqlite3`    | SQLite 数据库    | v1.14.24              |
+| `github.com/ulikunitz/xz`        | XZ 压缩支持      | v0.5.11               |
+| `golang.org/x/sys`               | Windows 系统调用 | v0.32.0               |
+| `github.com/urfave/cli/v2`       | CLI 框架         | v2.x                  |
+| `github.com/vbauerster/mpb/v8`   | 多进度条显示     | v8.x                  |
+| `github.com/fatih/color`         | 终端彩色输出     | v1.x                  |
 
 ### 选型理由
 
@@ -500,6 +594,9 @@ sequenceDiagram
 3. **Gopher-lua**: 轻量级 Lua 引擎，适合嵌入式场景
 4. **go-git**: 纯 Go 实现的 Git 客户端，无需外部依赖
 5. **SQLite**: 轻量级嵌入式数据库，单文件存储
+6. **urfave/cli/v2**: 成熟的 Go CLI 框架，支持子命令、Flag 解析、自动补全
+7. **mpb/v8**: 功能强大的多进度条库，支持并发、自定义装饰器
+8. **fatih/color**: 流行的终端颜色库，自动检测颜色支持，跨平台兼容
 
 ---
 
@@ -624,4 +721,4 @@ bucket/
 ---
 
 _最后更新: 2026-02-27_
-_架构版本: v1.1_
+_架构版本: v1.2_
