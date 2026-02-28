@@ -280,14 +280,14 @@ CREATE TABLE schema_version (
 CREATE TABLE buckets (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    url TEXT NOT NULL,
+    repo_url TEXT NOT NULL,        -- Git 仓库地址
     branch TEXT DEFAULT 'main',
     description TEXT,
     author TEXT,
     homepage TEXT,
     license TEXT,
     local_path TEXT,
-    app_count INTEGER DEFAULT 0,
+    -- app_count INTEGER,          -- 可选字段，当前未实现
     added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -303,16 +303,18 @@ CREATE INDEX idx_buckets_added_at ON buckets(added_at);
 | ----------- | -------- | --------------------- |
 | id          | TEXT     | 唯一标识（如 "main"） |
 | name        | TEXT     | 显示名称              |
-| url         | TEXT     | Git 仓库地址          |
+| repo_url    | TEXT     | Git 仓库地址          |
 | branch      | TEXT     | 分支名（默认 main）   |
 | description | TEXT     | 描述                  |
 | author      | TEXT     | 作者                  |
 | homepage    | TEXT     | 主页                  |
 | license     | TEXT     | 许可证                |
 | local_path  | TEXT     | 本地克隆路径          |
-| app_count   | INTEGER  | 应用数量              |
+| app_count   | INTEGER  | 应用数量（可选）      |
 | added_at    | DATETIME | 添加时间              |
 | updated_at  | DATETIME | 更新时间              |
+
+> **注意**：`repo_url` 字段在早期 Wiki 版本中名为 `url`，现已更新为更清晰的命名。`app_count` 字段当前未实现，标记为可选。
 
 ---
 
@@ -324,12 +326,12 @@ CREATE TABLE installed (
     name TEXT NOT NULL,
     version TEXT NOT NULL,
     bucket_id TEXT NOT NULL,
-    bucket_name TEXT NOT NULL,
-    app_path TEXT NOT NULL,
-    install_path TEXT NOT NULL,
+    install_dir TEXT NOT NULL,     -- 安装目录（原名 cook_dir）
     installed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    metadata TEXT,
+    -- bucket_name TEXT,           -- 可选字段，当前未实现
+    -- app_path TEXT,              -- 可选字段，当前未实现
+    -- metadata TEXT,              -- 可选字段，当前未实现
     FOREIGN KEY (bucket_id) REFERENCES buckets(id) ON DELETE SET NULL
 );
 
@@ -347,12 +349,14 @@ CREATE INDEX idx_installed_version ON installed(version);
 | name         | TEXT     | 软件名称                         |
 | version      | TEXT     | 已安装版本                       |
 | bucket_id    | TEXT     | 来源软件源 ID                    |
-| bucket_name  | TEXT     | 来源软件源名称                   |
-| app_path     | TEXT     | 应用目录路径（用于读取 app.lua） |
-| install_path | TEXT     | 安装目录                         |
+| install_dir  | TEXT     | 安装目录                         |
 | installed_at | DATETIME | 安装时间                         |
 | updated_at   | DATETIME | 更新时间                         |
-| metadata     | TEXT     | 额外元数据（JSON）               |
+| bucket_name  | TEXT     | 来源软件源名称（可选）           |
+| app_path     | TEXT     | 应用目录路径（可选）             |
+| metadata     | TEXT     | 额外元数据（JSON，可选）         |
+
+> **注意**：`install_dir` 字段在早期 Wiki 版本中名为 `cook_dir`，现已更新为更通用的命名。`bucket_name`、`app_path`、`metadata` 字段当前未实现，标记为可选。
 
 ---
 
@@ -569,14 +573,13 @@ erDiagram
     BUCKETS {
         text id PK
         text name
-        text url
+        text repo_url
         text branch
         text description
         text author
         text homepage
         text license
         text local_path
-        int app_count
         datetime added_at
         datetime updated_at
     }
@@ -586,12 +589,9 @@ erDiagram
         text name
         text version
         text bucket_id FK
-        text bucket_name
-        text app_path
-        text install_path
+        text install_dir
         datetime installed_at
         datetime updated_at
-        text metadata
     }
 
     SEARCH_CACHE {
@@ -778,6 +778,44 @@ cp ~/.chopsticks/backup/data.db.bak ~/.chopsticks/data.db
 | **可扩展性**   | 每个 Bucket 可以独立更新其软件包                |
 | **性能**       | 本地文件系统读取比数据库查询更快                |
 | **版本追踪**   | 通过 Git 自然实现软件包版本历史                 |
+
+---
+
+## 附录：Wiki 与实现的差异
+
+本文档描述的是实际代码实现的数据库 Schema。与早期 Wiki 版本相比有以下变更：
+
+| 表名 | 变更 | 原因 |
+|------|------|------|
+| buckets | url → repo_url | 更清晰的命名 |
+| buckets | app_count 标记为可选 | 当前未实现 |
+| installed | cook_dir → install_dir | 更通用的命名 |
+| installed | bucket_name, app_path, metadata 标记为可选 | 当前未实现 |
+
+### 字段变更详情
+
+#### buckets 表
+
+| 字段 | 早期 Wiki | 当前实现 | 状态 |
+|------|-----------|----------|------|
+| url | TEXT NOT NULL | - | 已重命名为 repo_url |
+| repo_url | - | TEXT NOT NULL | 新增字段 |
+| app_count | INTEGER DEFAULT 0 | - | 当前未实现，标记为可选 |
+
+#### installed 表
+
+| 字段 | 早期 Wiki | 当前实现 | 状态 |
+|------|-----------|----------|------|
+| cook_dir | TEXT NOT NULL | - | 已重命名为 install_dir |
+| install_dir | - | TEXT NOT NULL | 新增字段 |
+| install_path | TEXT NOT NULL | - | 已移除，使用 install_dir |
+| bucket_name | TEXT NOT NULL | - | 当前未实现，标记为可选 |
+| app_path | TEXT NOT NULL | - | 当前未实现，标记为可选 |
+| metadata | TEXT | - | 当前未实现，标记为可选 |
+
+### 后续计划
+
+未实现的字段（bucket_name, app_path, metadata, app_count）将在后续版本中根据需求评估是否添加。当前实现已满足核心功能需求。
 
 ---
 
