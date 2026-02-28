@@ -147,6 +147,50 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
+	regTable.RawSetString("keyExists", L.NewFunction(func(L *lua.LState) int {
+		keyPath := L.CheckString(1)
+		exists, err := KeyExists(keyPath)
+		if err != nil {
+			L.Push(lua.LBool(false))
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+		L.Push(lua.LBool(exists))
+		return 1
+	}))
+
+	regTable.RawSetString("listKeys", L.NewFunction(func(L *lua.LState) int {
+		keyPath := L.CheckString(1)
+		keys, err := ListKeys(keyPath)
+		if err != nil {
+			L.Push(lua.LNil)
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+		table := L.NewTable()
+		for _, key := range keys {
+			table.Append(lua.LString(key))
+		}
+		L.Push(table)
+		return 1
+	}))
+
+	regTable.RawSetString("listValues", L.NewFunction(func(L *lua.LState) int {
+		keyPath := L.CheckString(1)
+		values, err := ListValues(keyPath)
+		if err != nil {
+			L.Push(lua.LNil)
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+		table := L.NewTable()
+		for _, value := range values {
+			table.Append(lua.LString(value))
+		}
+		L.Push(table)
+		return 1
+	}))
+
 	L.SetGlobal("registry", regTable)
 }
 
@@ -256,6 +300,51 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
 		}
 		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
+	})
+
+	regObj.Set("keyExists", func(call goja.FunctionCall) goja.Value {
+		keyPath := call.Argument(0).String()
+		exists, err := KeyExists(keyPath)
+		if err != nil {
+			return vm.ToValue(map[string]interface{}{
+				"success": false,
+				"error":   err.Error(),
+			})
+		}
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"exists":  exists,
+		})
+	})
+
+	regObj.Set("listKeys", func(call goja.FunctionCall) goja.Value {
+		keyPath := call.Argument(0).String()
+		keys, err := ListKeys(keyPath)
+		if err != nil {
+			return vm.ToValue(map[string]interface{}{
+				"success": false,
+				"error":   err.Error(),
+			})
+		}
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"keys":    keys,
+		})
+	})
+
+	regObj.Set("listValues", func(call goja.FunctionCall) goja.Value {
+		keyPath := call.Argument(0).String()
+		values, err := ListValues(keyPath)
+		if err != nil {
+			return vm.ToValue(map[string]interface{}{
+				"success": false,
+				"error":   err.Error(),
+			})
+		}
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"values":  values,
+		})
 	})
 
 	vm.Set("registry", regObj)
