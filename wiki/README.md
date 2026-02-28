@@ -211,10 +211,18 @@ chopsticks/
 
 ---
 
+## 📚 文档
+
+- [使用指南](user/USAGE.md) - 完整用户指南
+- [缓存管理](user/cache-management.md) - 缓存机制与管理
+- [常见问题](user/faq.md) - FAQ
+- [开发者指南](developer/DEVELOPER.md) - 开发者文档
+- [API 参考](developer/API.md) - JavaScript API
+
 ## 🔗 相关链接
 
 - [GitHub 仓库](https://github.com/chopsticks-bows/main)
 
 ---
 
-_最后更新：2026-02-27_
+_最后更新：2026-02-28_

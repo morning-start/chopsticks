@@ -491,6 +491,32 @@ retry: 3
 
 ### 11.4 命令用法
 
+#### 11.4.1 sync 命令语法
+
+```bash
+chopsticks sync [subcommand] [flags]
+```
+
+**子命令**:
+
+| 子命令    | 说明                     | 示例                      |
+| --------- | ------------------------ | ------------------------- |
+| `list`    | 查看将同步的软件列表     | `chopsticks sync list`    |
+| `install` | 同步安装所有已记录的软件 | `chopsticks sync install` |
+| `status`  | 查看同步状态             | `chopsticks sync status`  |
+
+**参数说明**:
+
+| 参数               | 简写 | 说明                   | 示例                                       |
+| ------------------ | ---- | ---------------------- | ------------------------------------------ |
+| `--device`         | `-d` | 指定目标设备           | `chopsticks sync -d laptop`                |
+| `--force`          | `-f` | 强制同步，覆盖冲突     | `chopsticks sync install -f`               |
+| `--dry-run`        | `-n` | 模拟运行，不实际安装   | `chopsticks sync install -n`               |
+| `--config-only`    | `-c` | 仅同步配置，不同步软件 | `chopsticks sync -c`                       |
+| `--skip-installed` | -    | 跳过已安装的软件       | `chopsticks sync install --skip-installed` |
+
+#### 11.4.2 常用命令示例
+
 ```bash
 # 查看将同步的软件列表（不实际安装）
 chopsticks sync list
@@ -500,22 +526,123 @@ chopsticks sync install
 
 # 同步安装（跳过已安装的）
 chopsticks sync install --skip-installed
+
+# 模拟同步（查看会发生什么，但不实际执行）
+chopsticks sync install --dry-run
+
+# 强制同步（覆盖已存在的配置）
+chopsticks sync install --force
+
+# 仅同步配置
+chopsticks sync --config-only
+
+# 查看同步状态
+chopsticks sync status
 ```
 
-### 11.5 工作原理
+### 11.5 同步流程
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant C as Chopsticks
+    participant D as data.db
+    participant B as 软件源
+    participant A as apps/
+
+    U->>C: chopsticks sync install
+    C->>D: 读取 buckets 表
+    C->>D: 读取 installed 表
+    C->>B: 克隆/更新软件源
+    loop 遍历已安装软件
+        C->>B: 获取软件 manifest
+        C->>A: 安装软件
+        C->>D: 更新安装记录
+    end
+    C->>U: 同步完成
+```
+
+### 11.6 工作原理
 
 `sync install` 命令会执行以下操作：
 
-1. 读取 `data.db` 中的 `buckets` 表，获取所有已添加的软件源
-2. 读取 `data.db` 中的 `installed` 表，获取所有已安装的软件
-3. 重新克隆软件源仓库（如果 sources 目录为空）
-4. 遍历已安装列表，重新安装每个软件
+1. **读取数据库**: 从 `data.db` 读取 `buckets` 和 `installed` 表
+2. **更新软件源**: 克隆或更新所有软件源仓库
+3. **遍历安装**: 按依赖顺序安装每个软件
+4. **冲突处理**: 根据策略处理版本冲突
+5. **记录更新**: 更新数据库中的安装记录
 
-### 11.6 注意事项
+### 11.7 冲突解决
+
+当多个设备上的配置不一致时，系统提供三种冲突解决策略：
+
+1. **本地优先** (`local`): 保留本地修改，覆盖云端
+2. **云端优先** (`remote`): 使用云端版本，覆盖本地
+3. **手动合并** (`merge`): 提示用户手动选择
+
+```bash
+# 设置默认冲突解决策略
+chopsticks config set sync.conflict_strategy local
+
+# 临时指定策略
+chopsticks sync install --conflict-strategy remote
+```
+
+### 11.8 注意事项
 
 - **数据库完整**：确保复制的 `data.db` 数据库文件完整无损
 - **网络连接**：同步过程需要重新下载软件，请确保网络畅通
 - **版本兼容**：部分软件可能在新设备上需要不同版本，请注意检查
+- **存储空间**：确保新设备有足够的存储空间安装所有软件
+
+### 11.9 故障排除
+
+**问题: 同步失败**
+
+```bash
+# 查看详细错误信息
+chopsticks sync install --verbose
+
+# 检查数据库完整性
+chopsticks doctor
+```
+
+**问题: 软件源无法访问**
+
+```bash
+# 更新软件源
+chopsticks bucket update
+
+# 检查网络连接
+ping github.com
+```
+
+---
+
+## 12. 缓存管理
+
+Chopsticks 使用多级缓存机制来提升性能。详细说明请查看 [缓存管理指南](cache-management.md)。
+
+### 12.1 常用命令
+
+```bash
+# 查看缓存大小
+chopsticks cache size
+
+# 清理缓存
+chopsticks cache clean
+
+# 查看详细缓存信息
+chopsticks cache size --verbose
+```
+
+### 12.2 缓存类型
+
+| 缓存类型   | 位置               | 说明                 |
+| ---------- | ------------------ | -------------------- |
+| 下载缓存   | `cache/downloads/` | 存储下载的软件包     |
+| 元数据缓存 | `cache/metadata/`  | 存储软件源索引       |
+| 临时文件   | `cache/temp/`      | 安装过程中的临时数据 |
 
 ---
 

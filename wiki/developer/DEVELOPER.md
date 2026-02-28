@@ -781,7 +781,72 @@ class ExampleApp extends App {
 
 ---
 
-## 11. 发布
+## 11. 设备同步开发指南
+
+### 11.1 同步机制原理
+
+Chopsticks 使用增量同步机制：
+
+1. **变更检测**: 通过 SQLite 触发器记录所有变更
+2. **差异计算**: 对比本地与云端状态，生成差异列表
+3. **冲突检测**: 识别同时修改的冲突项
+4. **增量传输**: 仅传输变更数据，节省带宽
+
+```mermaid
+sequenceDiagram
+    participant A as 设备A
+    participant S as 同步服务器
+    participant B as 设备B
+    
+    A->>S: 上传本地状态
+    S->>S: 计算差异
+    S->>B: 推送变更
+    B->>S: 确认接收
+    S->>A: 同步完成通知
+```
+
+### 11.2 开发者注意事项
+
+1. **数据一致性**: 所有持久化操作必须通过 Chopsticks API
+2. **冲突处理**: 为关键数据提供合理的默认冲突策略
+3. **离线支持**: 考虑网络中断时的本地缓存策略
+4. **性能优化**: 大数据量同步时使用分页和压缩
+
+### 11.3 自定义同步冲突处理
+
+```javascript
+class MyApp extends App {
+  onSyncConflict(conflict) {
+    // 自定义冲突解决逻辑
+    if (conflict.type === "config") {
+      return "merge";  // 配置项尝试合并
+    }
+    return "local";  // 其他使用本地版本
+  }
+}
+```
+
+### 11.4 同步 API 使用
+
+```javascript
+// 在应用中触发同步
+async onPostInstall(ctx) {
+  // 同步配置到其他设备
+  await chopsticks.sync({
+    configOnly: true
+  });
+}
+
+// 获取同步状态
+const status = await chopsticks.syncStatus();
+if (status.pendingChanges > 0) {
+  log.info(`有 ${status.pendingChanges} 个待同步的变更`);
+}
+```
+
+---
+
+## 12. 发布
 
 1. 创建 GitHub 仓库
 2. 添加软件源到 Chopsticks
@@ -795,4 +860,4 @@ chopsticks source add my-bucket https://github.com/username/my-bucket
 ---
 
 _最后更新：2026-02-28_
-_版本：v0.5.0-alpha_
+_版本：v0.6.0-alpha_

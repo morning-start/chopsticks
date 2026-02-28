@@ -579,4 +579,78 @@ async checkVersion() {
 
 ---
 
-_最后更新：2026-02-27_
+## 18. 设备同步 API
+
+### 18.1 执行同步
+
+```javascript
+// 执行完整同步
+await chopsticks.sync();
+
+// 指定设备同步
+await chopsticks.sync({
+  device: "laptop",
+  force: false,
+  dryRun: false,
+  configOnly: false
+});
+```
+
+**参数说明**:
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `device` | string | null | 目标设备名称，null 表示所有设备 |
+| `force` | boolean | false | 是否强制覆盖冲突 |
+| `dryRun` | boolean | false | 是否模拟运行 |
+| `configOnly` | boolean | false | 是否仅同步配置 |
+
+**返回值**:
+
+```javascript
+{
+  success: true,
+  syncedDevices: ["laptop", "desktop"],
+  conflicts: [],
+  timestamp: "2026-02-28T10:30:00Z"
+}
+```
+
+### 18.2 获取同步状态
+
+```javascript
+const status = await chopsticks.syncStatus();
+```
+
+**返回值**:
+
+```javascript
+{
+  lastSync: "2026-02-28T10:30:00Z",
+  pendingChanges: 5,
+  connectedDevices: ["laptop", "desktop", "server"],
+  syncEnabled: true
+}
+```
+
+### 18.3 解决冲突
+
+```javascript
+await chopsticks.resolveConflict({
+  conflictId: "conflict-001",
+  resolution: "local"  // 'local', 'remote', 'merge'
+});
+```
+
+### 18.4 获取同步历史
+
+```javascript
+const history = await chopsticks.getSyncHistory({
+  limit: 10,
+  device: "laptop"
+});
+```
+
+---
+
+_最后更新：2026-02-28_
