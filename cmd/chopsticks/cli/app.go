@@ -36,6 +36,7 @@ func Execute(ctx context.Context, appInstance app.Application) error {
 			searchCommand(),
 			listCommand(),
 			bucketCommand(),
+			configCommand(),
 			completionCommand(),
 		},
 		Flags: []cli.Flag{

@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"chopsticks/cmd/chopsticks/cli"
-	"chopsticks/core/app"
+	coreapp "chopsticks/core/app"
+	"chopsticks/pkg/config"
+	"chopsticks/pkg/output"
 )
 
 func main() {
@@ -20,9 +22,22 @@ func main() {
 }
 
 func run() error {
-	cfg := app.DefaultConfig()
+	// 加载用户配置
+	userCfg, err := config.LoadDefault()
+	if err != nil {
+		output.Warn("加载配置文件失败，使用默认配置: %v", err)
+		userCfg = config.DefaultConfig()
+	}
 
-	application, err := app.New(cfg)
+	// 将 pkg/config 配置转换为 core/app 配置
+	cfg := &coreapp.Config{
+		AppsPath:    userCfg.Global.AppsPath,
+		BucketsPath: userCfg.Global.BucketsPath,
+		CachePath:   userCfg.Global.CachePath,
+		StoragePath: userCfg.Global.StoragePath,
+	}
+
+	application, err := coreapp.New(cfg)
 	if err != nil {
 		return fmt.Errorf("创建应用: %w", err)
 	}

@@ -108,6 +108,11 @@ func Warning(format string, a ...interface{}) {
 	ColorWarning.Printf(format, a...)
 }
 
+// Warn 输出警告消息（黄色，Warning 的别名）
+func Warn(format string, a ...interface{}) {
+	ColorWarning.Printf(format, a...)
+}
+
 // Warningln 输出警告消息并换行
 func Warningln(a ...interface{}) {
 	ColorWarning.Println(a...)
