@@ -9,6 +9,7 @@ import (
 	"chopsticks/core/bucket"
 	"chopsticks/core/store"
 	"chopsticks/engine"
+	"chopsticks/engine/logx"
 )
 
 type Application interface {
@@ -17,6 +18,7 @@ type Application interface {
 	Installer() Installer
 	Storage() store.Storage
 	Config() *Config
+	Logger() *logx.Logger
 	Run(ctx context.Context) error
 	Shutdown(ctx context.Context) error
 }
@@ -28,6 +30,7 @@ type app struct {
 	installer  Installer
 	storage    store.Storage
 	jsEngine   *engine.JSEngine
+	logger     *logx.Logger
 }
 
 func New(cfg *Config) (*app, error) {
@@ -42,6 +45,14 @@ func New(cfg *Config) (*app, error) {
 	if err := os.MkdirAll(cfg.BucketsPath, 0755); err != nil {
 		return nil, fmt.Errorf("创建软件源目录: %w", err)
 	}
+
+	// 初始化日志系统
+	logCfg := logx.DefaultConfig()
+	logCfg.Filename = filepath.Join(filepath.Dir(cfg.StoragePath), "logs", "chopsticks.log")
+	if err := logx.InitDefault(logCfg); err != nil {
+		return nil, fmt.Errorf("初始化日志系统: %w", err)
+	}
+	a.logger = logx.GetDefault()
 
 	storage, err := store.New(cfg.StoragePath)
 	if err != nil {
@@ -97,6 +108,10 @@ func (a *app) Config() *Config {
 	return a.config
 }
 
+func (a *app) Logger() *logx.Logger {
+	return a.logger
+}
+
 func (a *app) Run(ctx context.Context) error {
 	fmt.Println("Chopsticks is running...")
 	return nil
@@ -105,7 +120,14 @@ func (a *app) Run(ctx context.Context) error {
 func (a *app) Shutdown(ctx context.Context) error {
 	fmt.Println("Chopsticks is shutting down...")
 	if a.storage != nil {
-		return a.storage.Close()
+		if err := a.storage.Close(); err != nil {
+			return err
+		}
+	}
+	if a.logger != nil {
+		if err := a.logger.Close(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
