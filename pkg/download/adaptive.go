@@ -33,12 +33,12 @@ func (s DownloadStrategy) String() string {
 
 // FileInfo 文件信息
 type FileInfo struct {
+	LastModified   time.Time
 	URL            string
+	ContentType    string
+	ETag           string
 	Size           int64
 	AcceptRanges   bool
-	ContentType    string
-	LastModified   time.Time
-	ETag           string
 	SupportsResume bool
 }
 
@@ -81,8 +81,8 @@ func DefaultConfig() *Config {
 	return &Config{
 		ChunkSize:             10 * 1024 * 1024, // 10MB
 		MaxChunks:             16,
-		MinChunkSize:          1 * 1024 * 1024, // 1MB
-		SingleThreadThreshold: 5 * 1024 * 1024, // 5MB
+		MinChunkSize:          1 * 1024 * 1024,  // 1MB
+		SingleThreadThreshold: 5 * 1024 * 1024,  // 5MB
 		MultiConnThreshold:    50 * 1024 * 1024, // 50MB
 		MaxConcurrentConns:    8,
 		ConnectTimeout:        30 * time.Second,
@@ -278,7 +278,7 @@ func (d *AdaptiveDownloader) singleThreadDownload(ctx context.Context, info *Fil
 		return fmt.Errorf("服务器返回错误状态码: %d", resp.StatusCode)
 	}
 
-	return d.writeToFile(resp, destPath, 0, info.Size, progress)
+	return d.writeToFile(resp, destPath, progress)
 }
 
 // multiConnectionDownload 多连接下载 (简单实现，实际可以打开多个连接)
@@ -375,5 +375,14 @@ func (d *AdaptiveDownloader) reportProgress(stop chan struct{}, callback Progres
 func (d *AdaptiveDownloader) GetStats() DownloadStats {
 	d.stats.mu.RLock()
 	defer d.stats.mu.RUnlock()
-	return *d.stats
+	return DownloadStats{
+		TotalBytes:      d.stats.TotalBytes,
+		DownloadedBytes: d.stats.DownloadedBytes,
+		StartTime:       d.stats.StartTime,
+		CurrentSpeed:    d.stats.CurrentSpeed,
+		AvgSpeed:        d.stats.AvgSpeed,
+		ActiveChunks:    d.stats.ActiveChunks,
+		CompletedChunks: d.stats.CompletedChunks,
+		FailedChunks:    d.stats.FailedChunks,
+	}
 }

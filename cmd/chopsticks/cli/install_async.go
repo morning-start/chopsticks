@@ -222,12 +222,12 @@ func installWithProgress(ctx context.Context, mgr app.Manager, name, version, bu
 
 // ProgressDisplay 进度显示
 type ProgressDisplay struct {
-	name     string
-	progress float64
 	mu       sync.RWMutex
 	stopChan chan struct{}
-	stopped  bool
+	name     string
+	progress float64
 	err      error
+	stopped  bool
 	complete bool
 }
 

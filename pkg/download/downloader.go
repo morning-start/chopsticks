@@ -57,7 +57,7 @@ func (d *SimpleDownloader) Download(ctx context.Context, url, destPath string, p
 	d.stats.TotalBytes = resp.ContentLength
 
 	// 创建目录
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+	if err = os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 		return fmt.Errorf("创建目录失败: %w", err)
 	}
 
@@ -104,7 +104,16 @@ func (d *SimpleDownloader) updateProgress(downloaded int64) {
 
 // GetStats 获取统计信息
 func (d *SimpleDownloader) GetStats() DownloadStats {
-	return d.stats
+	return DownloadStats{
+		TotalBytes:      d.stats.TotalBytes,
+		DownloadedBytes: d.stats.DownloadedBytes,
+		StartTime:       d.stats.StartTime,
+		CurrentSpeed:    d.stats.CurrentSpeed,
+		AvgSpeed:        d.stats.AvgSpeed,
+		ActiveChunks:    d.stats.ActiveChunks,
+		CompletedChunks: d.stats.CompletedChunks,
+		FailedChunks:    d.stats.FailedChunks,
+	}
 }
 
 // progressReader 带进度报告的 Reader
@@ -188,7 +197,7 @@ func (d *AdaptiveDownloader) mergeChunks(chunks []*Chunk, destPath string) error
 }
 
 // writeToFile 写入文件（带进度）
-func (d *AdaptiveDownloader) writeToFile(resp *http.Response, destPath string, start, total int64, progress ProgressCallback) error {
+func (d *AdaptiveDownloader) writeToFile(resp *http.Response, destPath string, progress ProgressCallback) error {
 	// 创建目录
 	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 		return fmt.Errorf("创建目录失败: %w", err)

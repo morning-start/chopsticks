@@ -77,15 +77,13 @@ func perfMonitorAction(c *cli.Context) error {
 	clearScreen()
 	printMonitorHeader()
 
-	for {
-		select {
-		case <-ticker.C:
-			// 移动光标到表头下方
-			moveCursor(1, 4)
-			clearBelow()
-			printMetrics()
-		}
+	for range ticker.C {
+		// 移动光标到表头下方
+		moveCursor(1, 4)
+		clearBelow()
+		printMetrics()
 	}
+	return nil
 }
 
 // perfReportAction 生成性能报告

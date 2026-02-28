@@ -100,9 +100,7 @@ func (s *FuncStage) processParallel(ctx context.Context, input <-chan Item, outp
 				if err != nil {
 					result.Error = err
 					if s.ErrorPolicy == StopOnError {
-						select {
-						case output <- result:
-						}
+						output <- result
 						return
 					}
 				}
