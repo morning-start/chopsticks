@@ -5,10 +5,18 @@ import (
 	"os"
 	"path/filepath"
 
+	"chopsticks/engine/archive"
+	"chopsticks/engine/checksum"
+	"chopsticks/engine/chopsticksx"
+	"chopsticks/engine/execx"
 	"chopsticks/engine/fetch"
 	"chopsticks/engine/fsutil"
 	"chopsticks/engine/installerx"
+	"chopsticks/engine/jsonx"
+	"chopsticks/engine/logx"
+	"chopsticks/engine/pathx"
 	"chopsticks/engine/registry"
+	"chopsticks/engine/semver"
 	"chopsticks/engine/symlink"
 
 	"github.com/dop251/goja"
@@ -51,7 +59,22 @@ func NewJSEngine() *JSEngine {
 		&symlink.Module{},
 		&registry.Module{},
 		&installerx.Module{},
+		&execx.Module{},
+		&archive.Module{},
+		&checksum.Module{},
+		&pathx.Module{},
+		&logx.Module{},
+		&jsonx.Module{},
+		&semver.Module{},
 	)
+
+	// 单独注册 chopsticksx 模块（需要构造函数参数）
+	chopsticksMod := chopsticksx.NewModule(
+		filepath.Join(os.Getenv("LOCALAPPDATA"), "chopsticks", "apps"),
+		filepath.Join(os.Getenv("LOCALAPPDATA"), "chopsticks", "shims"),
+		filepath.Join(os.Getenv("LOCALAPPDATA"), "chopsticks", "persist"),
+	)
+	chopsticksMod.RegisterJS(vm)
 
 	return &JSEngine{
 		vm:         vm,
