@@ -29,7 +29,7 @@ Chopsticks 默认使用以下目录：
 | 安装目录   | `CHOPSTICKS_HOME` | `%USERPROFILE%\.chopsticks`         |
 | 应用目录   | -                 | `%USERPROFILE%\.chopsticks\apps`    |
 | 缓存目录   | -                 | `%USERPROFILE%\.chopsticks\cache`   |
-| 软件源目录 | -                 | `%USERPROFILE%\.chopsticks\sources` |
+| 软件源目录 | -                 | `%USERPROFILE%\.chopsticks\buckets` |
 
 ---
 
@@ -336,7 +336,7 @@ chopsticks cache clean
 # 目录配置
 apps_path: "C:\\Users\\Username\\.chopsticks\\apps"
 cache_path: "C:\\Users\\Username\\.chopsticks\\cache"
-sources_path: "C:\\Users\\Username\\.chopsticks\\sources"
+buckets_path: "C:\\Users\\Username\\.chopsticks\\buckets"
 
 # 行为配置
 auto_update: true
@@ -359,11 +359,41 @@ retry: 3
 
 ```
 %USERPROFILE%\.chopsticks\
-├── sources/           # 软件源
-├── apps/              # 已安装的软件
-├── cache/             # 下载缓存
-├── data.db            # 全局数据库（包含已安装软件和软件源配置）
+├── buckets/           # 软件源（Bucket）目录
+│   ├── main/          # 默认软件源
+│   │   ├── git.js       # Git下载脚本
+│   │   ├── lua.js       # Lua下载脚本
+│   │   └── ...
+│   └── extras/        # 其他软件源
+├── apps/              # 已安装的软件目录
+│   ├── app1/          # 应用1安装目录
+│   │   ├── current/   # 当前版本（符号链接）
+│   │   ├── 1.0.0/     # 版本 1.0.0
+│   │   └── 1.1.0/     # 版本 1.1.0
+│   └── app2/          # 应用2安装目录
+├── cache/             # 缓存目录
+│   ├── downloads/     # 下载的安装包缓存
+│   ├── temp/          # 临时文件
+│   └── metadata/      # 元数据缓存
+├── logs/              # 日志文件
+│   └── chp_yyyy_mm_dd.log # 主日志文件
+├── data.db            # 全局数据库（SQLite，包含已安装软件和软件源配置）
+└── config.yaml        # 用户配置文件
 ```
+
+**目录说明：**
+
+| 目录/文件          | 说明                                                      |
+| ------------------ | --------------------------------------------------------- |
+| `buckets/`         | 存储所有软件源（Bucket），每个子目录对应一个软件源        |
+| `apps/`            | 存储所有已安装的应用，每个应用一个子目录，支持多版本管理  |
+| `cache/`           | 缓存目录，包含下载缓存、临时文件和元数据缓存              |
+| `cache/downloads/` | 下载的安装包缓存                                          |
+| `cache/temp/`      | 临时文件                                                  |
+| `cache/metadata/`  | 元数据缓存                                                |
+| `logs/`            | 运行日志，便于排查问题                                    |
+| `data.db`          | SQLite 数据库，存储软件源配置、已安装软件信息、操作记录等 |
+| `config.yaml`      | 用户配置文件，包含代理设置、并行数、超时时间等            |
 
 ### 9.3 使用场景
 

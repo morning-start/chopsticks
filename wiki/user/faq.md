@@ -16,7 +16,7 @@ Chopsticks 具有以下特点：
 
 - **绿色环保**：无需管理员权限，软件安装在用户目录
 - **脚本驱动**：使用 JavaScript 定义安装逻辑，灵活可控
-- **开放架构**：支持自定义软件源（碗）
+- **开放架构**：支持自定义软件源（Bucket）
 - **跨设备同步**：支持设备间软件配置同步
 
 ### 支持哪些操作系统
@@ -54,11 +54,11 @@ chopsticks --help
 
 ---
 
-## 3. 软件源（碗）问题
+## 3. 软件源（Bucket）问题
 
 ### 什么是软件源
 
-软件源（碗，Bow）是软件的集合，类似于 apt 的 PPA 或 yum 的仓库。每个软件源包含多个软件包（菜肴）的定义。
+软件源（Bucket）是软件的集合，类似于 apt 的 PPA 或 yum 的仓库。每个软件源包含多个软件包（App）的定义。
 
 ### 如何添加软件源
 
@@ -78,7 +78,7 @@ chopsticks source add main https://github.com/chopsticks-bows/main --branch main
 
 ### 如何创建自己的软件源
 
-请参考《碗创建指南》文档。
+请参考《Bucket 创建指南》文档。
 
 ### 可以同时使用多个软件源吗
 
@@ -91,7 +91,7 @@ chopsticks source add extras https://github.com/chopsticks-bows/extras
 
 ---
 
-## 4. 软件包（菜肴）问题
+## 4. 软件包（App）问题
 
 ### 如何安装软件
 
@@ -141,7 +141,7 @@ chopsticks install <package> --verbose
 
 ```bash
 chopsticks search vscode
-chopsticks search git --bow main  # 在指定软件源搜索
+chopsticks search git --bucket main  # 在指定软件源搜索
 ```
 
 ---
@@ -171,7 +171,7 @@ chopsticks info git
 
 ### 如何设置环境变量
 
-在菜肴脚本中使用 chopsticks 模块：
+在 App 脚本中使用 chopsticks 模块：
 
 ```javascript
 await chopsticks.setEnv("MY_VAR", "value");
@@ -181,7 +181,7 @@ await chopsticks.addToPath("path/to/bin");
 ### PATH 环境变量不生效怎么办
 
 1. 重新打开终端
-2. 检查菜肴脚本是否正确配置了 env_path()
+2. 检查 App 脚本是否正确配置了 env_path()
 3. 手动刷新环境变量：
 
 ```bash
@@ -248,9 +248,9 @@ chopsticks cache clean git
 
 ## 7. 高级问题
 
-### 如何创建绿色软件的菜肴脚本
+### 如何创建绿色软件的 App 脚本
 
-请参考《dish 最佳实践》文档中的“绿色软件模式”章节。
+请参考《App 最佳实践》文档中的"绿色软件模式"章节。
 
 ### 如何处理安装程序
 
@@ -264,7 +264,7 @@ async onPostExtract(ctx) {
 
 ### 如何处理依赖关系
 
-在菜肴脚本中声明依赖：
+在 App 脚本中声明依赖：
 
 ```javascript
 depends() {
@@ -301,20 +301,20 @@ chopsticks sync install
 
 ## 8. 常见错误代码
 
-| 错误代码 | 说明 | 解决方案 |
-|----------|------|----------|
-| ErrBowNotFound | 软件源不存在 | 检查软件源名称是否正确 |
-| ErrDishNotFound | 软件包不存在 | 使用 search 确认软件包名称 |
-| ErrVersionNotFound | 版本不存在 | 检查版本号是否正确 |
-| ErrDependencyConflict | 依赖冲突 | 尝试更新相关软件 |
-| ErrNetworkFailed | 网络失败 | 检查网络连接 |
+| 错误代码              | 说明         | 解决方案                   |
+| --------------------- | ------------ | -------------------------- |
+| ErrBucketNotFound     | 软件源不存在 | 检查软件源名称是否正确     |
+| ErrAppNotFound        | 软件包不存在 | 使用 search 确认软件包名称 |
+| ErrVersionNotFound    | 版本不存在   | 检查版本号是否正确         |
+| ErrDependencyConflict | 依赖冲突     | 尝试更新相关软件           |
+| ErrNetworkFailed      | 网络失败     | 检查网络连接               |
 
 ---
 
 ## 9. 相关链接
 
-- [碗创建指南](bow-guide.md)
-- [dish 最佳实践](dish-best-practices.md)
+- [Bucket 创建指南](bucket-guide.md)
+- [App 最佳实践](app-best-practices.md)
 - [用户指南](../wiki/USAGE.md)
 - [API 参考](../wiki/API.md)
 - [术语表](../wiki/GLOSSARY.md)
@@ -332,4 +332,4 @@ chopsticks sync install
 
 ---
 
-_最后更新：2026-02-26_
+_最后更新：2026-02-28_

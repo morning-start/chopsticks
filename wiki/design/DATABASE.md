@@ -10,8 +10,8 @@ Chopsticks 采用**分布式存储**策略：
 
 | 存储位置                                               | 用途       | 存储方式  | 数据特性                 |
 | ------------------------------------------------------ | ---------- | --------- | ------------------------ |
-| `%USERPROFILE%\.chopsticks\sources\{bucket}\apps\`     | 应用脚本   | 文件 (JS) | **只读**，来自 Git 仓库  |
-| `%USERPROFILE%\.chopsticks\sources\{bucket}\bucket.db` | 元数据缓存 | SQLite    | **只读**，自动生成的缓存 |
+| `%USERPROFILE%\.chopsticks\buckets\{bucket}\apps\`     | 应用脚本   | 文件 (JS) | **只读**，来自 Git 仓库  |
+| `%USERPROFILE%\.chopsticks\buckets\{bucket}\bucket.db` | 元数据缓存 | SQLite    | **只读**，自动生成的缓存 |
 | `%USERPROFILE%\.chopsticks\data.db`                    | 已安装软件 | SQLite    | **读写**，运行时状态     |
 
 ### 1.1 设计原则
@@ -27,7 +27,7 @@ Chopsticks 采用**分布式存储**策略：
 ### 2.1 目录结构
 
 ```
-%USERPROFILE%\.chopsticks\sources\
+%USERPROFILE%\.chopsticks\buckets\
 └── {bucket_id}\
     ├── bucket.json            # 配置
     ├── bucket.db                # 可选：元数据缓存（SQLite）
@@ -131,7 +131,7 @@ end
 ### 3.1 文件位置
 
 ```
-%USERPROFILE%\.chopsticks\sources\{bucket_id}\bucket.db
+%USERPROFILE%\.chopsticks\buckets\{bucket_id}\bucket.db
 ```
 
 ### 3. 2 用途
@@ -625,10 +625,10 @@ sequenceDiagram
     User->>CLI: chopsticks info git
     CLI->>App: Info("main", "git")
     App->>Bucket: GetBucket("main")
-    Bucket-->>App: Bucket{Path: ".../sources/main"}
+    Bucket-->>App: Bucket{Path: ".../buckets/main"}
 
     Note over App: 从文件系统读取 app.js
-    App->>FS: ReadFile("sources/main/apps/git.js")
+    App->>FS: ReadFile("buckets/main/apps/git.js")
     FS-->>App: git.js content
 
     Note over App: 解析并返回 AppInfo
@@ -781,5 +781,5 @@ cp ~/.chopsticks/backup/data.db.bak ~/.chopsticks/data.db
 
 ---
 
-_最后更新：2026-02-26_
-_版本：v0.2.0-alpha_
+_最后更新：2026-02-28_
+_版本：v0.5.0-alpha_

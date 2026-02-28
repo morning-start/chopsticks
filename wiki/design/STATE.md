@@ -172,7 +172,7 @@ stateDiagram-v2
 ### 5.3 本地仓库管理
 
 ```
-%USERPROFILE%\.chopsticks\sources\
+%USERPROFILE%\.chopsticks\buckets\
 ├── main/              # 克隆的 main 软件源
 │   ├── .git/         # Git 仓库
 │   ├── bucket.json    # 软件源配置
@@ -189,9 +189,9 @@ stateDiagram-v2
 
 | 缓存类型   | 位置               | 清理策略           |
 | ---------- | ------------------ | ------------------ |
-| 下载缓存   | `cache/`           | 手动清理或磁盘满时 |
-| 元数据缓存 | `sources/*/cache/` | 随软件源更新清理   |
-| 临时文件   | `temp/`            | 每次启动清理       |
+| 下载缓存   | `cache/downloads/` | 手动清理或磁盘满时 |
+| 临时文件   | `cache/temp/`      | 每次启动清理       |
+| 元数据缓存 | `cache/metadata/`  | 随软件源更新清理   |
 
 ### 6.2 缓存策略
 
@@ -319,5 +319,5 @@ chopsticks backup import
 
 ---
 
-_最后更新：2026-02-26_
-_版本：v0.2.0-alpha_
+_最后更新：2026-02-28_
+_版本：v0.5.0-alpha_

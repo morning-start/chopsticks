@@ -772,4 +772,5 @@ chopsticks source add my-bucket https://github.com/username/my-bucket
 
 ---
 
-_最后更新：2026-02-26_
+_最后更新：2026-02-28_
+_版本：v0.5.0-alpha_
