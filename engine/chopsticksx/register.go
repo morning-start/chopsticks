@@ -164,6 +164,18 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
+	L.SetField(mod, "get_shim_dir", L.NewFunction(func(L *lua.LState) int {
+		result := m.GetShimDir()
+		L.Push(lua.LString(result))
+		return 1
+	}))
+
+	L.SetField(mod, "get_persist_dir", L.NewFunction(func(L *lua.LState) int {
+		result := m.GetPersistDir()
+		L.Push(lua.LString(result))
+		return 1
+	}))
+
 	L.SetGlobal("chopsticks", mod)
 }
 
@@ -319,6 +331,16 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 
 	chopsticksObj.Set("getPath", func(call goja.FunctionCall) goja.Value {
 		result := m.GetPath()
+		return vm.ToValue(result)
+	})
+
+	chopsticksObj.Set("getShimDir", func(call goja.FunctionCall) goja.Value {
+		result := m.GetShimDir()
+		return vm.ToValue(result)
+	})
+
+	chopsticksObj.Set("getPersistDir", func(call goja.FunctionCall) goja.Value {
+		result := m.GetPersistDir()
 		return vm.ToValue(result)
 	})
 

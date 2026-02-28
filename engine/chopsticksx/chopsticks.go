@@ -382,3 +382,13 @@ func (m *Module) DeleteEnv(key string) error {
 func (m *Module) GetPath() string {
 	return os.Getenv("PATH")
 }
+
+// GetShimDir 返回 shims 目录路径
+func (m *Module) GetShimDir() string {
+	return m.shimsPath
+}
+
+// GetPersistDir 返回 persist 目录路径
+func (m *Module) GetPersistDir() string {
+	return m.persistPath
+}
