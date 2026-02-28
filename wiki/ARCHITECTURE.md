@@ -11,11 +11,12 @@
 
 1. [架构概览](#架构概览)
 2. [系统架构图](#系统架构图)
-3. [核心模块](#核心模块)
-4. [数据流](#数据流)
-5. [技术选型](#技术选型)
-6. [扩展机制](#扩展机制)
-7. [安全设计](#安全设计)
+3. [性能优化架构](#性能优化架构)
+4. [核心模块](#核心模块)
+5. [数据流](#数据流)
+6. [技术选型](#技术选型)
+7. [扩展机制](#扩展机制)
+8. [安全设计](#安全设计)
 
 ---
 
@@ -31,49 +32,59 @@ Chopsticks 采用分层架构设计，遵循以下原则：
 ### 架构分层
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        CLI 层 (cmd)                          │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐           │
-│  │ install │ │uninstall│ │ update  │ │ search  │ ...       │
-│  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘            │
-└───────┼───────────┼───────────┼───────────┼─────────────────┘
-        │           │           │           │
-        └───────────┴─────┬─────┴───────────┘
-                          │
-┌─────────────────────────┼───────────────────────────────────┐
-│                         ▼                                    │
-│                      Core 层                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │    App      │  │   Bucket    │  │       Store         │  │
-│  │  Manager    │  │  Manager    │  │   (SQLite)          │  │
-│  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘  │
-│         │                │                    │             │
-│  ┌──────┴────────────────┴────────────────────┴──────┐      │
-│  │                    Engine 层                       │      │
-│  │        ┌─────────┐                                │      │
-│  │        │   JS    │                                │      │
-│  │        │ Engine  │                                │      │
-│  │        └────┬────┘                                │      │
-│  │             │                                     │      │
-│  │             ▼                                     │      │
-│  │  ┌─────────────────────────────────────────────┐   │      │
-│  │  │           Engine API 模块 (向脚本暴露)         │   │      │
-│  │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐        │   │      │
-│  │  │  │  Fetch  │ │  FSUtil │ │  Exec   │        │   │      │
-│  │  │  │ Archive │ │Checksum │ │  Path   │ ...    │   │      │
-│  │  │  └─────────┘ └─────────┘ └─────────┘        │   │      │
-│  │  └─────────────────────────────────────────────┘   │      │
-│  └────────────────────────────────────────────────────┘      │
-└──────────────────────────────────────────────────────────────┘
-        │
-        ▼
-┌──────────────────────────────────────────────────────────────┐
-│                      Infra 层                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │     Git     │  │  Installer  │  │   System (Windows)  │  │
-│  │  (go-git)   │  │  Handler    │  │                     │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  CLI Layer (cmd/chopsticks/cli)                                             │
+│  ┌──────────┬──────────┬──────────┬──────────┬─────────────────────────┐   │
+│  │ install  │uninstall │ update   │ search   │ perf                    │   │
+│  │ [--async]│          │ [--async]│ [--async]│ [monitor/status/report] │   │
+│  └────┬─────┴────┬─────┴────┬─────┴────┬─────┴──────────┬──────────────┘   │
+└───────┴──────────┴──────────┴──────────┴────────────────┴───────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Performance Layer (pkg/) - 性能优化层                                       │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │   │
+│  │  │   Parallel   │  │   Pipeline   │  │   Metrics    │               │   │
+│  │  │  任务调度器   │  │   流水线框架  │  │   性能监控    │               │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘               │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │   │
+│  │  │ Smart Download│  │   JS Pool    │  │ Search Cache │               │   │
+│  │  │   智能下载器  │  │   JS引擎池   │  │   搜索缓存    │               │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘               │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Core Layer (core/)                                                          │
+│  ┌────────────────┬────────────────┬─────────────────────────────────────┐   │
+│  │  App Manager   │ Bucket Manager │         Store (SQLite)              │   │
+│  │  ├─ Layered    │  ├─ Parallel   │                                     │   │
+│  │  │   Installer │  │   Searcher  │                                     │   │
+│  │  ├─ Updater    │  └─ Git Client │                                     │   │
+│  │  └─ Uninstaller│                │                                     │   │
+│  └────────────────┴────────────────┴─────────────────────────────────────┘   │
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Engine Layer (engine/)                                                      │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                        JS Engine (Goja)                              │   │
+│  │  ┌────────┬────────┬────────┬────────┬────────┬────────┬──────────┐ │   │
+│  │  │ Fetch  │ FSUtil │  Exec  │Archive │Checksum│  Path  │   ...    │ │   │
+│  │  └────────┴────────┴────────┴────────┴────────┴────────┴──────────┘ │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Infra Layer (infra/)                                                        │
+│  ┌────────────────────────┬────────────────────────┐                        │
+│  │      Git Client        │   Installer Handler    │                        │
+│  │      (go-git/v5)       │   (Windows System)     │                        │
+│  └────────────────────────┴────────────────────────┘                        │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -87,18 +98,29 @@ graph TB
     subgraph CLI[CLI Layer]
         CMD[Command Handler]
         ROOT[Root Command]
-        INSTALL[Install Cmd]
+        INSTALL[Install Cmd<br/>--async]
         UNINSTALL[Uninstall Cmd]
-        UPDATE[Update Cmd]
-        SEARCH[Search Cmd]
+        UPDATE[Update Cmd<br/>--async]
+        SEARCH[Search Cmd<br/>--async]
         LIST[List Cmd]
         BUCKET[Bucket Cmd]
+        PERF[Perf Cmd<br/>monitor/report]
+    end
+
+    subgraph PERF_LAYER[Performance Layer]
+        DISPATCHER[Smart Dispatcher]
+        POOL[JS Engine Pool]
+        DOWNLOADER[Smart Downloader]
+        P_SEARCHER[Parallel Searcher]
+        PIPELINE[Pipeline Framework]
+        METRICS[Metrics Collector]
+        CACHE[Search Cache]
     end
 
     subgraph CORE[Core Layer]
         APP_MGR[App Manager]
         BUCKET_MGR[Bucket Manager]
-        INSTALLER[Installer]
+        INSTALLER[Layered Installer]
         UNINSTALLER[Uninstaller]
         UPDATER[Updater]
     end
@@ -134,14 +156,20 @@ graph TB
     end
 
     CMD --> ROOT
-    ROOT --> INSTALL & UNINSTALL & UPDATE & SEARCH & LIST & BUCKET
+    ROOT --> INSTALL & UNINSTALL & UPDATE & SEARCH & LIST & BUCKET & PERF
+
+    INSTALL & UPDATE --> DISPATCHER
+    SEARCH --> P_SEARCHER
+    PERF --> METRICS
+
+    DISPATCHER --> POOL & DOWNLOADER & INSTALLER
+    P_SEARCHER --> CACHE & BUCKET_MGR
 
     INSTALL --> APP_MGR
     UNINSTALL --> UNINSTALLER
     UPDATE --> UPDATER
-    SEARCH --> BUCKET_MGR
-    LIST --> STORAGE
     BUCKET --> BUCKET_MGR
+    LIST --> STORAGE
 
     APP_MGR --> INSTALLER & UPDATER
     BUCKET_MGR --> GIT
@@ -198,6 +226,7 @@ type SmartDispatcher struct {
 ```
 
 **特性**:
+
 - 任务分类支持（CPU/IO/Memory 密集型）
 - Work Stealing 算法实现负载均衡
 - 优先级队列支持
@@ -217,6 +246,7 @@ type JSEnginePool struct {
 ```
 
 **性能提升**:
+
 - 引擎复用减少 **80%** 初始化时间
 - 动态扩缩容适应负载
 - 脚本缓存和预编译
@@ -234,6 +264,7 @@ type SmartDownloader struct {
 ```
 
 **特性**:
+
 - 多连接分片并行下载
 - 自适应带宽调整
 - 断点续传支持
@@ -252,6 +283,7 @@ type ParallelSearcher struct {
 ```
 
 **性能提升**:
+
 - 并发搜索多个软件源
 - 搜索结果缓存（TTL 5分钟）
 - 搜索速度提升 **5-6 倍**
@@ -269,6 +301,7 @@ type LayeredParallelInstaller struct {
 ```
 
 **特性**:
+
 - 依赖图拓扑排序分层
 - 层内并行、层间顺序
 - 批量安装性能提升 **5-6 倍**
@@ -286,6 +319,7 @@ type Pipeline struct {
 ```
 
 **特性**:
+
 - 多阶段流水线（下载→校验→解压→执行→注册）
 - 阶段内并行处理
 - 背压控制防止内存溢出
@@ -303,10 +337,38 @@ type MetricsCollector struct {
 ```
 
 **监控指标**:
+
 - 任务统计：提交/完成速率、队列深度
 - 资源使用：内存、Goroutines、GC
 - JS 池：利用率、缓存命中率
 - 下载：速度、活跃数、错误数
+
+---
+
+## 性能优化架构
+
+详细的性能优化设计文档请参考：[PERFORMANCE-OPTIMIZATION.md](design/PERFORMANCE-OPTIMIZATION.md)
+
+### 核心优化成果
+
+| 场景                   | 优化前 | 优化后 | 提升倍数 |
+| ---------------------- | ------ | ------ | -------- |
+| 批量安装 10 个独立应用 | 60s    | 10s    | **6x**   |
+| 安装带 5 层依赖的应用  | 45s    | 15s    | **3x**   |
+| 搜索 10 个 bucket      | 2s     | 0.3s   | **6.7x** |
+| 下载 100MB 文件        | 50s    | 10s    | **5x**   |
+| 批量更新 20 个应用     | 60s    | 12s    | **5x**   |
+| 执行 10 个 JS 脚本     | 25s    | 8s     | **3x**   |
+
+### 关键组件
+
+- **Parallel 包** (`pkg/parallel/`) - 智能任务调度
+- **JS 引擎池** (`engine/js_pool/`) - 引擎复用和缓存
+- **智能下载器** (`pkg/download/`) - 多连接并行下载
+- **并行搜索器** (`core/bucket/`) - 并发搜索多个 Bucket
+- **分层安装器** (`core/app/`) - 依赖感知的并行安装
+- **流水线框架** (`pkg/pipeline/`) - 多阶段流水线处理
+- **性能监控** (`pkg/metrics/`) - 实时指标收集
 
 ---
 
@@ -710,33 +772,37 @@ sequenceDiagram
 
 ### 编程语言
 
-| 语言       | 用途            | 版本   |
-| ---------- | --------------- | ------ |
-| Go         | 主开发语言      | 1.25.6 |
-| JavaScript | 应用脚本        | ES6+   |
+| 语言       | 用途       | 版本   |
+| ---------- | ---------- | ------ |
+| Go         | 主开发语言 | 1.25.6 |
+| JavaScript | 应用脚本   | ES6+   |
 
 ### 核心依赖
 
-| 库                             | 用途             | 版本                  |
-| ------------------------------ | ---------------- | --------------------- |
-| `github.com/dop251/goja`       | JavaScript 引擎  | v0.0.0-20260106131823 |
-| `github.com/go-git/go-git/v5`  | Git 操作         | v5.11.0               |
-| `github.com/mattn/go-sqlite3`  | SQLite 数据库    | v1.14.24              |
-| `github.com/ulikunitz/xz`      | XZ 压缩支持      | v0.5.11               |
-| `golang.org/x/sys`             | Windows 系统调用 | v0.32.0               |
-| `github.com/urfave/cli/v2`     | CLI 框架         | v2.x                  |
-| `github.com/vbauerster/mpb/v8` | 多进度条显示     | v8.x                  |
-| `github.com/fatih/color`       | 终端彩色输出     | v1.x                  |
+| 库                              | 用途             | 版本                  |
+| ------------------------------- | ---------------- | --------------------- |
+| `github.com/dop251/goja`        | JavaScript 引擎  | v0.0.0-20260106131823 |
+| `github.com/go-git/go-git/v5`   | Git 操作         | v5.11.0               |
+| `github.com/mattn/go-sqlite3`   | SQLite 数据库    | v1.14.24              |
+| `github.com/ulikunitz/xz`       | XZ 压缩支持      | v0.5.11               |
+| `golang.org/x/sys`              | Windows 系统调用 | v0.32.0               |
+| `github.com/urfave/cli/v2`      | CLI 框架         | v2.x                  |
+| `github.com/vbauerster/mpb/v8`  | 多进度条显示     | v8.x                  |
+| `github.com/fatih/color`        | 终端彩色输出     | v1.x                  |
+| `golang.org/x/sync/errgroup`    | 并发任务管理     | v0.x                  |
+| `github.com/patrickmn/go-cache` | 内存缓存         | v2.x                  |
 
 ### 选型理由
 
-1. **Go**: 编译型语言，单文件部署，跨平台，丰富的标准库
+1. **Go**: 编译型语言，单文件部署，跨平台，丰富的标准库，原生协程支持高并发
 2. **Goja**: 纯 Go 实现的 JavaScript 引擎，无需 CGO，性能优秀
 3. **go-git**: 纯 Go 实现的 Git 客户端，无需外部依赖
 4. **SQLite**: 轻量级嵌入式数据库，单文件存储
 5. **urfave/cli/v2**: 成熟的 Go CLI 框架，支持子命令、Flag 解析、自动补全
 6. **mpb/v8**: 功能强大的多进度条库，支持并发、自定义装饰器
 7. **fatih/color**: 流行的终端颜色库，自动检测颜色支持，跨平台兼容
+8. **errgroup**: Go 官方扩展库，支持并发任务管理和错误传播
+9. **go-cache**: 高性能内存缓存库，支持 TTL 和自动清理
 
 ---
 
