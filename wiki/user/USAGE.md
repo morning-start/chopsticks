@@ -4,9 +4,82 @@
 
 ---
 
-## 1. 安装与配置
+## 1. Quick Start
+
+本指南将帮助你在 5 分钟内完成第一个软件的安装。
 
 ### 1.1 安装 Chopsticks
+
+**Windows (PowerShell):**
+
+```powershell
+iwr -useb https://get.chopsticks.dev/install.ps1 | iex
+```
+
+**验证安装:**
+
+```bash
+chopsticks --version
+```
+
+### 1.2 添加软件源
+
+Chopsticks 需要软件源才能知道有哪些软件可以安装：
+
+```bash
+# 添加官方主软件源
+chopsticks bucket add main https://github.com/chopsticks-bucket/main
+
+# 查看已添加的软件源
+chopsticks bucket list
+```
+
+### 1.3 搜索和安装软件
+
+```bash
+# 搜索 Git
+chopsticks search git
+
+# 安装 Git
+chopsticks install git
+
+# 或使用短命令
+chopsticks i git
+```
+
+### 1.4 验证安装
+
+```bash
+# 验证 Git 已正确安装
+git --version
+
+# 查看已安装的软件
+chopsticks list
+```
+
+### 1.5 故障排除
+
+**问题: 命令未找到**
+
+- 确保安装脚本执行成功
+- 重启终端或执行 `refreshenv`
+
+**问题: 无法添加软件源**
+
+- 检查网络连接
+- 确认 Git 已安装: `git --version`
+
+### 1.6 下一步
+
+- 查看 [完整命令参考](#3-cli命令参考)
+- 了解 [软件源管理](#4-软件源管理)
+- 阅读 [常见问题](faq.md)
+
+---
+
+## 2. 安装与配置
+
+### 2.1 从源码安装 Chopsticks
 
 ```powershell
 # 克隆项目
@@ -20,7 +93,7 @@ go build -o chopsticks.exe
 ./chopsticks.exe --help
 ```
 
-### 1.2 环境配置
+### 2.2 环境配置
 
 Chopsticks 默认使用以下目录：
 
@@ -33,30 +106,27 @@ Chopsticks 默认使用以下目录：
 
 ---
 
-## 2. 软件源管理
+## 3. 软件源管理
 
-### 2.1 添加软件源
+### 3.1 添加软件源
 
 ```bash
 # 添加远程软件源
-chopsticks source add main https://github.com/chopsticks-bows/main
+chopsticks bucket add main https://github.com/chopsticks-bucket/main
 
 # 添加本地软件源
-chopsticks source add local /path/to/local-source
+chopsticks bucket add local /path/to/local-source
 
 # 指定分支
-chopsticks source add extras https://github.com/chopsticks-bows/extras --branch develop
+chopsticks bucket add extras https://github.com/chopsticks-bucket/extras --branch develop
 ```
 
-### 2.2 列出软件源
+### 3.2 列出软件源
 
 ```bash
 # 列出所有软件源
-chopsticks source list
-chopsticks source ls
-
-# 使用简写
-chopsticks s ls
+chopsticks bucket list
+chopsticks bucket ls
 ```
 
 ### 2.3 更新软件源
@@ -81,13 +151,14 @@ chopsticks source remove extras --purge
 
 ---
 
-## 3. 软件包管理
+## 4. 软件包管理
 
-### 3.1 安装软件
+### 4.1 安装软件
 
 ```bash
 # 安装最新版本
 chopsticks install git
+chopsticks i git
 
 # 安装指定版本
 chopsticks install nodejs@18.17.0
@@ -100,38 +171,37 @@ chopsticks install extras/vscode
 chopsticks install git --force
 
 # 使用别名
-chopsticks serve git
 chopsticks i git
 ```
 
-### 3.2 卸载软件
+### 4.2 卸载软件
 
 ```bash
 # 卸载软件（保留配置数据）
 chopsticks uninstall git
-chopsticks clear git
+chopsticks rm git
 
 # 彻底卸载（删除所有数据）
 chopsticks uninstall git --purge
-chopsticks rm git
+chopsticks remove git
 ```
 
-### 3.3 更新软件
+### 4.3 更新软件
 
 ```bash
 # 更新指定软件
 chopsticks update git
-chopsticks refresh git
+chopsticks up git
 
 # 更新所有软件
 chopsticks update --all
-chopsticks refresh --all
+chopsticks up --all
 
 # 强制更新
 chopsticks update git --force
 ```
 
-### 3.4 查看软件
+### 4.4 查看软件
 
 ```bash
 # 列出已安装软件
@@ -143,7 +213,7 @@ chopsticks list --installed
 
 # 搜索软件
 chopsticks search vscode
-chopsticks search editor
+chopsticks s vscode
 
 # 在指定软件源搜索
 chopsticks search vscode --bucket extras
@@ -151,25 +221,25 @@ chopsticks search vscode --bucket extras
 
 ---
 
-## 4. 命令别名
+## 5. 命令别名
 
 Chopsticks 支持多种命令格式，您可以自由选择：
 
 | 主命令      | 别名            | 说明       |
 | ----------- | --------------- | ---------- |
 | `install`   | `i`             | 安装软件   |
-| `uninstall` | `remove`, `rm`  | 卸载软件   |
-| `update`    | `upgrade`, `up` | 更新软件   |
-| `search`    | `find`, `s`     | 搜索软件   |
+| `uninstall` | `rm`, `remove`  | 卸载软件   |
+| `update`    | `up`, `upgrade` | 更新软件   |
+| `search`    | `s`, `find`     | 搜索软件   |
 | `list`      | `ls`            | 列出软件   |
-| `bucket`    | `b`             | 软件源管理 |
+| `bucket`    | -               | 软件源管理 |
 | `sync`      | -               | 设备同步   |
 
 ---
 
-## 5. Shell 自动补全
+## 6. Shell 自动补全
 
-### 5.1 Bash
+### 6.1 Bash
 
 ```bash
 # 临时启用
@@ -179,7 +249,7 @@ source <(chopsticks completion bash)
 chopsticks completion bash >> ~/.bashrc
 ```
 
-### 5.2 Zsh
+### 6.2 Zsh
 
 ```zsh
 # 临时启用
@@ -189,7 +259,7 @@ source <(chopsticks completion zsh)
 chopsticks completion zsh >> ~/.zshrc
 ```
 
-### 5.3 PowerShell
+### 6.3 PowerShell
 
 ```powershell
 # 临时启用
@@ -199,7 +269,7 @@ chopsticks completion powershell | Invoke-Expression
 chopsticks completion powershell >> $PROFILE
 ```
 
-### 5.4 Fish
+### 6.4 Fish
 
 ```fish
 # 永久启用
@@ -208,9 +278,9 @@ chopsticks completion fish > ~/.config/fish/completions/chopsticks.fish
 
 ---
 
-## 6. 高级用法
+## 7. 高级用法
 
-### 6.1 版本指定
+### 7.1 版本指定
 
 ```bash
 # 使用 @ 指定版本
@@ -221,7 +291,7 @@ chopsticks install python@3.11.5
 chopsticks install git
 ```
 
-### 6.2 架构指定
+### 7.2 架构指定
 
 ```bash
 # 指定架构 (需要软件包支持)
@@ -229,7 +299,7 @@ chopsticks install app --arch amd64
 chopsticks install app --arch x86
 ```
 
-### 6.3 详细输出
+### 7.3 详细输出
 
 ```bash
 # 详细模式
@@ -239,7 +309,7 @@ chopsticks install git --verbose
 chopsticks install git --debug
 ```
 
-### 6.4 禁用彩色输出
+### 7.4 禁用彩色输出
 
 ```bash
 # 使用 --no-color 选项禁用彩色输出
@@ -252,9 +322,9 @@ chopsticks install git
 
 ---
 
-## 7. 界面说明
+## 8. 界面说明
 
-### 7.1 彩色输出
+### 8.1 彩色输出
 
 Chopsticks 使用彩色输出提升可读性：
 
@@ -267,7 +337,7 @@ Chopsticks 使用彩色输出提升可读性：
 | 🔷 青色 | 高亮、强调 | → 下一步: 配置环境变量 |
 | ⚪ 灰色 | 次要信息   | 路径: C:\Users\...     |
 
-### 7.2 进度显示
+### 8.2 进度显示
 
 安装软件时会显示进度条：
 
@@ -285,9 +355,9 @@ nodejs [配置] 100% 4/4
 
 ---
 
-## 8. 故障排除
+## 9. 故障排除
 
-### 7.1 常见问题
+### 9.1 常见问题
 
 **安装失败**
 
@@ -303,7 +373,7 @@ chopsticks install git --debug
 
 ```bash
 # 检查网络连接
-chopsticks source update --verbose
+chopsticks bucket update --verbose
 ```
 
 **权限问题**
@@ -313,30 +383,29 @@ chopsticks source update --verbose
 chopsticks list --verbose
 ```
 
-### 7.2 清理缓存
+### 9.2 清理缓存
 
 ```bash
 # 清理下载缓存
-# (待实现)
 chopsticks cache clean
 ```
 
 ---
 
-## 9. 配置文件
+## 10. 配置文件
 
-### 8.1 配置文件位置
+### 10.1 配置文件位置
 
 - Windows: `%USERPROFILE%\.chopsticks\config.yaml`
 - Linux/macOS: `~/.chopsticks/config.yaml`
 
-### 8.2 配置示例
+### 10.2 配置示例
 
 ```yaml
 # 目录配置
-apps_path: "C:\\Users\\Username\\.chopsticks\\apps"
-cache_path: "C:\\Users\\Username\\.chopsticks\\cache"
-buckets_path: "C:\\Users\\Username\\.chopsticks\\buckets"
+apps_path: "C:\Users\Username\.chopsticks\apps"
+cache_path: "C:\Users\Username\.chopsticks\cache"
+buckets_path: "C:\Users\Username\.chopsticks\buckets"
 
 # 行为配置
 auto_update: true
@@ -349,13 +418,13 @@ retry: 3
 
 ---
 
-## 10. 设备同步
+## 11. 设备同步
 
-### 9.1 功能概述
+### 11.1 功能概述
 
 设备同步功能允许用户快速在新设备上恢复所有已安装的软件。当您需要更换电脑或重新安装系统时，只需复制整个 `.chopsticks` 目录到新设备，然后运行同步命令即可。
 
-### 9.2 目录结构
+### 11.2 目录结构
 
 ```
 %USERPROFILE%\.chopsticks\
@@ -406,7 +475,7 @@ retry: 3
 | `data.db`          | SQLite 数据库，存储软件源配置、已安装软件信息、操作记录等 |
 | `config.yaml`      | 用户配置文件，包含代理设置、并行数、超时时间等            |
 
-### 9.3 使用场景
+### 11.3 使用场景
 
 **场景一：换电脑**
 
@@ -420,7 +489,7 @@ retry: 3
 2. 重装系统后，将备份目录恢复到 `%USERPROFILE%\.chopsticks`
 3. 运行同步命令恢复软件
 
-### 9.4 命令用法
+### 11.4 命令用法
 
 ```bash
 # 查看将同步的软件列表（不实际安装）
@@ -433,7 +502,7 @@ chopsticks sync install
 chopsticks sync install --skip-installed
 ```
 
-### 9.5 工作原理
+### 11.5 工作原理
 
 `sync install` 命令会执行以下操作：
 
@@ -442,7 +511,7 @@ chopsticks sync install --skip-installed
 3. 重新克隆软件源仓库（如果 sources 目录为空）
 4. 遍历已安装列表，重新安装每个软件
 
-### 9.6 注意事项
+### 11.6 注意事项
 
 - **数据库完整**：确保复制的 `data.db` 数据库文件完整无损
 - **网络连接**：同步过程需要重新下载软件，请确保网络畅通
@@ -450,5 +519,5 @@ chopsticks sync install --skip-installed
 
 ---
 
-_最后更新：2026-02-27_
-_版本：v0.5.0-alpha_
+_最后更新：2026-02-28_
+_版本：v0.6.0-alpha_

@@ -1,5 +1,8 @@
 # Chopsticks 功能需求规格
 
+> 版本: v0.6.0-alpha  
+> 最后更新: 2026-02-28
+
 > 基于官方文档的功能需求定义
 
 ---
@@ -227,10 +230,10 @@ flowchart TD
 
 | 命令         | 实现文件      | 别名                     | 说明         |
 | ------------ | ------------- | ------------------------ | ------------ |
-| `install`    | serve.go      | `serve`, `i`             | 安装软件     |
-| `uninstall`  | clear.go      | `clear`, `rm`, `remove`  | 卸载软件     |
-| `update`     | refresh.go    | `refresh`, `up`, `upgrade`| 更新软件    |
-| `search`     | search.go     | `find`, `s`              | 搜索软件     |
+| `install`    | install.go    | `i`                      | 安装软件     |
+| `uninstall`  | uninstall.go  | `rm`, `remove`           | 卸载软件     |
+| `update`     | update.go     | `up`, `upgrade`          | 更新软件     |
+| `search`     | search.go     | `s`, `find`              | 搜索软件     |
 | `list`       | list.go       | `ls`                     | 列出软件     |
 | `bucket`     | bucket.go     | -                        | 软件源管理   |
 | `completion` | completion.go | -                        | 生成补全脚本 |

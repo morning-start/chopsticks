@@ -1,5 +1,7 @@
 # 🥢 Chopsticks Wiki
 
+[![Version](https://img.shields.io/badge/version-v0.6.0--alpha-blue)]()
+
 > Chopsticks（筷子）- Windows 包管理器知识中心
 
 ---
@@ -71,9 +73,31 @@ Chopsticks（筷子）是一个受 [Scoop](https://scoop.sh/) 启发的 **Window
 
 ---
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 安装
+5 分钟上手 Chopsticks：
+
+```bash
+# 1. 安装 Chopsticks
+iwr -useb https://get.chopsticks.dev/install.ps1 | iex
+
+# 2. 添加官方软件源
+chopsticks bucket add main https://github.com/chopsticks-bucket/main
+
+# 3. 安装 Git
+chopsticks install git
+
+# 4. 验证
+git --version
+```
+
+📖 [详细教程](user/USAGE.md) | 🎓 [开发者指南](developer/DEVELOPER.md)
+
+---
+
+## 🚀 快速开始（开发版）
+
+### 从源码安装
 
 ```powershell
 git clone https://github.com/chopsticks-bows/main.git
@@ -86,18 +110,23 @@ go build -o chopsticks.exe ./cmd/chopsticks
 ```bash
 # 安装软件
 chopsticks install git
+chopsticks i git
 
 # 卸载软件
 chopsticks uninstall git
+chopsticks rm git
 
 # 更新软件
-chopsticks update --all
+chopsticks update git
+chopsticks up git
 
 # 搜索软件
 chopsticks search vscode
+chopsticks s vscode
 
 # 管理软件源
-chopsticks bucket add main https://github.com/chopsticks-bows/main
+chopsticks bucket add main https://github.com/chopsticks-bucket/main
+chopsticks bucket list
 ```
 
 ---
