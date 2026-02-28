@@ -68,7 +68,7 @@ func searchAction(c *cli.Context) error {
 	}
 
 	for _, result := range results {
-		output.Success(result.App.Name)
+		output.Success("%s", result.App.Name)
 		if result.App.Description != "" {
 			output.Dimf("    描述: %s\n", result.App.Description)
 		}

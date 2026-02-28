@@ -185,7 +185,7 @@ func bucketInitAction(c *cli.Context) error {
 	}
 
 	output.Infof("初始化 Bucket: ")
-	output.Highlight(name)
+	output.Highlight("%s", name)
 	output.Dimf(" (%s)\n", map[string]string{"js": "JavaScript", "lua": "Lua"}[templateType])
 
 	// 这里应该调用实际的模板复制逻辑

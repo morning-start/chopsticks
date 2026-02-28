@@ -143,10 +143,51 @@ func (m *manager) UpdateAll(ctx context.Context, opts UpdateOptions) error {
 		return errors.Wrap(err, "list installed apps")
 	}
 
-	for _, app := range installedApps {
+	total := len(installedApps)
+	if total == 0 {
+		return nil
+	}
+
+	type updateResult struct {
+		name    string
+		success bool
+		err     error
+	}
+
+	results := make([]updateResult, 0, total)
+
+	for i, app := range installedApps {
+		fmt.Printf("[%d/%d] 正在更新 %s...\n", i+1, total, app.Name)
 		if err := m.Update(ctx, app.Name, opts); err != nil {
-			fmt.Fprintf(os.Stderr, "update %s failed: %v\n", app.Name, err)
+			fmt.Fprintf(os.Stderr, "  ✗ 更新失败: %v\n", err)
+			results = append(results, updateResult{name: app.Name, success: false, err: err})
+		} else {
+			fmt.Printf("  ✓ %s 更新成功\n", app.Name)
+			results = append(results, updateResult{name: app.Name, success: true})
 		}
+	}
+
+	// 汇总结果
+	var successCount, failCount int
+	var failedApps []string
+
+	for _, r := range results {
+		if r.success {
+			successCount++
+		} else {
+			failCount++
+			failedApps = append(failedApps, r.name)
+		}
+	}
+
+	fmt.Println()
+	fmt.Printf("更新完成: 成功 %d, 失败 %d\n", successCount, failCount)
+	if failCount > 0 {
+		fmt.Println("失败的软件包:")
+		for _, name := range failedApps {
+			fmt.Printf("  - %s\n", name)
+		}
+		return fmt.Errorf("部分软件包更新失败")
 	}
 
 	return nil
