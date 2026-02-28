@@ -1,8 +1,0 @@
-{
-    "name": "{{.Name}}",
-    "description": "A Chopsticks Bucket (Lua)",
-    "homepage": "",
-    "license": "MIT",
-    "author": "",
-    "keywords": ["chopsticks", "bucket", "lua"]
-}

@@ -5,101 +5,10 @@ import (
 	"runtime"
 
 	"github.com/dop251/goja"
-	lua "github.com/yuin/gopher-lua"
 )
 
 // Module 为脚本引擎提供 symlink 注册。
 type Module struct{}
-
-// RegisterLua 向 Lua 状态注册 symlink 函数。
-func (m *Module) RegisterLua(L *lua.LState) {
-	symlinkTable := L.NewTable()
-
-	symlinkTable.RawSetString("create", L.NewFunction(func(L *lua.LState) int {
-		oldname := L.CheckString(1)
-		newname := L.CheckString(2)
-		if err := Create(oldname, newname); err != nil {
-			L.Push(lua.LBool(false))
-			L.Push(lua.LString(err.Error()))
-			return 2
-		}
-		L.Push(lua.LBool(true))
-		return 1
-	}))
-
-	symlinkTable.RawSetString("createDir", L.NewFunction(func(L *lua.LState) int {
-		oldname := L.CheckString(1)
-		newname := L.CheckString(2)
-		if err := CreateDir(oldname, newname); err != nil {
-			L.Push(lua.LBool(false))
-			L.Push(lua.LString(err.Error()))
-			return 2
-		}
-		L.Push(lua.LBool(true))
-		return 1
-	}))
-
-	symlinkTable.RawSetString("createHard", L.NewFunction(func(L *lua.LState) int {
-		oldname := L.CheckString(1)
-		newname := L.CheckString(2)
-		if err := CreateHard(oldname, newname); err != nil {
-			L.Push(lua.LBool(false))
-			L.Push(lua.LString(err.Error()))
-			return 2
-		}
-		L.Push(lua.LBool(true))
-		return 1
-	}))
-
-	symlinkTable.RawSetString("createJunction", L.NewFunction(func(L *lua.LState) int {
-		oldname := L.CheckString(1)
-		newname := L.CheckString(2)
-		if err := CreateJunction(oldname, newname); err != nil {
-			L.Push(lua.LBool(false))
-			L.Push(lua.LString(err.Error()))
-			return 2
-		}
-		L.Push(lua.LBool(true))
-		return 1
-	}))
-
-	symlinkTable.RawSetString("is", L.NewFunction(func(L *lua.LState) int {
-		path := L.CheckString(1)
-		isLink, err := Is(path)
-		if err != nil {
-			L.Push(lua.LBool(false))
-			L.Push(lua.LString(err.Error()))
-			return 2
-		}
-		L.Push(lua.LBool(isLink))
-		return 1
-	}))
-
-	symlinkTable.RawSetString("read", L.NewFunction(func(L *lua.LState) int {
-		path := L.CheckString(1)
-		target, err := Read(path)
-		if err != nil {
-			L.Push(lua.LString(""))
-			L.Push(lua.LString(err.Error()))
-			return 2
-		}
-		L.Push(lua.LString(target))
-		return 1
-	}))
-
-	symlinkTable.RawSetString("remove", L.NewFunction(func(L *lua.LState) int {
-		path := L.CheckString(1)
-		if err := Remove(path); err != nil {
-			L.Push(lua.LBool(false))
-			L.Push(lua.LString(err.Error()))
-			return 2
-		}
-		L.Push(lua.LBool(true))
-		return 1
-	}))
-
-	L.SetGlobal("symlink", symlinkTable)
-}
 
 // RegisterJS 向 JavaScript 运行时注册 symlink 函数。
 func (m *Module) RegisterJS(vm *goja.Runtime) {

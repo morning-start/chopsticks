@@ -1,13 +1,9 @@
-// Package engine 提供 Lua 和 JavaScript 脚本引擎的抽象。
+// Package engine 提供 JavaScript 脚本引擎的抽象。
 package engine
 
 import (
 	"github.com/dop251/goja"
-	lua "github.com/yuin/gopher-lua"
 )
-
-// LuaState 是 Lua 状态指针的别名。
-type LuaState = *lua.LState
 
 // JSState 是 JavaScript 运行时指针的别名。
 type JSState = *goja.Runtime
@@ -22,23 +18,10 @@ type Engine interface {
 	Close()
 }
 
-// LuaRegistrar 定义注册 Lua 函数和模块的接口。
-type LuaRegistrar interface {
-	// RegisterLua 向给定的 Lua 状态注册函数和模块。
-	RegisterLua(L LuaState)
-}
-
 // JSRegistrar 定义注册 JavaScript 函数和模块的接口。
 type JSRegistrar interface {
 	// RegisterJS 向给定的 JavaScript 运行时注册函数和模块。
 	RegisterJS(vm JSState)
-}
-
-// RegisterLuaAll 将所有给定的 Lua 注册器注册到 Lua 状态。
-func RegisterLuaAll(L LuaState, registrars ...LuaRegistrar) {
-	for _, r := range registrars {
-		r.RegisterLua(L)
-	}
 }
 
 // RegisterJSAll 将所有给定的 JavaScript 注册器注册到 JavaScript 运行时。
