@@ -37,6 +37,7 @@ func Execute(ctx context.Context, appInstance app.Application) error {
 			listCommand(),
 			bucketCommand(),
 			configCommand(),
+			conflictCommand(),
 			completionCommand(),
 		},
 		Flags: []cli.Flag{

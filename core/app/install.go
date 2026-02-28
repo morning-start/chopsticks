@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"chopsticks/core/bucket"
+	"chopsticks/core/conflict"
 	"chopsticks/core/manifest"
 	"chopsticks/core/store"
 	"chopsticks/engine"
@@ -65,6 +66,33 @@ func (i *installer) Install(ctx context.Context, app *manifest.App, opts Install
 	}
 
 	appName := app.Script.Name
+
+	// 冲突检测
+	detector := conflict.NewDetector(i.storage, i.installBase)
+	conflictResult, err := detector.Detect(ctx, app)
+	if err != nil {
+		// 冲突检测失败，记录警告但不阻止安装
+		fmt.Fprintf(os.Stderr, "警告: 冲突检测失败: %v\n", err)
+	} else if conflictResult != nil && len(conflictResult.Conflicts) > 0 {
+		// 格式化并显示冲突报告
+		formatter := conflict.NewFormatter(true)
+		fmt.Println(formatter.Format(conflictResult))
+
+		// 如果有严重冲突且未使用 force，阻止安装
+		if conflict.ShouldBlockInstall(conflictResult, opts.Force) {
+			return errors.Newf(errors.KindConflict, "检测到严重冲突，请解决后再安装或使用 --force 强制安装")
+		}
+
+		// 如果有警告级别冲突且未使用 force，询问用户
+		if conflictResult.HasWarning && !opts.Force {
+			fmt.Print("是否继续安装? [y/N]: ")
+			var response string
+			fmt.Scanln(&response)
+			if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
+				return errors.Newf(errors.KindCancelled, "用户取消安装")
+			}
+		}
+	}
 
 	installed, err := i.storage.GetInstalledApp(ctx, appName)
 	if err == nil && installed != nil && !opts.Force {

@@ -36,6 +36,7 @@ const (
 	KindExec
 	KindCancelled
 	KindTimeout
+	KindConflict
 )
 
 func (e *Error) Error() string {
