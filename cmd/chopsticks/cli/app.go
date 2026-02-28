@@ -39,6 +39,7 @@ func Execute(ctx context.Context, appInstance app.Application) error {
 			configCommand(),
 			conflictCommand(),
 			completionCommand(),
+			PerfCommand,
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
