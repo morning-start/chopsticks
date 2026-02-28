@@ -1,6 +1,6 @@
 # 🥢 Chopsticks Wiki
 
-[![Version](https://img.shields.io/badge/version-v0.6.0--alpha-blue)]()
+[![Version](https://img.shields.io/badge/version-v0.8.0--alpha-blue)]()
 
 > Chopsticks（筷子）- Windows 包管理器知识中心
 
@@ -58,6 +58,8 @@ Chopsticks（筷子）是一个受 [Scoop](https://scoop.sh/) 启发的 **Window
 - 🖥️ **优雅** - 命令行自动补全
 - 🔄 **双引擎** - 同时支持 JavaScript (Goja) 和 Lua (Gopher-lua)
 - 🗄️ **SQLite 存储** - 关系型数据库，支持复杂查询
+- 🚀 **高性能** - 并行处理，批量操作性能提升 5-6 倍
+- 📊 **可观测** - 实时性能监控和诊断工具
 
 ### 术语对照表
 

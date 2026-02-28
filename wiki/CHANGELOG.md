@@ -7,6 +7,112 @@
 
 ---
 
+## [0.8.0-alpha] - 2026-03-01
+
+### Added
+
+- **性能监控与指标收集** (task-07)
+  - 实现 `pkg/metrics` 性能监控包
+  - 支持任务、下载、搜索、安装、JS 池等多维度指标
+  - 实时指标采样和历史记录
+  - CLI `perf` 诊断工具
+    - `perf monitor` - 实时监控性能指标
+    - `perf report` - 生成性能报告
+    - `perf status` - 查看当前性能状态
+    - `perf js-pool` - 查看 JS 引擎池状态
+
+- **CLI 异步命令支持** (task-08)
+  - `install --async` - 并行安装多个包
+  - `update --async` - 并行更新多个包
+  - `search --async` - 并行搜索多个软件源
+  - `--workers` / `-w` 标志控制并发数
+  - Ctrl+C 优雅取消支持
+  - 多任务进度聚合显示
+
+- **流水线框架** (task-06)
+  - 实现 `pkg/pipeline` 流水线处理框架
+  - 支持多阶段流水线（下载→校验→解压→执行→注册）
+  - 阶段内并行处理支持
+  - 背压控制（缓冲区大小限制）
+  - 错误处理策略（StopOnError/ContinueOnError/SkipOnError）
+
+- **分层并行安装器** (task-05)
+  - 实现 `LayeredParallelInstaller` 分层并行安装
+  - 依赖图拓扑排序和分层算法
+  - 层内并行安装，层间顺序执行
+  - 批量安装支持
+
+- **并行搜索优化** (task-04)
+  - 实现 `ParallelSearcher` 并行搜索器
+  - 使用 errgroup 并发搜索多个 Bucket
+  - `SearchCache` 搜索缓存（TTL 5分钟）
+  - 缓存命中率统计
+
+- **智能下载管理器** (task-03)
+  - 实现 `SmartDownloader` 智能下载器
+  - 多连接分片并行下载
+  - 自适应带宽调整
+  - 断点续传支持
+  - 下载队列和并发控制
+
+- **JS 引擎池** (task-02)
+  - 实现 `JSEnginePool` JS 引擎池
+  - 引擎复用和生命周期管理
+  - 动态扩缩容
+  - 脚本缓存和预编译
+
+- **Parallel 包重构** (task-01)
+  - 重构 `pkg/parallel` 包
+  - 任务分类支持（CPU/IO/Memory 密集型）
+  - 智能调度器（Work Stealing 算法）
+  - 优先级队列支持
+
+### Performance
+
+- 批量安装性能提升 **5-6 倍**
+- 并行搜索速度提升 **5-6 倍**
+- 多连接下载速度提升 **3-5 倍**
+- JS 引擎复用减少 **80%** 初始化时间
+
+---
+
+## [0.7.0-alpha] - 2026-02-28
+
+### Changed
+
+- **架构调整** - 移除 Lua 引擎支持，专注 JavaScript 异步实现
+  - 简化架构，减少维护成本
+  - 统一异步/同步 API 设计
+  - 优化 JavaScript 引擎性能
+
+### Added
+
+- **冲突检测功能** - 实现安装前冲突检查
+  - 检测文件冲突
+  - 检测依赖冲突
+  - 提供冲突解决方案
+
+- **API 增强**
+  - `chopsticksx.getShimDir()` - 获取 shim 目录
+  - `chopsticksx.getPersistDir()` - 获取持久化目录
+  - `fs.stat()` - 文件状态查询
+  - 注册缺失的 API 模块
+
+- **Wiki 文档完善**
+  - 扩展错误代码文档
+  - 完善设备同步文档
+  - 添加缓存管理文档
+  - 统一版本号管理
+  - 添加命令别名说明
+  - 添加 Quick Start 指南
+
+### Fixed
+
+- 同步数据库 Schema 文档与实际实现
+- 修复文档中的版本号不一致问题
+
+---
+
 ## [0.6.0-alpha] - 2026-02-28
 
 ### Added

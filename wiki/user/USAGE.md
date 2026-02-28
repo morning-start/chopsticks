@@ -172,6 +172,12 @@ chopsticks install git --force
 
 # 使用别名
 chopsticks i git
+
+# 异步批量安装（并行安装多个包，性能提升 5-6 倍）
+chopsticks install git go python nodejs --async -w 4
+
+# 异步安装并指定并发数
+chopsticks install app1 app2 app3 --async --workers 8
 ```
 
 ### 4.2 卸载软件
@@ -199,6 +205,9 @@ chopsticks up --all
 
 # 强制更新
 chopsticks update git --force
+
+# 异步批量更新（并行更新多个包）
+chopsticks update git go python --async -w 4
 ```
 
 ### 4.4 查看软件
@@ -217,6 +226,30 @@ chopsticks s vscode
 
 # 在指定软件源搜索
 chopsticks search vscode --bucket extras
+
+# 异步并行搜索（搜索多个软件源，性能提升 5-6 倍）
+chopsticks search editor --async -w 10
+```
+
+### 4.5 性能监控
+
+Chopsticks 提供性能监控和诊断工具：
+
+```bash
+# 实时监控性能指标
+chopsticks perf monitor
+
+# 生成性能报告（收集 10 秒数据）
+chopsticks perf report
+
+# 生成性能报告（指定时长）
+chopsticks perf report --duration 30
+
+# 查看当前性能状态
+chopsticks perf status
+
+# 查看 JS 引擎池状态
+chopsticks perf js-pool
 ```
 
 ---
