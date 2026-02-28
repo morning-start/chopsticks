@@ -167,6 +167,28 @@ func (m *Module) RegisterLua(L *lua.LState) {
 		return 1
 	}))
 
+	fsTable.RawSetString("stat", L.NewFunction(func(L *lua.LState) int {
+		path := L.CheckString(1)
+		info, err := Stat(path)
+		if err != nil {
+			L.Push(lua.LNil)
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+
+		// 创建结果表
+		result := L.NewTable()
+		L.SetField(result, "name", lua.LString(info.Name))
+		L.SetField(result, "size", lua.LNumber(info.Size))
+		L.SetField(result, "isDir", lua.LBool(info.IsDir))
+		L.SetField(result, "isFile", lua.LBool(info.IsFile))
+		L.SetField(result, "modTime", lua.LNumber(info.ModTime))
+		L.SetField(result, "mode", lua.LNumber(info.Mode))
+
+		L.Push(result)
+		return 1
+	}))
+
 	L.SetGlobal("fs", fsTable)
 }
 
@@ -280,6 +302,21 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		path := call.Argument(0).String()
 		isFile, _ := IsFile(path)
 		return vm.ToValue(isFile)
+	})
+
+	fsObj.Set("stat", func(call goja.FunctionCall) goja.Value {
+		path := call.Argument(0).String()
+		info, err := Stat(path)
+		if err != nil {
+			return vm.ToValue(map[string]interface{}{
+				"success": false,
+				"error":   err.Error(),
+			})
+		}
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"data":    info,
+		})
 	})
 
 	vm.Set("fs", fsObj)

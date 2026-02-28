@@ -110,3 +110,30 @@ func Copy(src, dst string) error {
 func Rename(oldPath, newPath string) error {
 	return os.Rename(oldPath, newPath)
 }
+
+// FileInfo 文件信息结构体
+type FileInfo struct {
+	Name    string `json:"name"`     // 文件名
+	Size    int64  `json:"size"`     // 文件大小（字节）
+	IsDir   bool   `json:"isDir"`    // 是否为目录
+	IsFile  bool   `json:"isFile"`   // 是否为文件
+	ModTime int64  `json:"modTime"`  // 修改时间（Unix时间戳）
+	Mode    uint32 `json:"mode"`     // 权限模式
+}
+
+// Stat 返回文件的详细信息
+func Stat(path string) (*FileInfo, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FileInfo{
+		Name:    info.Name(),
+		Size:    info.Size(),
+		IsDir:   info.IsDir(),
+		IsFile:  !info.IsDir(),
+		ModTime: info.ModTime().Unix(),
+		Mode:    uint32(info.Mode()),
+	}, nil
+}
