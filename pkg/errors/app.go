@@ -117,3 +117,11 @@ func NewArchiveExtractFailed(path string, err error) error {
 		KindIO,
 	)
 }
+
+func NewDependencyConflict(name, reason string) error {
+	return WrapWithKind(
+		fmt.Errorf("%w: %s - %s", ErrDependencyConflict, name, reason),
+		"dependency",
+		KindInvalidInput,
+	)
+}

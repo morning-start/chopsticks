@@ -13,14 +13,23 @@ type App struct {
 
 // AppScript 定义脚本信息（不变部分）。
 type AppScript struct {
-	Name        string   // 软件名称
-	Description string   // 描述
-	Homepage    string   // 主页 URL
-	License     string   // 许可证
-	Category    string   // 分类
-	Tags        []string // 标签
-	Maintainer  string   // 维护者
-	Bucket      string   // 所属软件源
+	Name         string       // 软件名称
+	Description  string       // 描述
+	Homepage     string       // 主页 URL
+	License      string       // 许可证
+	Category     string       // 分类
+	Tags         []string     // 标签
+	Maintainer   string       // 维护者
+	Bucket       string       // 所属软件源
+	Dependencies []Dependency // 依赖列表
+}
+
+// Dependency 表示应用依赖
+type Dependency struct {
+	Name       string            // 依赖应用名称
+	Version    string            // 版本约束（如 ">=1.0.0", "^2.0.0"）
+	Optional   bool              // 是否为可选依赖
+	Conditions map[string]string // 安装条件（如 {"os": "windows"}）
 }
 
 // AppMeta 定义元数据（动态部分）。
