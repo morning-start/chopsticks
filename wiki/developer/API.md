@@ -114,14 +114,14 @@ const isDir = path.isDir("/path/to/dir");
 
 ```javascript
 // 执行命令
-const result = await exec.exec("git", "--version");
+const result = exec.exec("git", "--version");
 // result.exitCode, result.stdout, result.stderr, result.success
 
 // 执行 shell 命令
-const result = await exec.shell("echo hello");
+const result = exec.shell("echo hello");
 
 // 执行 PowerShell 命令
-const result = await exec.powershell("Get-Process");
+const result = exec.powershell("Get-Process");
 ```
 
 ---
@@ -130,17 +130,17 @@ const result = await exec.powershell("Get-Process");
 
 ```javascript
 // GET 请求
-const response = await fetch.get(url);
+const response = fetch.get(url);
 // response.status, response.ok, response.body, response.headers
 
 // POST 请求
-const response = await fetch.post(url, body, "application/json");
+const response = fetch.post(url, body, "application/json");
 
 // 下载文件
-await fetch.download(url, destPath);
+fetch.download(url, destPath);
 
 // 带选项的请求
-const response = await fetch.get(url, {
+const response = fetch.get(url, {
   headers: { "User-Agent": "Chopsticks" },
   timeout: 30000,
 });
@@ -189,17 +189,20 @@ const info = fs.stat("path/to/file");
 
 ```javascript
 // 计算 SHA256
-const hash = await checksum.sha256("path/to/file");
+const result = checksum.sha256("path/to/file");
+// result.success, result.hash
 
 // 计算 MD5
-const hash = await checksum.md5("path/to/file");
+const result = checksum.md5("path/to/file");
+// result.success, result.hash
 
 // 验证校验和
-const valid = await checksum.verify("path/to/file", expectedHash, "sha256");
+const result = checksum.verify("path/to/file", expectedHash, "sha256");
+// result.success, result.valid
 
 // 通用算法
-const hash = await checksum.hash("path/to/file", "sha256");
-const hash = await checksum.hash("path/to/file", "md5");
+const result = checksum.hash("path/to/file", "sha256");
+// result.success, result.hash
 ```
 
 ---
@@ -230,18 +233,20 @@ semver.satisfies("2.0.0", "^1.0.0"); // false
 
 ```javascript
 // 解压 ZIP
-await archive.extractZip("archive.zip", "dest/dir");
+const result = archive.extractZip("archive.zip", "dest/dir");
+// result.success
 
 // 解压 7z
-await archive.extract7z("archive.7z", "dest/dir7z", "dest/dir");
+const result = archive.extract7z("archive.7z", "dest/dir7z", "dest/dir");
+// result.success
 
 // 解压 tar.gz
-await archive.extractTarGz("archive.tar.gz", "dest/dir");
+const result = archive.extractTarGz("archive.tar.gz", "dest/dir");
+// result.success
 
 // 自动根据扩展名解压
-await archive.extract("archive.zip", "dest/dir");
-await archive.extract("archive.7z", "dest/dir");
-await archive.extract("archive.tar.gz", "dest/dir");
+const result = archive.extract("archive.zip", "dest/dir");
+// result.success
 ```
 
 ---
@@ -250,22 +255,28 @@ await archive.extract("archive.tar.gz", "dest/dir");
 
 ```javascript
 // 创建符号链接（文件）
-await symlink.create("target/file.exe", "link/name.exe");
+const result = symlink.create("target/file.exe", "link/name.exe");
+// result.success
 
 // 创建目录符号链接
-await symlink.createDir("target/dir", "link/dir");
+const result = symlink.createDir("target/dir", "link/dir");
+// result.success
 
 // 创建硬链接
-await symlink.createHard("target/file", "link/file");
+const result = symlink.createHard("target/file", "link/file");
+// result.success
 
 // 创建 Windows 目录联接
-await symlink.createJunction("target/dir", "link/dir");
+const result = symlink.createJunction("target/dir", "link/dir");
+// result.success
 
 // 读取链接目标
-const target = symlink.readLink("link");
+const result = symlink.readLink("link");
+// result.success, result.target
 
 // 检查是否为链接
-const isLink = symlink.isLink("path");
+const result = symlink.isLink("path");
+// result.success, result.isLink
 ```
 
 ---
@@ -274,38 +285,48 @@ const isLink = symlink.isLink("path");
 
 ```javascript
 // 设置字符串值
-await registry.setValue("HKCU\\Software\\App", "Version", "1.0.0");
+const result = registry.setValue("HKCU\\Software\\App", "Version", "1.0.0");
+// result.success
 
 // 设置 DWORD 值
-await registry.setDword("HKCU\\Software\\App", "Count", 42);
+const result = registry.setDword("HKCU\\Software\\App", "Count", 42);
+// result.success
 
 // 设置二进制值
-await registry.setBinary(
+const result = registry.setBinary(
   "HKCU\\Software\\App",
   "Data",
   Buffer.from([0x01, 0x02]),
 );
+// result.success
 
 // 读取值
-const value = await registry.getValue("HKCU\\Software\\App", "Version");
+const result = registry.getValue("HKCU\\Software\\App", "Version");
+// result.success, result.value
 
 // 删除值
-await registry.deleteValue("HKCU\\Software\\App", "Version");
+const result = registry.deleteValue("HKCU\\Software\\App", "Version");
+// result.success
 
 // 创建键
-await registry.createKey("HKCU\\Software\\App");
+const result = registry.createKey("HKCU\\Software\\App");
+// result.success
 
 // 删除键
-await registry.deleteKey("HKCU\\Software\\App");
+const result = registry.deleteKey("HKCU\\Software\\App");
+// result.success
 
 // 检查键是否存在
-const exists = await registry.keyExists("HKCU\\Software\\App");
+const result = registry.keyExists("HKCU\\Software\\App");
+// result.success, result.exists
 
 // 列出子键
-const keys = await registry.listKeys("HKCU\\Software");
+const result = registry.listKeys("HKCU\\Software");
+// result.success, result.keys
 
 // 列出值
-const values = await registry.listValues("HKCU\\Software\\App");
+const result = registry.listValues("HKCU\\Software\\App");
+// result.success, result.values
 ```
 
 ---
@@ -314,19 +335,26 @@ const values = await registry.listValues("HKCU\\Software\\App");
 
 ```javascript
 // 运行安装程序（自动检测类型）
-await installer.run("installer.exe", ["/S", "/D=path"]);
+const result = installer.run("installer.exe", ["/S", "/D=path"]);
+// result.success
 
 // 指定类型
-await installer.runNSIS("installer.exe", ["/S"]);
-await installer.runMSI("msi.msi", ["/quiet", "/norestart"]);
-await installer.runInno("setup.exe", ["/VERYSILENT", "/SUPPRESSMSGBOXES"]);
+const result = installer.runNSIS("installer.exe", ["/S"]);
+// result.success
+
+const result = installer.runMSI("msi.msi", ["/quiet", "/norestart"]);
+// result.success
+
+const result = installer.runInno("setup.exe", ["/VERYSILENT", "/SUPPRESSMSGBOXES"]);
+// result.success
 
 // 等待安装完成
-await installer.waitForProcess(processName);
+const result = installer.waitForProcess(processName);
+// result.success
 
 // 检查安装程序类型
-const type = await installer.detectType("installer.exe");
-// type = "nsis" | "msi" | "inno" | "autoit" | "unknown"
+const result = installer.detectType("installer.exe");
+// result.success, result.type = "nsis" | "msi" | "inno" | "autoit" | "unknown"
 ```
 
 ---
@@ -344,19 +372,29 @@ const cacheDir = chopsticks.getCacheDir();
 const configDir = chopsticks.getConfigDir();
 
 // 环境变量操作
-await chopsticks.setEnv("VAR_NAME", "value");
-const value = await chopsticks.getEnv("VAR_NAME");
-await chopsticks.deleteEnv("VAR_NAME");
+const result = chopsticks.setEnv("VAR_NAME", "value");
+// result.success
+
+const result = chopsticks.getEnv("VAR_NAME");
+// result.success, result.value
+
+const result = chopsticks.deleteEnv("VAR_NAME");
+// result.success
 
 // PATH 管理
-await chopsticks.addToPath("path/to/bin");
-await chopsticks.removeFromPath("path/to/bin");
+const result = chopsticks.addToPath("path/to/bin");
+// result.success
+
+const result = chopsticks.removeFromPath("path/to/bin");
+// result.success
+
 const paths = chopsticks.getPath();
 
 // 创建 shim（命令快捷方式）
 // shim 会创建在 %USERPROFILE%\.chopsticks\shim\ 目录下
 // 该目录已自动添加到 PATH，用户可直接在命令行调用
-await chopsticks.createShim("source.exe", "alias");
+const result = chopsticks.createShim("source.exe", "alias");
+// result.success
 
 // 获取 shim 目录
 const shimDir = chopsticks.getShimDir();
@@ -366,7 +404,7 @@ const shimDir = chopsticks.getShimDir();
 const persistDir = chopsticks.getPersistDir();
 
 // 创建快捷方式（Windows）
-await chopsticks.createShortcut({
+const result = chopsticks.createShortcut({
   source: "app.exe",
   name: "My App",
   description: "Application description",
@@ -374,9 +412,11 @@ await chopsticks.createShortcut({
   workingDir: "C:\\app",
   arguments: "--start",
 });
+// result.success
 
 // 持久化数据
-await chopsticks.persistData("appname", ["config", "data"]);
+const result = chopsticks.persistData("appname", ["config", "data"]);
+// result.success
 ```
 
 ---
@@ -397,11 +437,15 @@ class GitApp extends App {
     });
   }
 
-  async checkVersion() {
+  checkVersion() {
     try {
-      const response = await fetch.get(
+      const response = fetch.get(
         "https://api.github.com/repos/git-for-windows/git/releases/latest",
       );
+      if (!response.success) {
+        log.warn("Failed to fetch version");
+        return "2.43.0"; // fallback
+      }
       const data = JSON.parse(response.body);
       return data.tag_name.replace(/^v/, "");
     } catch (error) {
@@ -410,7 +454,7 @@ class GitApp extends App {
     }
   }
 
-  async getDownloadInfo(version, arch) {
+  getDownloadInfo(version, arch) {
     const archMap = { amd64: "64-bit", x86: "32-bit" };
     const filename = `PortableGit-${version}-${archMap[arch] || arch}.7z.exe`;
     return {
@@ -419,19 +463,19 @@ class GitApp extends App {
     };
   }
 
-  async onPostInstall(ctx) {
+  onPostInstall(ctx) {
     log.info("Configuring Git...");
     const gitExe = path.join(ctx.cookDir, "bin", "git.exe");
 
     // 设置 Git 配置
-    await exec.exec(gitExe, "config", "--global", "core.autocrlf", "true");
-    await exec.exec(gitExe, "config", "--global", "core.longpaths", "true");
+    exec.exec(gitExe, "config", "--global", "core.autocrlf", "true");
+    exec.exec(gitExe, "config", "--global", "core.longpaths", "true");
 
     // 添加到 PATH
-    await chopsticks.addToPath(path.join(ctx.cookDir, "bin"));
+    chopsticks.addToPath(path.join(ctx.cookDir, "bin"));
 
     // 创建快捷方式
-    await chopsticks.createShortcut({
+    chopsticks.createShortcut({
       source: path.join(ctx.cookDir, "git-bash.exe"),
       name: "Git Bash",
       description: "Git Bash - Command line interface",
@@ -557,19 +601,16 @@ pm.wait();
 ## 17. 错误处理
 
 ```javascript
-async checkVersion() {
+checkVersion() {
+    const response = fetch.get(url);
+    
+    if (!response.success) {
+        log.error("Error: " + response.error);
+        return "fallback-version";
+    }
+    
     try {
-        const result = await this.safeCall(async () => {
-            const response = await fetch.get(url);
-            return JSON.parse(response.body).version;
-        });
-
-        if (!result.success) {
-            log.error("Error: " + result.error);
-            return "fallback-version";
-        }
-
-        return result.value;
+        return JSON.parse(response.body).version;
     } catch (error) {
         log.error("Exception: " + error.message);
         return "fallback-version";
@@ -585,15 +626,17 @@ async checkVersion() {
 
 ```javascript
 // 执行完整同步
-await chopsticks.sync();
+const result = chopsticks.sync();
+// result.success, result.syncedDevices, result.conflicts
 
 // 指定设备同步
-await chopsticks.sync({
+const result = chopsticks.sync({
   device: "laptop",
   force: false,
   dryRun: false,
   configOnly: false
 });
+// result.success, result.syncedDevices, result.conflicts
 ```
 
 **参数说明**:
@@ -619,13 +662,15 @@ await chopsticks.sync({
 ### 18.2 获取同步状态
 
 ```javascript
-const status = await chopsticks.syncStatus();
+const result = chopsticks.syncStatus();
+// result.success, result.lastSync, result.pendingChanges, result.connectedDevices
 ```
 
 **返回值**:
 
 ```javascript
 {
+  success: true,
   lastSync: "2026-02-28T10:30:00Z",
   pendingChanges: 5,
   connectedDevices: ["laptop", "desktop", "server"],
@@ -636,20 +681,75 @@ const status = await chopsticks.syncStatus();
 ### 18.3 解决冲突
 
 ```javascript
-await chopsticks.resolveConflict({
+const result = chopsticks.resolveConflict({
   conflictId: "conflict-001",
   resolution: "local"  // 'local', 'remote', 'merge'
 });
+// result.success
 ```
 
 ### 18.4 获取同步历史
 
 ```javascript
-const history = await chopsticks.getSyncHistory({
+const result = chopsticks.getSyncHistory({
   limit: 10,
   device: "laptop"
 });
+// result.success, result.history
 ```
+
+---
+
+## 附录 A: API 设计说明
+
+### A.1 同步 vs 异步
+
+Chopsticks 的 JavaScript/Lua API 采用**同步设计**，原因如下：
+
+1. **本地操作为主**：大多数 API 是文件系统、注册表等本地操作，同步调用更直观
+2. **Lua 兼容性**：Lua 引擎原生不支持 Promise/异步
+3. **简化使用**：脚本编写者无需处理异步复杂性
+4. **性能足够**：本地操作耗时通常在毫秒级
+
+### A.2 网络请求
+
+虽然 `fetch` 等网络 API 是同步的，但内部使用 Go 的 HTTP 客户端，
+对于需要异步处理的场景，建议使用 Go 协程配合回调。
+
+### A.3 返回值格式
+
+所有 API 统一返回以下格式的结果对象：
+
+**JavaScript：**
+```javascript
+// 成功
+{
+    success: true,
+    data: <返回数据>,      // 可选
+    error: null
+}
+
+// 失败
+{
+    success: false,
+    data: null,
+    error: "错误信息"
+}
+```
+
+**Lua：**
+```lua
+-- 成功
+return <数据>, nil
+
+-- 失败
+return nil, "错误信息"
+```
+
+### A.4 未来规划
+
+后续版本可能引入可选的异步 API（如 `fetch.asyncGet()`），
+但同步 API 将始终保持兼容。
 
 ---
 
