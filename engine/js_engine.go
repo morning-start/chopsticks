@@ -266,10 +266,7 @@ func (e *JSEngine) GetAppInstance() (map[string]interface{}, error) {
 	return result, nil
 }
 
-// GetDishInstance 已弃用，请使用 GetAppInstance
-func (e *JSEngine) GetDishInstance() (map[string]interface{}, error) {
-	return e.GetAppInstance()
-}
+
 
 func (e *JSEngine) CallAppMethod(methodName string, ctx map[string]interface{}) error {
 	obj := e.vm.Get("exports")
@@ -298,10 +295,7 @@ func (e *JSEngine) CallAppMethod(methodName string, ctx map[string]interface{}) 
 	return err
 }
 
-// CallDishMethod 已弃用，请使用 CallAppMethod
-func (e *JSEngine) CallDishMethod(methodName string, ctx map[string]interface{}) error {
-	return e.CallAppMethod(methodName, ctx)
-}
+
 
 func (e *JSEngine) Close() {
 }

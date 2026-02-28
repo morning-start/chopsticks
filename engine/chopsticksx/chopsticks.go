@@ -41,13 +41,13 @@ func (m *Module) GetCookDir(name, version string) string {
 	return filepath.Join(m.appsPath, name, version)
 }
 
-// GetCurrentVersion 返回菜肴的当前版本（如果已安装）。
+// GetCurrentVersion 返回应用的当前版本（如果已安装）。
 func (m *Module) GetCurrentVersion(name string) (string, error) {
 	// 检查安装目录中的版本
-	dishPath := filepath.Join(m.appsPath, name)
-	entries, err := os.ReadDir(dishPath)
+	appPath := filepath.Join(m.appsPath, name)
+	entries, err := os.ReadDir(appPath)
 	if err != nil {
-		return "", fmt.Errorf("dish not installed: %s", name)
+		return "", fmt.Errorf("app not installed: %s", name)
 	}
 
 	// 返回第一个找到的版本目录
