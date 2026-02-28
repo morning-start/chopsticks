@@ -25,6 +25,16 @@ func searchCommand() *cli.Command {
 				Aliases: []string{"b"},
 				Usage:   "指定软件源进行搜索",
 			},
+			&cli.BoolFlag{
+				Name:    "async",
+				Usage:   "使用异步模式搜索（并行搜索多个软件源）",
+			},
+			&cli.IntFlag{
+				Name:    "workers",
+				Aliases: []string{"w"},
+				Usage:   "异步模式下的最大并发数",
+				Value:   10,
+			},
 		},
 		Action: searchAction,
 	}
@@ -32,6 +42,11 @@ func searchCommand() *cli.Command {
 
 // searchAction 处理搜索命令。
 func searchAction(c *cli.Context) error {
+	// 异步模式
+	if c.Bool("async") {
+		return searchAsyncAction(c)
+	}
+
 	if c.NArg() < 1 {
 		output.Errorln("错误: 缺少搜索关键词")
 		output.Dimln("用法: chopsticks search <query>")

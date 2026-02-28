@@ -45,6 +45,16 @@ func installCommand() *cli.Command {
 				Usage:   "指定软件源",
 				Value:   "main",
 			},
+			&cli.BoolFlag{
+				Name:    "async",
+				Usage:   "使用异步模式安装（并行安装多个包）",
+			},
+			&cli.IntFlag{
+				Name:    "workers",
+				Aliases: []string{"w"},
+				Usage:   "异步模式下的最大并发数",
+				Value:   4,
+			},
 		},
 		Action: installAction,
 	}
@@ -56,6 +66,11 @@ func installAction(c *cli.Context) error {
 		output.Errorln("错误: 缺少软件包名称")
 		output.Dimln("用法: chopsticks install <package>[@version] ...")
 		return cli.Exit("", 1)
+	}
+
+	// 异步模式
+	if c.Bool("async") {
+		return installAsyncAction(c)
 	}
 
 	force := c.Bool("force")

@@ -38,6 +38,16 @@ func updateCommand() *cli.Command {
 				Aliases: []string{"f"},
 				Usage:   "强制更新，即使版本相同",
 			},
+			&cli.BoolFlag{
+				Name:    "async",
+				Usage:   "使用异步模式更新（并行更新多个包）",
+			},
+			&cli.IntFlag{
+				Name:    "workers",
+				Aliases: []string{"w"},
+				Usage:   "异步模式下的最大并发数",
+				Value:   4,
+			},
 		},
 		Action: updateAction,
 	}
@@ -45,6 +55,11 @@ func updateCommand() *cli.Command {
 
 // updateAction 处理更新命令（支持批量更新）。
 func updateAction(c *cli.Context) error {
+	// 异步模式
+	if c.Bool("async") {
+		return updateAsyncAction(c)
+	}
+
 	force := c.Bool("force")
 	updateAll := c.Bool("all")
 
