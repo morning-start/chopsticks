@@ -459,10 +459,32 @@ const type = await installer.detectType("installer.exe");
 const cookDir = chopsticks.getCookDir("git", "2.43.0");
 const cacheDir = chopsticks.getCacheDir();
 const configDir = chopsticks.getConfigDir();
+const shimDir = chopsticks.getShimDir();  // 获取 shim 目录
+const persistDir = chopsticks.getPersistDir();  // 获取 persist 目录
 
-// Shim
+// 创建 shim（命令快捷方式）
+// shim 会被创建在 %USERPROFILE%\.chopsticks\shim\ 目录下
+// 该目录已自动添加到 PATH，用户可直接在命令行调用
 await chopsticks.createShim("source.exe", "alias");
 ```
+
+**关于 Shim：**
+
+Shim 是 Chopsticks 用来创建命令行可执行文件快捷方式的机制：
+
+- **位置**：所有 shim 都存储在 `%USERPROFILE%\.chopsticks\shim\` 目录
+- **PATH 集成**：shim 目录自动添加到用户 PATH，无需手动配置
+- **命名**：通过 `createShim(source, alias)` 的 `alias` 参数指定命令名
+- **示例**：`createShim("git.exe", "git")` 会创建 `shim/git.exe`，用户可直接运行 `git`
+
+**关于 Persist：**
+
+Persist 是 Chopsticks 用来持久化用户数据和配置的机制：
+
+- **位置**：所有持久化数据存储在 `%USERPROFILE%\.chopsticks\persist\{appname}\` 目录
+- **用途**：存储用户配置、数据文件等更新时需要保留的内容
+- **生命周期**：应用更新时自动迁移，卸载时根据策略保留或删除
+- **示例**：`persist("git", ["config", "data"])` 会在更新时保留这些目录
 
 ---
 

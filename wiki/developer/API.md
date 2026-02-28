@@ -353,8 +353,17 @@ await chopsticks.addToPath("path/to/bin");
 await chopsticks.removeFromPath("path/to/bin");
 const paths = chopsticks.getPath();
 
-// 创建 shim
+// 创建 shim（命令快捷方式）
+// shim 会创建在 %USERPROFILE%\.chopsticks\shim\ 目录下
+// 该目录已自动添加到 PATH，用户可直接在命令行调用
 await chopsticks.createShim("source.exe", "alias");
+
+// 获取 shim 目录
+const shimDir = chopsticks.getShimDir();
+
+// 获取 persist 目录（持久化数据目录）
+// persist 目录用于存储更新时需要保留的用户配置和数据
+const persistDir = chopsticks.getPersistDir();
 
 // 创建快捷方式（Windows）
 await chopsticks.createShortcut({

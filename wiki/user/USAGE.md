@@ -375,6 +375,15 @@ retry: 3
 │   ├── downloads/     # 下载的安装包缓存
 │   ├── temp/          # 临时文件
 │   └── metadata/      # 元数据缓存
+├── persist/           # 持久化数据目录（更新时保留）
+│   ├── app1/          # 应用1的持久化数据
+│   │   ├── config/    # 配置文件
+│   │   └── data/      # 数据文件
+│   └── app2/          # 应用2的持久化数据
+├── shim/              # 可执行文件快捷方式目录
+│   ├── git.exe        # Git 命令快捷方式
+│   ├── node.exe       # Node.js 命令快捷方式
+│   └── ...
 ├── logs/              # 日志文件
 │   └── chp_yyyy_mm_dd.log # 主日志文件
 ├── data.db            # 全局数据库（SQLite，包含已安装软件和软件源配置）
@@ -391,6 +400,8 @@ retry: 3
 | `cache/downloads/` | 下载的安装包缓存                                          |
 | `cache/temp/`      | 临时文件                                                  |
 | `cache/metadata/`  | 元数据缓存                                                |
+| `persist/`         | 持久化数据目录，更新软件时保留用户配置和数据              |
+| `shim/`            | 可执行文件快捷方式目录，添加到 PATH 供全局调用            |
 | `logs/`            | 运行日志，便于排查问题                                    |
 | `data.db`          | SQLite 数据库，存储软件源配置、已安装软件信息、操作记录等 |
 | `config.yaml`      | 用户配置文件，包含代理设置、并行数、超时时间等            |
