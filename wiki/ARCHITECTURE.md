@@ -10,8 +10,7 @@
 ## 目录
 
 1. [架构概览](#架构概览)
-2. [系统架构图](#
-   系统架构图)
+2. [系统架构图](#系统架构图)
 3. [核心模块](#核心模块)
 4. [数据流](#数据流)
 5. [技术选型](#技术选型)
@@ -51,14 +50,12 @@ Chopsticks 采用分层架构设计，遵循以下原则：
 │         │                │                    │             │
 │  ┌──────┴────────────────┴────────────────────┴──────┐      │
 │  │                    Engine 层                       │      │
-│  │        ┌─────────┐      ┌─────────┐               │      │
-│  │        │   JS    │      │   Lua   │               │      │
-│  │        │ Engine  │      │ Engine  │               │      │
-│  │        └────┬────┘      └────┬────┘               │      │
-│  │             │                │                     │      │
-│  │             └────────────────┘                     │      │
-│  │                      │                             │      │
-│  │                      ▼                             │      │
+│  │        ┌─────────┐                                │      │
+│  │        │   JS    │                                │      │
+│  │        │ Engine  │                                │      │
+│  │        └────┬────┘                                │      │
+│  │             │                                     │      │
+│  │             ▼                                     │      │
 │  │  ┌─────────────────────────────────────────────┐   │      │
 │  │  │           Engine API 模块 (向脚本暴露)         │   │      │
 │  │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐        │   │      │
@@ -113,7 +110,6 @@ graph TB
 
     subgraph ENGINE[Engine Layer]
         JS[JS Engine<br/>goja]
-        LUA[Lua Engine<br/>gopher-lua]
         SCRIPT[Script Executor]
     end
 
@@ -151,9 +147,9 @@ graph TB
     BUCKET_MGR --> GIT
 
     INSTALLER & UNINSTALLER & UPDATER --> SCRIPT
-    SCRIPT --> JS & LUA
+    SCRIPT --> JS
 
-    JS & LUA --> API
+    JS --> API
     API --> FS & FETCH & EXEC & ARCH & CHECK & PATH & LOG & JSON & SYM & REG & SEMVER & CHOPX
 
     APP_MGR & BUCKET_MGR --> STORAGE
@@ -323,7 +319,7 @@ CREATE TABLE operations (
 
 ### 3. Engine 层 (engine/)
 
-Engine 层负责脚本执行环境，向 JavaScript/Lua 脚本暴露系统能力。
+Engine 层负责脚本执行环境，向 JavaScript 脚本暴露系统能力。
 
 #### 3.1 脚本引擎 (Script Engines)
 
@@ -338,11 +334,6 @@ type Engine interface {
 // engine/js_engine.go - JavaScript 引擎
 type JSEngine struct {
     vm *goja.Runtime
-}
-
-// engine/lua_engine.go - Lua 引擎
-type LuaEngine struct {
-    state *lua.LState
 }
 ```
 
@@ -574,14 +565,12 @@ sequenceDiagram
 | ---------- | --------------- | ------ |
 | Go         | 主开发语言      | 1.25.6 |
 | JavaScript | 应用脚本        | ES6+   |
-| Lua        | 应用脚本 (备选) | 5.1    |
 
 ### 核心依赖
 
 | 库                             | 用途             | 版本                  |
 | ------------------------------ | ---------------- | --------------------- |
 | `github.com/dop251/goja`       | JavaScript 引擎  | v0.0.0-20260106131823 |
-| `github.com/yuin/gopher-lua`   | Lua 引擎         | v1.1.1                |
 | `github.com/go-git/go-git/v5`  | Git 操作         | v5.11.0               |
 | `github.com/mattn/go-sqlite3`  | SQLite 数据库    | v1.14.24              |
 | `github.com/ulikunitz/xz`      | XZ 压缩支持      | v0.5.11               |
@@ -594,12 +583,11 @@ sequenceDiagram
 
 1. **Go**: 编译型语言，单文件部署，跨平台，丰富的标准库
 2. **Goja**: 纯 Go 实现的 JavaScript 引擎，无需 CGO，性能优秀
-3. **Gopher-lua**: 轻量级 Lua 引擎，适合嵌入式场景
-4. **go-git**: 纯 Go 实现的 Git 客户端，无需外部依赖
-5. **SQLite**: 轻量级嵌入式数据库，单文件存储
-6. **urfave/cli/v2**: 成熟的 Go CLI 框架，支持子命令、Flag 解析、自动补全
-7. **mpb/v8**: 功能强大的多进度条库，支持并发、自定义装饰器
-8. **fatih/color**: 流行的终端颜色库，自动检测颜色支持，跨平台兼容
+3. **go-git**: 纯 Go 实现的 Git 客户端，无需外部依赖
+4. **SQLite**: 轻量级嵌入式数据库，单文件存储
+5. **urfave/cli/v2**: 成熟的 Go CLI 框架，支持子命令、Flag 解析、自动补全
+6. **mpb/v8**: 功能强大的多进度条库，支持并发、自定义装饰器
+7. **fatih/color**: 流行的终端颜色库，自动检测颜色支持，跨平台兼容
 
 ---
 
@@ -607,7 +595,7 @@ sequenceDiagram
 
 ### 1. 脚本扩展
 
-应用通过 JavaScript/Lua 脚本定义安装逻辑：
+应用通过 JavaScript 脚本定义安装逻辑：
 
 ```javascript
 // apps/git.js
@@ -723,6 +711,6 @@ bucket/
 
 ---
 
-_最后更新: 2026-02-27_
-_架构版本: v1.2_
-_软件版本: v0.5.0-alpha_
+_最后更新: 2026-02-28_
+_架构版本: v1.3_
+_软件版本: v0.6.0-alpha_

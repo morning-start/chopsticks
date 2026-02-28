@@ -1,6 +1,6 @@
 # Bucket 脚手架设计文档
 
-> Bucket 脚手架工具设计方案，支持快速创建标准 Bucket 目录结构和 JavaScript/Lua 开发
+> Bucket 脚手架工具设计方案，支持快速创建标准 Bucket 目录结构和 JavaScript 开发
 >
 > 本文档为开发者文档，详细描述脚手架工具的设计与实现
 
@@ -21,7 +21,7 @@
 ### 1.3 目标
 
 - 提供 `chopsticks bucket init` 命令创建标准 Bucket
-- 支持 JavaScript 和 Lua 脚本
+- 支持 JavaScript 脚本
 - 自动配置开发环境
 
 ---
@@ -33,9 +33,6 @@
 ```bash
 # 创建新 Bucket（JavaScript 版本）
 chopsticks bucket init my-bucket
-
-# 创建 Lua 版本
-chopsticks bucket init my-bucket --lua
 
 # 指定目录创建
 chopsticks bucket init my-bucket --dir ./buckets
@@ -52,18 +49,6 @@ my-bucket/
 ├── apps/                  # 目录
 │   └── example.js          # 示例应用
 ├── tools.js                 # 共享工具（可选）
-└── .gitignore              # 忽略文件
-```
-
-#### Lua 版本
-
-```
-my-bucket/
-├── bucket.json                 # 配置
-├── bucket.db                   # 可选：元数据缓存（SQLite）
-├── apps/                  # 目录
-│   └── example.lua        # 示例应用
-├── tools.lua               # 共享工具（可选）
 └── .gitignore              # 忽略文件
 ```
 
@@ -175,7 +160,6 @@ module.exports = new ExampleApp();
 | 包名               | 说明           | 优先级 |
 | ------------------ | -------------- | ------ |
 | `@chopsticks/core` | JS 运行时核心  | P0     |
-| `@chopsticks/lua`  | Lua 运行时核心 | P0     |
 
 ---
 
@@ -306,58 +290,16 @@ class ExampleApp extends App {
 module.exports = new ExampleApp();
 ```
 
-### 5.2 Lua 应用模板
-
-```lua
--- apps/example.lua
-
-local app = {
-    name = "example",
-    description = "Example Application",
-    homepage = "https://example.com",
-    license = "MIT",
-    bucket = "my-bucket"
-}
-
-function app:check_version()
-    local response = fetch.get("https://api.example.com/version")
-    local data = json.decode(response.body)
-    return data.version
-end
-
-function app:get_download_info(version, arch)
-    local arch_map = {
-        amd64 = "x64",
-        x86 = "x86",
-        arm64 = "arm64"
-    }
-
-    return {
-        url = string.format("https://example.com/download/%s/app-%s.zip", version, arch_map[arch] or arch),
-        type = "zip"
-    }
-end
-
-function app:on_post_install(ctx)
-    log.info("正在配置 " .. self.metadata.name .. "...")
-
-    chopsticks.add_to_path(path.join(ctx.cook_dir, "bin"))
-
-    log.info(self.metadata.name .. " 安装完成！")
-end
-
-return app
-```
-
 ---
 
 ## 6. 更新记录
 
 | 日期       | 版本   | 变更                                   |
 | ---------- | ------ | -------------------------------------- |
+| 2026-02-28 | v1.2.0 | 移除 Lua 支持，仅保留 JavaScript       |
 | 2026-02-26 | v1.1.0 | 移除 TypeScript 支持，仅保留 JS 和 Lua |
 | 2026-02-25 | v1.0.0 | 初始版本                               |
 
 ---
 
-_最后更新：2026-02-26_
+_最后更新：2026-02-28_

@@ -345,7 +345,10 @@ const result = installer.runNSIS("installer.exe", ["/S"]);
 const result = installer.runMSI("msi.msi", ["/quiet", "/norestart"]);
 // result.success
 
-const result = installer.runInno("setup.exe", ["/VERYSILENT", "/SUPPRESSMSGBOXES"]);
+const result = installer.runInno("setup.exe", [
+  "/VERYSILENT",
+  "/SUPPRESSMSGBOXES",
+]);
 // result.success
 
 // 等待安装完成
@@ -603,12 +606,12 @@ pm.wait();
 ```javascript
 checkVersion() {
     const response = fetch.get(url);
-    
+
     if (!response.success) {
         log.error("Error: " + response.error);
         return "fallback-version";
     }
-    
+
     try {
         return JSON.parse(response.body).version;
     } catch (error) {
@@ -634,19 +637,19 @@ const result = chopsticks.sync({
   device: "laptop",
   force: false,
   dryRun: false,
-  configOnly: false
+  configOnly: false,
 });
 // result.success, result.syncedDevices, result.conflicts
 ```
 
 **参数说明**:
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `device` | string | null | 目标设备名称，null 表示所有设备 |
-| `force` | boolean | false | 是否强制覆盖冲突 |
-| `dryRun` | boolean | false | 是否模拟运行 |
-| `configOnly` | boolean | false | 是否仅同步配置 |
+| 参数         | 类型    | 默认值 | 说明                            |
+| ------------ | ------- | ------ | ------------------------------- |
+| `device`     | string  | null   | 目标设备名称，null 表示所有设备 |
+| `force`      | boolean | false  | 是否强制覆盖冲突                |
+| `dryRun`     | boolean | false  | 是否模拟运行                    |
+| `configOnly` | boolean | false  | 是否仅同步配置                  |
 
 **返回值**:
 
@@ -683,7 +686,7 @@ const result = chopsticks.syncStatus();
 ```javascript
 const result = chopsticks.resolveConflict({
   conflictId: "conflict-001",
-  resolution: "local"  // 'local', 'remote', 'merge'
+  resolution: "local", // 'local', 'remote', 'merge'
 });
 // result.success
 ```
@@ -693,7 +696,7 @@ const result = chopsticks.resolveConflict({
 ```javascript
 const result = chopsticks.getSyncHistory({
   limit: 10,
-  device: "laptop"
+  device: "laptop",
 });
 // result.success, result.history
 ```
@@ -721,6 +724,7 @@ Chopsticks 的 JavaScript/Lua API 采用**同步设计**，原因如下：
 所有 API 统一返回以下格式的结果对象：
 
 **JavaScript：**
+
 ```javascript
 // 成功
 {
@@ -738,6 +742,7 @@ Chopsticks 的 JavaScript/Lua API 采用**同步设计**，原因如下：
 ```
 
 **Lua：**
+
 ```lua
 -- 成功
 return <数据>, nil
