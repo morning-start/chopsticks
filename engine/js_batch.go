@@ -15,9 +15,9 @@ import (
 
 // BatchConfig 批量执行配置
 type BatchConfig struct {
-	MaxConcurrency int           // 最大并发数
-	Timeout        time.Duration // 单个任务超时
-	ContinueOnError bool         // 出错时是否继续
+	MaxConcurrency  int           // 最大并发数
+	Timeout         time.Duration // 单个任务超时
+	ContinueOnError bool          // 出错时是否继续
 }
 
 // DefaultBatchConfig 返回默认批量配置
@@ -31,11 +31,11 @@ func DefaultBatchConfig() BatchConfig {
 
 // BatchResult 批量执行结果
 type BatchResult struct {
-	Total     int
-	Success   int
-	Failed    int
-	Errors    map[string]error
-	Duration  time.Duration
+	Total    int
+	Success  int
+	Failed   int
+	Errors   map[string]error
+	Duration time.Duration
 }
 
 // ExecuteBatch 批量执行 JS 任务
@@ -259,15 +259,17 @@ func (p *JSEnginePool) Resize(maxEngines int) error {
 
 		if toClose > 0 {
 			// 关闭空闲引擎
-			for i := 0; i < toClose; i++ {
+			closed := 0
+			for closed < toClose {
 				select {
 				case engine := <-p.available:
 					engine.Close()
 					atomic.AddInt32(&p.stats.IdleEngines, -1)
 					atomic.AddInt32(&p.stats.TotalEngines, -1)
+					closed++
 				default:
 					// 没有更多空闲引擎了
-					break
+					return nil
 				}
 			}
 		}
