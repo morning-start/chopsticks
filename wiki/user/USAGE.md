@@ -83,7 +83,7 @@ chopsticks list
 
 ```powershell
 # 克隆项目
-git clone https://github.com/chopsticks-bows/main.git
+git clone https://github.com/chopsticks-bucket/main.git
 cd main
 
 # 编译

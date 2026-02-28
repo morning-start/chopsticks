@@ -102,7 +102,7 @@ git --version
 ### 从源码安装
 
 ```powershell
-git clone https://github.com/chopsticks-bows/main.git
+git clone https://github.com/chopsticks-bucket/main.git
 cd main
 go build -o chopsticks.exe ./cmd/chopsticks
 ```
@@ -223,7 +223,7 @@ chopsticks/
 
 ## 🔗 相关链接
 
-- [GitHub 仓库](https://github.com/chopsticks-bows/main)
+- [GitHub 仓库](https://github.com/chopsticks-bucket/main)
 
 ---
 

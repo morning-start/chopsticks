@@ -30,7 +30,7 @@ Chopsticks 具有以下特点：
 ### 如何安装 Chopsticks
 
 ```powershell
-git clone https://github.com/chopsticks-bows/main.git
+git clone https://github.com/chopsticks-bucket/main.git
 cd main
 go build -o chopsticks.exe
 ```
@@ -63,7 +63,7 @@ chopsticks --help
 ### 如何添加软件源
 
 ```bash
-chopsticks source add main https://github.com/chopsticks-bows/main
+chopsticks bucket add main https://github.com/chopsticks-bucket/main
 ```
 
 ### 软件源加载失败怎么办
@@ -73,7 +73,7 @@ chopsticks source add main https://github.com/chopsticks-bows/main
 3. 尝试指定分支：
 
 ```bash
-chopsticks source add main https://github.com/chopsticks-bows/main --branch main
+chopsticks bucket add main https://github.com/chopsticks-bucket/main --branch main
 ```
 
 ### 如何创建自己的软件源
@@ -85,8 +85,8 @@ chopsticks source add main https://github.com/chopsticks-bows/main --branch main
 可以。您可以添加多个软件源：
 
 ```bash
-chopsticks source add main https://github.com/chopsticks-bows/main
-chopsticks source add extras https://github.com/chopsticks-bows/extras
+chopsticks bucket add main https://github.com/chopsticks-bucket/main
+chopsticks bucket add extras https://github.com/chopsticks-bucket/extras
 ```
 
 ---

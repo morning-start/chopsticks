@@ -73,12 +73,12 @@
 
 #### 3.1.3 CLI 操作
 
-| 命令                      | 说明                   | 别名              |
-| ------------------------- | ---------------------- | ----------------- |
-| `bucket add <name> <url>` | 添加远程或本地软件源   | bow, b            |
-| `bucket list`             | 列出所有已添加的软件源 | bucket ls, bow ls |
-| `bucket update [name]`    | 从远程仓库拉取最新应用 | bucket up, bow up |
-| `bucket remove <name>`    | 删除软件源             | bucket rm, bow rm |
+| 命令                      | 说明                   | 别名 |
+| ------------------------- | ---------------------- | ---- |
+| `bucket add <name> <url>` | 添加远程或本地软件源   | b    |
+| `bucket list`             | 列出所有已添加的软件源 | ls   |
+| `bucket update [name]`    | 从远程仓库拉取最新应用 | up   |
+| `bucket remove <name>`    | 删除软件源             | rm   |
 
 #### 3.1.4 共享工具
 
@@ -227,16 +227,16 @@ flowchart TD
 
 #### 3.4.1 主命令
 
-| 命令         | 实现文件      | 别名                     | 说明         |
-| ------------ | ------------- | ------------------------ | ------------ |
-| `install`    | install.go    | `i`                      | 安装软件     |
-| `uninstall`  | uninstall.go  | `rm`, `remove`           | 卸载软件     |
-| `update`     | update.go     | `up`, `upgrade`          | 更新软件     |
-| `search`     | search.go     | `s`, `find`              | 搜索软件     |
-| `list`       | list.go       | `ls`                     | 列出软件     |
-| `bucket`     | bucket.go     | -                        | 软件源管理   |
-| `completion` | completion.go | -                        | 生成补全脚本 |
-| `help`       | root.go       | `--help`, `-h`           | 显示帮助     |
+| 命令         | 实现文件      | 别名            | 说明         |
+| ------------ | ------------- | --------------- | ------------ |
+| `install`    | install.go    | `i`             | 安装软件     |
+| `uninstall`  | uninstall.go  | `rm`, `remove`  | 卸载软件     |
+| `update`     | update.go     | `up`, `upgrade` | 更新软件     |
+| `search`     | search.go     | `s`, `find`     | 搜索软件     |
+| `list`       | list.go       | `ls`            | 列出软件     |
+| `bucket`     | bucket.go     | -               | 软件源管理   |
+| `completion` | completion.go | -               | 生成补全脚本 |
+| `help`       | root.go       | `--help`, `-h`  | 显示帮助     |
 
 #### 3.4.2 子命令
 
