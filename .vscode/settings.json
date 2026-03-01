@@ -1,5 +1,10 @@
 {
   "files.exclude": {
     ".agents": true
+  },
+  "gopls": {
+    "build": {
+      "buildFlags": ["-tags=integration,e2e"]
+    }
   }
 }
