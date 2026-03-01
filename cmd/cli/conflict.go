@@ -39,10 +39,7 @@ func runConflict(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	application := getApp()
 
-	ctx := getContextFromCli(nil)
-	if cmd != nil {
-		ctx = cmd.Context()
-	}
+	ctx := cmd.Context()
 
 	output.Info("正在检查 ")
 	output.Highlight("%s", name)

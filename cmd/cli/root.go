@@ -8,7 +8,6 @@ import (
 	"chopsticks/pkg/output"
 
 	"github.com/spf13/cobra"
-	"github.com/urfave/cli/v2"
 )
 
 var (
@@ -37,14 +36,9 @@ func getApp() app.Application {
 	return application
 }
 
-// getContext 获取根上下文（cobra 版本）
+// getContext 获取根上下文
 func getContext() context.Context {
 	return rootContext
-}
-
-// getContextFromCli 从 cli.Context 获取上下文（兼容旧代码）
-func getContextFromCli(c *cli.Context) context.Context {
-	return c.Context
 }
 
 func init() {
