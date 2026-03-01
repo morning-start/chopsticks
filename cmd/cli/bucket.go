@@ -134,8 +134,16 @@ func runBucketInit(cmd *cobra.Command, args []string) error {
 	output.Highlight("%s", name)
 	output.Dimf(" (%s)\n", map[string]string{"js": "JavaScript", "lua": "Lua"}[templateType])
 
+	// 创建目标目录
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		output.ErrorCrossf("Failed to create directory: %v", err)
+		return err
+	}
+
+	// 复制模板文件
+	templateDir := filepath.Join("cmd", "cli", "template", "bucket-"+templateType)
+	if err := copyTemplateDir(templateDir, targetDir); err != nil {
+		output.ErrorCrossf("Failed to copy template files: %v", err)
 		return err
 	}
 
@@ -149,164 +157,141 @@ func runBucketInit(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// copyTemplateDir 递归复制模板目录到目标目录
+func copyTemplateDir(src, dst string) error {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return fmt.Errorf("read template directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			if err := os.MkdirAll(dstPath, 0755); err != nil {
+				return fmt.Errorf("create directory %s: %w", dstPath, err)
+			}
+			if err := copyTemplateDir(srcPath, dstPath); err != nil {
+				return err
+			}
+		} else {
+			data, err := os.ReadFile(srcPath)
+			if err != nil {
+				return fmt.Errorf("read file %s: %w", srcPath, err)
+			}
+			if err := os.WriteFile(dstPath, data, 0644); err != nil {
+				return fmt.Errorf("write file %s: %w", dstPath, err)
+			}
+		}
+	}
+	return nil
+}
+
 func runBucketCreate(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	bucketDir := bucketCreateDir
 
-	targetDir := bucketDir
-	if targetDir == "" {
-		targetDir = "./apps/" + name
-	} else {
-		targetDir = filepath.Join(bucketDir, "apps", name)
+	// 确定 apps 目录路径
+	appsDir := "./apps"
+	if bucketDir != "" {
+		appsDir = filepath.Join(bucketDir, "apps")
 	}
 
-	dirs := []string{
-		targetDir,
-		filepath.Join(targetDir, "scripts"),
-		filepath.Join(targetDir, "tests"),
+	// 确保 apps 目录存在
+	if err := os.MkdirAll(appsDir, 0755); err != nil {
+		output.ErrorCrossf("Failed to create apps directory: %v", err)
+		return err
 	}
 
-	output.Infof("Creating App template: ")
+	output.Infof("Creating App: ")
 	output.Highlightln(name)
 
-	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			output.ErrorCrossf("Failed to create directory: %v", err)
+	// 获取模板文件路径（相对于可执行文件或工作目录）
+	templatePath := getTemplatePath("bucket-js", "apps", "_example_.js")
+	templateContent, err := os.ReadFile(templatePath)
+	if err != nil {
+		// 尝试从当前工作目录查找
+		exePath, _ := os.Executable()
+		exeDir := filepath.Dir(exePath)
+		templatePath = filepath.Join(exeDir, "..", "..", "cmd", "cli", "template", "bucket-js", "apps", "_example_.js")
+		templateContent, err = os.ReadFile(templatePath)
+		if err != nil {
+			output.ErrorCrossf("Failed to read template file: %v", err)
 			return err
 		}
-		output.Dimf("  Created directory: %s\n", dir)
 	}
 
-	// 创建 manifest.yaml
-	manifestContent := fmt.Sprintf(`name: %s
-version: 1.0.0
-description: A software package
-author: unknown
-homepage: https://example.com
-license: MIT
+	// 替换模板内容
+	content := string(templateContent)
+	// 替换类名 ExampleApp -> AppName (首字母大写，移除连字符)
+	className := toClassName(name) + "App"
+	content = strings.ReplaceAll(content, "ExampleApp", className)
+	// 替换 name
+	content = strings.ReplaceAll(content, `name: "example"`, fmt.Sprintf(`name: "%s"`, name))
+	// 替换 description
+	content = strings.ReplaceAll(content, `description: "Example Application"`, fmt.Sprintf(`description: "%s Application"`, capitalizeFirst(name)))
+	// 替换 bucket 名称
+	content = strings.ReplaceAll(content, `bucket: "{{.Name}}"`, `bucket: "main"`)
+	// 更新注释
+	content = strings.ReplaceAll(content, "Example App", capitalizeFirst(name)+" App")
+	content = strings.ReplaceAll(content, "A sample app", name+" application")
+	content = strings.ReplaceAll(content, "@module apps/_example_", fmt.Sprintf("@module apps/%s", name))
 
-arch: amd64
-
-format: zip
-
-install:
-  # installer: setup.exe
-  # install_args: [/S]
-
-hooks:
-  pre_download: |
-    console.log('准备下载...')
-  post_download: |
-    console.log('下载完成')
-  pre_extract: |
-    console.log('准备解压...')
-  post_extract: |
-    console.log('解压完成')
-  pre_install: |
-    console.log('准备安装...')
-  post_install: |
-    console.log('安装完成')
-  pre_uninstall: |
-    console.log('准备卸载...')
-  post_uninstall: |
-    console.log('卸载完成')
-
-files:
-  - %s*
-
-shortcuts:
-  - name: %s
-    path: %s.exe
-
-registry:
-  - key: SOFTWARE\\%s
-    values:
-      - name: InstallPath
-        type: REG_SZ
-        value: {{.InstallDir}}
-
-env:
-  - name: %s_HOME
-    value: {{.InstallDir}}
-`, name, name, name, name, name, strings.ToUpper(name))
-
-	manifestPath := filepath.Join(targetDir, "manifest.yaml")
-	if err := os.WriteFile(manifestPath, []byte(manifestContent), 0644); err != nil {
-		output.ErrorCrossf("Failed to create manifest file: %v", err)
+	// 写入文件
+	appFilePath := filepath.Join(appsDir, name+".js")
+	if err := os.WriteFile(appFilePath, []byte(content), 0644); err != nil {
+		output.ErrorCrossf("Failed to create app file: %v", err)
 		return err
 	}
-	output.Dimf("  Created file: %s\n", manifestPath)
+	output.Dimf("  Created file: %s\n", appFilePath)
 
-	// 创建 README.md
-	readmeContent := fmt.Sprintf(`# %s
-
-## 描述
-
-软件包 %s 的说明文档。
-
-## 安装
-
-`+"```bash\n"+`chopsticks install %s
-`+"```\n\n"+`## 卸载
-
-`+"```bash\n"+`chopsticks uninstall %s
-`+"```\n", name, name, name, name)
-
-	readmePath := filepath.Join(targetDir, "README.md")
-	if err := os.WriteFile(readmePath, []byte(readmeContent), 0644); err != nil {
-		output.ErrorCrossf("Failed to create README file: %v", err)
-		return err
-	}
-	output.Dimf("  Created file: %s\n", readmePath)
-
-	// 创建安装脚本
-	scriptContent := fmt.Sprintf(`// %s 安装脚本
-
-function preDownload() {
-    console.log("准备下载 " + name + " " + version);
-}
-
-function postDownload() {
-    console.log("下载完成");
-}
-
-function preExtract() {
-    console.log("准备解压");
-}
-
-function postExtract() {
-    console.log("解压完成");
-}
-
-function preInstall() {
-    console.log("准备安装");
-}
-
-function postInstall() {
-    console.log("安装完成");
-}
-
-function preUninstall() {
-    console.log("准备卸载");
-}
-
-function postUninstall() {
-    console.log("卸载完成");
-}
-`, name)
-
-	scriptPath := filepath.Join(targetDir, "scripts", "install.js")
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0644); err != nil {
-		output.ErrorCrossf("Failed to create script file: %v", err)
-		return err
-	}
-	output.Dimf("  Created file: %s\n", scriptPath)
-
-	output.SuccessCheckf("App %s template created", name)
+	output.SuccessCheckf("App %s created successfully", name)
 	output.Highlightln("\nNext steps:")
-	output.Dimln("  Edit manifest.yaml to add package info")
-	output.Dimln("  Edit scripts/install.js to add installation logic")
+	output.Dimf("  Edit %s to customize the app\n", appFilePath)
+	output.Dimln("  Implement checkVersion() and getDownloadInfo() methods")
 	return nil
+}
+
+// capitalizeFirst 将字符串首字母大写
+func capitalizeFirst(s string) string {
+	if s == "" {
+		return ""
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// toClassName 将应用名转换为有效的类名（首字母大写，移除连字符，驼峰命名）
+func toClassName(s string) string {
+	if s == "" {
+		return ""
+	}
+	// 分割连字符
+	parts := strings.Split(s, "-")
+	var result string
+	for _, part := range parts {
+		if part != "" {
+			result += capitalizeFirst(part)
+		}
+	}
+	return result
+}
+
+// getTemplatePath 获取模板文件路径
+// 首先尝试从工作目录查找，然后尝试从可执行文件目录查找
+func getTemplatePath(parts ...string) string {
+	// 尝试从当前工作目录查找（开发环境）
+	workDir, _ := os.Getwd()
+	path := filepath.Join(append([]string{workDir, "cmd", "cli", "template"}, parts...)...)
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+
+	// 尝试从可执行文件目录查找（生产环境）
+	exePath, _ := os.Executable()
+	exeDir := filepath.Dir(exePath)
+	path = filepath.Join(append([]string{exeDir, "..", "..", "cmd", "cli", "template"}, parts...)...)
+	return path
 }
 
 func runBucketAdd(cmd *cobra.Command, args []string) error {
@@ -328,6 +313,9 @@ func runBucketAdd(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	application := getApp()
+	if application == nil {
+		return fmt.Errorf("应用未初始化")
+	}
 
 	if err := application.BucketManager().Add(ctx, name, url, opts); err != nil {
 		output.ErrorCrossf("Failed to add bucket: %v", err)
@@ -353,6 +341,9 @@ func runBucketRemove(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	application := getApp()
+	if application == nil {
+		return fmt.Errorf("应用未初始化")
+	}
 
 	if err := application.BucketManager().Remove(ctx, name, purge); err != nil {
 		output.ErrorCrossf("Failed to remove bucket: %v", err)
@@ -366,6 +357,9 @@ func runBucketRemove(cmd *cobra.Command, args []string) error {
 func runBucketList(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	application := getApp()
+	if application == nil {
+		return fmt.Errorf("应用未初始化")
+	}
 
 	buckets, err := application.BucketManager().ListBuckets(ctx)
 	if err != nil {
@@ -401,6 +395,9 @@ func runBucketList(cmd *cobra.Command, args []string) error {
 func runBucketUpdate(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	application := getApp()
+	if application == nil {
+		return fmt.Errorf("应用未初始化")
+	}
 
 	if len(args) == 0 {
 		output.Infoln("Updating all buckets...")
