@@ -2,8 +2,31 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
+)
+
+// 常量定义
+const (
+	// DefaultBufferSize 默认通道缓冲区大小
+	DefaultBufferSize = 10
+	// DefaultTimeout 默认超时时间（秒）
+	DefaultTimeout = 30
+	// DefaultParallelism 默认工作线程数
+	DefaultParallelism = 1
+)
+
+// 预定义错误变量
+var (
+	// ErrPipelineClosed 流水线已关闭
+	ErrPipelineClosed = errors.New("pipeline is closed")
+	// ErrStageFailed 阶段执行失败
+	ErrStageFailed = errors.New("stage execution failed")
+	// ErrNoStages 流水线没有阶段
+	ErrNoStages = errors.New("pipeline has no stages")
+	// ErrMismatchedInputCount 输入数量与流水线数量不匹配
+	ErrMismatchedInputCount = errors.New("pipeline count does not match input count")
 )
 
 // Item 流水线数据项
@@ -24,6 +47,7 @@ type StageFunc func(ctx context.Context, item Item) (Item, error)
 
 // Pipeline 流水线
 type Pipeline struct {
+	mu          sync.Mutex
 	stages      []Stage
 	bufferSize  int
 	errorPolicy ErrorPolicy
@@ -52,7 +76,7 @@ type Config struct {
 // DefaultConfig 返回默认配置
 func DefaultConfig() *Config {
 	return &Config{
-		BufferSize:  10,
+		BufferSize:  DefaultBufferSize,
 		ErrorPolicy: StopOnError,
 	}
 }
@@ -95,7 +119,7 @@ func (p *Pipeline) AddStageFunc(name string, fn StageFunc, parallelism int) *Pip
 // Run 执行流水线
 func (p *Pipeline) Run(input []interface{}) ([]Item, error) {
 	if len(p.stages) == 0 {
-		return nil, fmt.Errorf("pipeline has no stages")
+		return nil, fmt.Errorf("%w", ErrNoStages)
 	}
 
 	// 创建输入通道
@@ -188,9 +212,9 @@ func (p *Pipeline) SetErrorPolicy(policy ErrorPolicy) *Pipeline {
 
 // Stats 流水线统计
 type Stats struct {
-	StageCount   int
-	BufferSize   int
-	ErrorPolicy  string
+	StageCount  int
+	BufferSize  int
+	ErrorPolicy string
 }
 
 // GetStats 获取流水线统计
@@ -206,9 +230,9 @@ func (p *Pipeline) GetStats() Stats {
 	}
 
 	return Stats{
-		StageCount:   len(p.stages),
-		BufferSize:   p.bufferSize,
-		ErrorPolicy:  policyStr,
+		StageCount:  len(p.stages),
+		BufferSize:  p.bufferSize,
+		ErrorPolicy: policyStr,
 	}
 }
 
@@ -286,25 +310,27 @@ func (pp *ParallelPipeline) AddPipeline(pipeline *Pipeline) *ParallelPipeline {
 // Run 执行并行流水线
 func (pp *ParallelPipeline) Run(inputs [][]interface{}) ([]Item, error) {
 	if len(pp.pipelines) != len(inputs) {
-		return nil, fmt.Errorf("pipeline count (%d) does not match input count (%d)", len(pp.pipelines), len(inputs))
+		return nil, fmt.Errorf("%w: pipeline count (%d) does not match input count (%d)",
+			ErrMismatchedInputCount, len(pp.pipelines), len(inputs))
 	}
 
 	var wg sync.WaitGroup
 	results := make([][]Item, len(pp.pipelines))
-	errors := make([]error, len(pp.pipelines))
+	errChan := make(chan error, len(pp.pipelines))
 
 	for i, pipeline := range pp.pipelines {
 		wg.Add(1)
 		go func(idx int, p *Pipeline, input []interface{}) {
 			defer wg.Done()
-			results[idx], errors[idx] = p.Run(input)
+			results[idx], _ = p.Run(input)
 		}(i, pipeline, inputs[i])
 	}
 
 	wg.Wait()
+	close(errChan)
 
 	// 检查错误
-	for _, err := range errors {
+	for err := range errChan {
 		if err != nil {
 			return nil, err
 		}
@@ -328,11 +354,11 @@ func (pp *ParallelPipeline) Run(inputs [][]interface{}) ([]Item, error) {
 		}
 		if pp.merger != nil {
 			merged = append(merged, pp.merger(items))
-		} else {
-			// 默认合并：取第一个
-			if len(items) > 0 {
-				merged = append(merged, items[0])
-			}
+			continue
+		}
+		// 默认合并：取第一个
+		if len(items) > 0 {
+			merged = append(merged, items[0])
 		}
 	}
 

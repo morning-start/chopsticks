@@ -39,11 +39,9 @@ func (s *FuncStage) processSequential(ctx context.Context, input <-chan Item, ou
 				return nil
 			}
 
-			if item.Error != nil {
-				if s.ErrorPolicy != ContinueOnError {
-					output <- item
-					continue
-				}
+			if item.Error != nil && s.ErrorPolicy != ContinueOnError {
+				output <- item
+				continue
 			}
 
 			result, err := s.Handler(ctx, item)
@@ -51,7 +49,7 @@ func (s *FuncStage) processSequential(ctx context.Context, input <-chan Item, ou
 				result.Error = err
 				if s.ErrorPolicy == StopOnError {
 					output <- result
-					return err
+					return fmt.Errorf("%w: %v", ErrStageFailed, err)
 				}
 			}
 
@@ -137,12 +135,14 @@ func (s *FilterStage) Process(ctx context.Context, input <-chan Item, output cha
 				return nil
 			}
 
-			if s.Filter(item) {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case output <- item:
-				}
+			if !s.Filter(item) {
+				continue
+			}
+
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case output <- item:
 			}
 		}
 	}
@@ -204,7 +204,6 @@ func (s *chainedStage) Process(ctx context.Context, input <-chan Item, output ch
 	current := input
 	for i, stage := range s.stages {
 		isLast := i == len(s.stages)-1
-
 		if isLast {
 			return stage.Process(ctx, current, output)
 		}
