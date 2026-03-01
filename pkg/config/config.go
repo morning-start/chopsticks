@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"gopkg.in/yaml.v3"
+	yaml "github.com/goccy/go-yaml"
 )
 
 // 默认配置常量

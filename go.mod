@@ -6,6 +6,7 @@ require (
 	github.com/dop251/goja v0.0.0-20260226184354-913bd86fb70c
 	github.com/fatih/color v1.18.0
 	github.com/go-git/go-git/v5 v5.17.0
+	github.com/goccy/go-yaml v1.19.2
 	github.com/google/uuid v1.6.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/ulikunitz/xz v0.5.15
@@ -13,7 +14,6 @@ require (
 	github.com/vbauerster/mpb/v8 v8.12.0
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.41.0
-	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.46.1
 )
 
