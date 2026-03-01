@@ -1,7 +1,18 @@
 /**
  * Chopsticks App 类型定义
  * @module @chopsticks/core
+ * @version 1.0.0
+ * @description JS 引擎对外接口类型定义，用于 Bucket 插件开发
+ * 
+ * 变更日志：
+ * - 1.0.0: 初始版本，定义核心类型和全局对象
  */
+
+/**
+ * Chopsticks API 版本号
+ * @constant {string}
+ */
+const CHOPSTICKS_API_VERSION = "1.0.0";
 
 /**
  * @typedef {Object} AppMetadata
