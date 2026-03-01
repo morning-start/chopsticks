@@ -141,10 +141,10 @@ func Rename(oldPath, newPath string) error {
 // FileInfo 文件信息结构体
 // 字段按内存对齐优化排序
 type FileInfo struct {
+	Name    string `json:"name"`    // 文件名
 	Size    int64  `json:"size"`    // 文件大小（字节）
 	ModTime int64  `json:"modTime"` // 修改时间（Unix时间戳）
 	Mode    uint32 `json:"mode"`    // 权限模式
-	Name    string `json:"name"`    // 文件名
 	IsDir   bool   `json:"isDir"`   // 是否为目录
 	IsFile  bool   `json:"isFile"`  // 是否为文件
 }
