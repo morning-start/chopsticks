@@ -270,7 +270,7 @@ func (e *JSEngine) LoadFile(path string) error {
 func (e *JSEngine) CallFunction(name string, args ...interface{}) error {
 	fn, ok := goja.AssertFunction(e.vm.Get(name))
 	if !ok {
-		return nil
+		return fmt.Errorf("function %s not found", name)
 	}
 
 	jsArgs := make([]goja.Value, len(args))

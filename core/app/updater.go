@@ -62,9 +62,13 @@ func (u *appUpdater) Update(ctx context.Context, app *manifest.App, installed *m
 	if downloadInfo.Hash != "" {
 		alg := checksum.AutoDetectAlgorithm(downloadInfo.Hash)
 		ok, err := checksum.VerifyFile(cacheFile, downloadInfo.Hash, alg)
-		if err != nil || !ok {
+		if err != nil {
 			os.RemoveAll(backupDir)
 			return fmt.Errorf("verify failed: %w", err)
+		}
+		if !ok {
+			os.RemoveAll(backupDir)
+			return fmt.Errorf("checksum mismatch")
 		}
 	}
 
