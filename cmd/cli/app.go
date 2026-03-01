@@ -18,7 +18,7 @@ var application app.Application
 // Execute 执行 CLI 应用程序。
 func Execute(ctx context.Context, appInstance app.Application) error {
 	application = appInstance
-	
+
 	cliApp := &cli.App{
 		Name:    "chopsticks",
 		Usage:   "Windows 包管理器 - 开发者友好的 Scoop 替代品",

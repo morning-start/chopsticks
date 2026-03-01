@@ -114,24 +114,24 @@ type DownloadStats struct {
 
 // 预定义错误变量
 var (
-	ErrNilConfig          = errors.New("config is nil")
-	ErrNilFileInfo        = errors.New("file info is nil")
-	ErrNilContext         = errors.New("context is nil")
-	ErrUnknownStrategy    = errors.New("unknown download strategy")
-	ErrInvalidStatusCode  = errors.New("server returned invalid status code")
-	ErrChunkNotCompleted  = errors.New("chunk not completed")
-	ErrProgressMismatch   = errors.New("progress mismatch")
-	ErrFileSizeMismatch   = errors.New("file size mismatch")
-	ErrDownloadFailed     = errors.New("download failed")
-	ErrMergeFailed        = errors.New("merge chunks failed")
-	ErrCreateRequest      = errors.New("failed to create HTTP request")
-	ErrDoRequest          = errors.New("failed to execute HTTP request")
-	ErrCreateDirectory    = errors.New("failed to create directory")
-	ErrCreateFile         = errors.New("failed to create file")
-	ErrOpenFile           = errors.New("failed to open file")
-	ErrWriteFile          = errors.New("failed to write file")
-	ErrRenameFile         = errors.New("failed to rename file")
-	ErrProbeFile          = errors.New("failed to probe file info")
+	ErrNilConfig         = errors.New("config is nil")
+	ErrNilFileInfo       = errors.New("file info is nil")
+	ErrNilContext        = errors.New("context is nil")
+	ErrUnknownStrategy   = errors.New("unknown download strategy")
+	ErrInvalidStatusCode = errors.New("server returned invalid status code")
+	ErrChunkNotCompleted = errors.New("chunk not completed")
+	ErrProgressMismatch  = errors.New("progress mismatch")
+	ErrFileSizeMismatch  = errors.New("file size mismatch")
+	ErrDownloadFailed    = errors.New("download failed")
+	ErrMergeFailed       = errors.New("merge chunks failed")
+	ErrCreateRequest     = errors.New("failed to create HTTP request")
+	ErrDoRequest         = errors.New("failed to execute HTTP request")
+	ErrCreateDirectory   = errors.New("failed to create directory")
+	ErrCreateFile        = errors.New("failed to create file")
+	ErrOpenFile          = errors.New("failed to open file")
+	ErrWriteFile         = errors.New("failed to write file")
+	ErrRenameFile        = errors.New("failed to rename file")
+	ErrProbeFile         = errors.New("failed to probe file info")
 )
 
 // 常量定义
@@ -141,8 +141,8 @@ const (
 	MethodHead = "HEAD"
 
 	// HTTP 状态码检查
-	StatusOK              = http.StatusOK
-	StatusPartialContent  = http.StatusPartialContent
+	StatusOK             = http.StatusOK
+	StatusPartialContent = http.StatusPartialContent
 
 	// 默认超时时间
 	DefaultTimeout = 5 * time.Minute

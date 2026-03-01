@@ -26,8 +26,8 @@ func searchCommand() *cli.Command {
 				Usage:   "指定软件源进行搜索",
 			},
 			&cli.BoolFlag{
-				Name:    "async",
-				Usage:   "使用异步模式搜索（并行搜索多个软件源）",
+				Name:  "async",
+				Usage: "使用异步模式搜索（并行搜索多个软件源）",
 			},
 			&cli.IntFlag{
 				Name:    "workers",

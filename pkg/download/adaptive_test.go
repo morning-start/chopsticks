@@ -157,14 +157,14 @@ func TestAdaptiveDownloader_calculateOptimalChunks(t *testing.T) {
 	downloader := NewAdaptiveDownloader(config)
 
 	tests := []struct {
-		fileSize         int64
+		fileSize          int64
 		minExpectedChunks int
 		maxExpectedChunks int
 	}{
-		{1 * 1024 * 1024, 1, 1},       // 1MB
-		{10 * 1024 * 1024, 1, 2},      // 10MB
-		{100 * 1024 * 1024, 8, 16},    // 100MB
-		{1024 * 1024 * 1024, 16, 16},  // 1GB
+		{1 * 1024 * 1024, 1, 1},      // 1MB
+		{10 * 1024 * 1024, 1, 2},     // 10MB
+		{100 * 1024 * 1024, 8, 16},   // 100MB
+		{1024 * 1024 * 1024, 16, 16}, // 1GB
 	}
 
 	for _, tt := range tests {

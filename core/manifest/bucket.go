@@ -24,8 +24,8 @@ type RepositoryInfo struct {
 
 // Bucket 表示完整的软件源信息。
 type Bucket struct {
-	Config      BucketConfig           // 配置
-	Path        string                // 本地路径
-	Apps        map[string]*AppRef    // 应用索引
-	LastUpdated time.Time             // 最后更新时间
+	Config      BucketConfig       // 配置
+	Path        string             // 本地路径
+	Apps        map[string]*AppRef // 应用索引
+	LastUpdated time.Time          // 最后更新时间
 }

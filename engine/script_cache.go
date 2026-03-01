@@ -179,12 +179,12 @@ func (c *ScriptCache) Stats() CacheStats {
 	}
 
 	return CacheStats{
-		Hits:     c.hits,
-		Misses:   c.misses,
-		HitRate:  hitRate,
-		Size:     c.currentSize(),
-		MaxSize:  c.maxSize,
-		Entries:  len(c.entries),
+		Hits:    c.hits,
+		Misses:  c.misses,
+		HitRate: hitRate,
+		Size:    c.currentSize(),
+		MaxSize: c.maxSize,
+		Entries: len(c.entries),
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"chopsticks/core/manifest"
+
 	"golang.org/x/sync/errgroup"
 )
 
@@ -68,7 +69,7 @@ func (s *ParallelSearcher) SearchAllBuckets(
 			results, err := s.mgr.Search(ctx, query, bucketOpts)
 			if err != nil {
 				mu.Lock()
-				searchErrors = append(searchErrors, 
+				searchErrors = append(searchErrors,
 					fmt.Errorf("search bucket %s failed: %w", bucketName, err))
 				mu.Unlock()
 				return nil // 继续处理其他 bucket
@@ -160,11 +161,11 @@ func generateCacheKey(query string, opts SearchOptions) string {
 
 // SearchCache 搜索缓存
 type SearchCache struct {
-	data    map[string]cacheEntry
-	ttl     time.Duration
-	mu      sync.RWMutex
-	hits    int64
-	misses  int64
+	data   map[string]cacheEntry
+	ttl    time.Duration
+	mu     sync.RWMutex
+	hits   int64
+	misses int64
 }
 
 type cacheEntry struct {

@@ -98,7 +98,7 @@ func (f *Formatter) formatConflictGroup(sb *strings.Builder, conflictType Confli
 	// 输出每个冲突
 	for i, c := range conflicts {
 		sb.WriteString(fmt.Sprintf("  %d. ", i+1))
-		
+
 		// 严重程度标识
 		switch c.Severity {
 		case SeverityCritical:

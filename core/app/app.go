@@ -32,13 +32,13 @@ type Application interface {
 // 指针/引用类型 (8字节): 64位系统上
 // 接口类型 (16字节): 包含类型和值指针
 type app struct {
-	jsEngine   *engine.JSEngine  // 8 bytes
-	config     *Config           // 8 bytes
-	bucketMgr  bucket.Manager    // 16 bytes (interface)
-	appMgr     Manager           // 16 bytes (interface)
-	installer  Installer         // 16 bytes (interface)
-	storage    store.Storage     // 16 bytes (interface)
-	logger     *logx.Logger      // 8 bytes
+	jsEngine  *engine.JSEngine // 8 bytes
+	config    *Config          // 8 bytes
+	bucketMgr bucket.Manager   // 16 bytes (interface)
+	appMgr    Manager          // 16 bytes (interface)
+	installer Installer        // 16 bytes (interface)
+	storage   store.Storage    // 16 bytes (interface)
+	logger    *logx.Logger     // 8 bytes
 }
 
 func New(cfg *Config) (*app, error) {

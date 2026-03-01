@@ -17,12 +17,12 @@ type Result struct {
 }
 
 type Pool struct {
-	workers    int
+	workers   int
 	tasks     []Task
 	results   []Result
 	resultsMu sync.Mutex
 	wg        sync.WaitGroup
-Errors   []error
+	Errors    []error
 }
 
 func NewPool(workers int) *Pool {
@@ -122,9 +122,9 @@ func RunParallelContext(ctx context.Context, tasks []Task, maxWorkers int) error
 }
 
 type DownloadTask struct {
-	URL         string
-	DestPath    string
-	Checksum    string
+	URL        string
+	DestPath   string
+	Checksum   string
 	StartBytes int64
 	EndBytes   int64
 }
@@ -183,7 +183,7 @@ func (p *ParallelDownloader) Run(ctx context.Context) error {
 			result := DownloadResult{Task: t}
 			result.Error = p.downloadFile(ctx, t)
 			if result.Error == nil {
-				atomic.AddInt64(&result.BytesURL, t.EndBytes - t.StartBytes)
+				atomic.AddInt64(&result.BytesURL, t.EndBytes-t.StartBytes)
 			}
 
 			results <- result
@@ -248,9 +248,9 @@ type UpdateResult struct {
 }
 
 type ParallelUpdater struct {
-	workers int
-	apps    []string
-	results []UpdateResult
+	workers  int
+	apps     []string
+	results  []UpdateResult
 	updateFn func(name string) error
 	progress func(completed, total int)
 }
@@ -258,7 +258,7 @@ type ParallelUpdater struct {
 func NewParallelUpdater(workers int) *ParallelUpdater {
 	return &ParallelUpdater{
 		workers: workers,
-		apps:   make([]string, 0),
+		apps:    make([]string, 0),
 		results: make([]UpdateResult, 0),
 	}
 }

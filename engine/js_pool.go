@@ -29,12 +29,12 @@ var (
 // PoolConfig 引擎池配置
 // 字段按内存对齐优化排序：bool -> int64 -> int
 type PoolConfig struct {
-	Prewarm         bool          // 是否预热
-	CacheSize       int64         // 缓存大小
-	MaxEngines      int           // 最大引擎数
-	MaxIdle         int           // 最大空闲引擎数
-	PrewarmSize     int           // 预热数量
-	MaxCacheEntries int           // 最大缓存条目数
+	Prewarm         bool  // 是否预热
+	CacheSize       int64 // 缓存大小
+	MaxEngines      int   // 最大引擎数
+	MaxIdle         int   // 最大空闲引擎数
+	PrewarmSize     int   // 预热数量
+	MaxCacheEntries int   // 最大缓存条目数
 }
 
 // DefaultPoolConfig 返回默认池配置

@@ -10,11 +10,11 @@ import (
 // MetricsCollector 指标收集器
 type MetricsCollector struct {
 	// 任务指标
-	taskSubmitted   int64
-	taskCompleted   int64
-	taskFailed      int64
-	taskInProgress  int64
-	taskTotalTime   int64 // 纳秒
+	taskSubmitted  int64
+	taskCompleted  int64
+	taskFailed     int64
+	taskInProgress int64
+	taskTotalTime  int64 // 纳秒
 
 	// 下载指标
 	downloadActive    int64
@@ -23,8 +23,8 @@ type MetricsCollector struct {
 	downloadTotalTime int64 // 纳秒
 
 	// 搜索指标
-	searchActive     int64
-	searchCacheHits  int64
+	searchActive      int64
+	searchCacheHits   int64
 	searchCacheMisses int64
 
 	// 安装指标
@@ -32,10 +32,10 @@ type MetricsCollector struct {
 	installQueue  int64
 
 	// JS 池指标
-	jsPoolSize       int64
-	jsPoolActive     int64
-	jsCacheHits      int64
-	jsCacheMisses    int64
+	jsPoolSize    int64
+	jsPoolActive  int64
+	jsCacheHits   int64
+	jsCacheMisses int64
 
 	// 历史记录
 	history *MetricsHistory
@@ -110,7 +110,7 @@ func (c *MetricsCollector) Collect() PerformanceMetrics {
 	// 计算任务速率
 	now := time.Now()
 	recentSnapshots := c.history.GetRecent(2)
-	
+
 	var taskSubmitRate, taskCompleteRate float64
 	if len(recentSnapshots) >= 2 {
 		duration := recentSnapshots[1].Timestamp.Sub(recentSnapshots[0].Timestamp).Seconds()

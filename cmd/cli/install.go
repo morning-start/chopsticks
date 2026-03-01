@@ -62,8 +62,8 @@ func installCommand() *cli.Command {
 				Value:   defaultBucket,
 			},
 			&cli.BoolFlag{
-				Name:    "async",
-				Usage:   "Use async mode (parallel installation)",
+				Name:  "async",
+				Usage: "Use async mode (parallel installation)",
 			},
 			&cli.IntFlag{
 				Name:    "workers",

@@ -33,9 +33,9 @@ const (
 
 // InstallOptions 安装选项 - 字段按大小从大到小排列
 type InstallOptions struct {
-	InstallDir string // 16 bytes (string header)
-	Arch       string // 16 bytes (string header)
-	Force      bool   // 1 byte
+	InstallDir string  // 16 bytes (string header)
+	Arch       string  // 16 bytes (string header)
+	Force      bool    // 1 byte
 	_          [7]byte // padding for alignment
 }
 
@@ -58,11 +58,11 @@ type Installer interface {
 
 // installer 安装器 - 字段按大小从大到小排列
 type installer struct {
-	jsEngine    *engine.JSEngine  // 8 bytes
-	storage     store.Storage     // 16 bytes (interface)
-	config      interface{}       // 16 bytes (interface)
-	downloadDir string            // 16 bytes (string header)
-	installBase string            // 16 bytes (string header)
+	jsEngine    *engine.JSEngine // 8 bytes
+	storage     store.Storage    // 16 bytes (interface)
+	config      interface{}      // 16 bytes (interface)
+	downloadDir string           // 16 bytes (string header)
+	installBase string           // 16 bytes (string header)
 }
 
 var _ Installer = (*installer)(nil)

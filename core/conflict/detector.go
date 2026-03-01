@@ -18,11 +18,11 @@ import (
 type ConflictType string
 
 const (
-	ConflictTypeFile        ConflictType = "file"        // 文件冲突
-	ConflictTypePort        ConflictType = "port"        // 端口冲突
-	ConflictTypeEnvVar      ConflictType = "env_var"     // 环境变量冲突
-	ConflictTypeRegistry    ConflictType = "registry"    // 注册表冲突
-	ConflictTypeDependency  ConflictType = "dependency"  // 依赖冲突
+	ConflictTypeFile       ConflictType = "file"       // 文件冲突
+	ConflictTypePort       ConflictType = "port"       // 端口冲突
+	ConflictTypeEnvVar     ConflictType = "env_var"    // 环境变量冲突
+	ConflictTypeRegistry   ConflictType = "registry"   // 注册表冲突
+	ConflictTypeDependency ConflictType = "dependency" // 依赖冲突
 )
 
 // Conflict 表示一个冲突。
@@ -62,7 +62,7 @@ type Detector interface {
 
 // detector 是 Detector 的实现。
 type detector struct {
-	storage   store.Storage
+	storage     store.Storage
 	installBase string
 }
 
@@ -273,7 +273,7 @@ func (d *detector) DetectRegistryConflicts(ctx context.Context, app *manifest.Ap
 		if exists {
 			// 查找占用此注册表项的应用
 			ownerApp := d.findRegistryKeyOwner(ctx, regKey, installed)
-			
+
 			conflicts = append(conflicts, Conflict{
 				Type:        ConflictTypeRegistry,
 				Severity:    SeverityWarning,
@@ -304,7 +304,7 @@ func (d *detector) getAppPorts(app *manifest.App) []int {
 	// 这里可以根据应用类型或元数据返回常用端口
 	// 实际实现中可以从应用元数据读取
 	ports := []int{}
-	
+
 	// 根据应用名称推断常用端口
 	appName := strings.ToLower(app.Script.Name)
 	switch {
@@ -323,7 +323,7 @@ func (d *detector) getAppPorts(app *manifest.App) []int {
 	case strings.Contains(appName, "node") || strings.Contains(appName, "npm"):
 		ports = append(ports, 3000, 8080)
 	}
-	
+
 	return ports
 }
 
@@ -336,14 +336,14 @@ type EnvVar struct {
 // getAppEnvVars 获取应用可能使用的环境变量。
 func (d *detector) getAppEnvVars(app *manifest.App) []EnvVar {
 	vars := []EnvVar{}
-	
+
 	// 根据应用名称推断常用环境变量
 	appName := strings.ToUpper(app.Script.Name)
 	vars = append(vars, EnvVar{
 		Name:        appName + "_HOME",
 		Description: app.Script.Name + " 安装目录",
 	})
-	
+
 	return vars
 }
 
@@ -352,7 +352,7 @@ func (d *detector) isLikelyEnvVarConflict(envVarName, appName string) bool {
 	// 简单的启发式判断
 	appNameUpper := strings.ToUpper(appName)
 	envVarUpper := strings.ToUpper(envVarName)
-	
+
 	// 如果环境变量名包含应用名，可能是该应用设置的
 	return strings.Contains(envVarUpper, appNameUpper)
 }
@@ -360,17 +360,17 @@ func (d *detector) isLikelyEnvVarConflict(envVarName, appName string) bool {
 // getAppRegistryKeys 获取应用可能的注册表项。
 func (d *detector) getAppRegistryKeys(app *manifest.App) []string {
 	keys := []string{}
-	
+
 	// 根据应用名称推断可能的注册表项
 	appName := app.Script.Name
-	
+
 	// 常见的注册表路径
 	commonPaths := []string{
 		`HKLM\SOFTWARE\` + appName,
 		`HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\` + appName,
 		`HKCU\SOFTWARE\` + appName,
 	}
-	
+
 	keys = append(keys, commonPaths...)
 	return keys
 }

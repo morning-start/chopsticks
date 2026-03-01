@@ -30,17 +30,17 @@ const (
 
 // 预定义错误变量
 var (
-	ErrDetectArchiveType   = errors.New("failed to detect archive type")
-	ErrUnsupportedArchive  = errors.New("unsupported archive type")
-	ErrOpenZipFile         = errors.New("failed to open zip file")
-	ErrCreateDestDir       = errors.New("failed to create destination directory")
-	ErrExtractFile         = errors.New("failed to extract file")
-	ErrOpenTarFile         = errors.New("failed to open tar file")
-	ErrCreateGzipReader    = errors.New("failed to create gzip reader")
-	ErrCreateXzReader      = errors.New("failed to create xz reader")
-	ErrIllegalFilePath     = errors.New("illegal file path")
-	ErrSevenZipNotFound    = errors.New("7z command not found")
-	ErrSevenZipExtract     = errors.New("7z extraction failed")
+	ErrDetectArchiveType  = errors.New("failed to detect archive type")
+	ErrUnsupportedArchive = errors.New("unsupported archive type")
+	ErrOpenZipFile        = errors.New("failed to open zip file")
+	ErrCreateDestDir      = errors.New("failed to create destination directory")
+	ErrExtractFile        = errors.New("failed to extract file")
+	ErrOpenTarFile        = errors.New("failed to open tar file")
+	ErrCreateGzipReader   = errors.New("failed to create gzip reader")
+	ErrCreateXzReader     = errors.New("failed to create xz reader")
+	ErrIllegalFilePath    = errors.New("illegal file path")
+	ErrSevenZipNotFound   = errors.New("7z command not found")
+	ErrSevenZipExtract    = errors.New("7z extraction failed")
 )
 
 // Type 表示压缩文件类型。

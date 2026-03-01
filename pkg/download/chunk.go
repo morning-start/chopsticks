@@ -20,8 +20,8 @@ type Chunk struct {
 	// 8字节字段 (指针)
 	Downloader *AdaptiveDownloader
 	// 8字节字段 (int64)
-	Start      int64
-	End        int64
+	Start int64
+	End   int64
 	// 8字节字段 (int, 64位系统)
 	Index int
 	// 8字节字段 (需要8字节对齐)

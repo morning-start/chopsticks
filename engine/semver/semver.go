@@ -199,13 +199,13 @@ func IsValid(version string) bool {
 type ConstraintType int
 
 const (
-	ConstraintGTE ConstraintType = iota // >=
-	ConstraintLTE                       // <=
-	ConstraintGT                        // >
-	ConstraintLT                        // <
-	ConstraintCaret                     // ^
-	ConstraintTilde                     // ~
-	ConstraintExact                     // = or no prefix
+	ConstraintGTE   ConstraintType = iota // >=
+	ConstraintLTE                         // <=
+	ConstraintGT                          // >
+	ConstraintLT                          // <
+	ConstraintCaret                       // ^
+	ConstraintTilde                       // ~
+	ConstraintExact                       // = or no prefix
 )
 
 // parseConstraint 解析约束字符串

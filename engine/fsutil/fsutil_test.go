@@ -273,9 +273,9 @@ func TestList(t *testing.T) {
 
 	// Check that all expected entries are present
 	expected := map[string]bool{
-		"file1.txt":       false,
-		"file2.txt":       false,
-		"subdir":          false,
+		"file1.txt": false,
+		"file2.txt": false,
+		"subdir":    false,
 	}
 
 	for _, entry := range entries {

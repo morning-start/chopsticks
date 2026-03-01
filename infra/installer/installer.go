@@ -13,9 +13,9 @@ import (
 type Type string
 
 const (
-	NSIS   Type = "nsis"
-	MSI    Type = "msi"
-	Inno   Type = "inno"
+	NSIS    Type = "nsis"
+	MSI     Type = "msi"
+	Inno    Type = "inno"
 	Unknown Type = "unknown"
 )
 

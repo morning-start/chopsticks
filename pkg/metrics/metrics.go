@@ -21,26 +21,26 @@ type PerformanceMetrics struct {
 	FailedTasks      int64         `json:"failed_tasks"`       // 失败任务数
 
 	// 资源使用指标
-	CPUUsage       float64 `json:"cpu_usage"`        // CPU 使用率 (百分比)
-	MemoryUsage    float64 `json:"memory_usage"`     // 内存使用 (MB)
-	MemoryAlloc    uint64  `json:"memory_alloc"`     // 已分配内存
-	MemorySys      uint64  `json:"memory_sys"`       // 系统内存
-	GoroutineCount int     `json:"goroutine_count"`  // Goroutine 数量
-	NumGC          uint32  `json:"num_gc"`           // GC 次数
+	CPUUsage       float64 `json:"cpu_usage"`       // CPU 使用率 (百分比)
+	MemoryUsage    float64 `json:"memory_usage"`    // 内存使用 (MB)
+	MemoryAlloc    uint64  `json:"memory_alloc"`    // 已分配内存
+	MemorySys      uint64  `json:"memory_sys"`      // 系统内存
+	GoroutineCount int     `json:"goroutine_count"` // Goroutine 数量
+	NumGC          uint32  `json:"num_gc"`          // GC 次数
 
 	// JS 引擎池指标
-	JSPoolSize        int     `json:"js_pool_size"`         // JS 池大小
-	JSPoolActive      int     `json:"js_pool_active"`       // 活跃 JS 引擎数
-	JSPoolUtilization float64 `json:"js_pool_utilization"`  // JS 池利用率
-	JSCacheHitRate    float64 `json:"js_cache_hit_rate"`    // JS 缓存命中率
-	JSCacheSize       int     `json:"js_cache_size"`        // JS 缓存大小
+	JSPoolSize        int     `json:"js_pool_size"`        // JS 池大小
+	JSPoolActive      int     `json:"js_pool_active"`      // 活跃 JS 引擎数
+	JSPoolUtilization float64 `json:"js_pool_utilization"` // JS 池利用率
+	JSCacheHitRate    float64 `json:"js_cache_hit_rate"`   // JS 缓存命中率
+	JSCacheSize       int     `json:"js_cache_size"`       // JS 缓存大小
 
 	// 下载指标
-	DownloadSpeed     float64 `json:"download_speed"`      // 下载速度 (MB/s)
-	ActiveDownloads   int     `json:"active_downloads"`    // 活跃下载数
-	DownloadErrors    int64   `json:"download_errors"`     // 下载错误数
-	TotalDownloaded   int64   `json:"total_downloaded"`    // 总下载字节数
-	AvgDownloadSpeed  float64 `json:"avg_download_speed"`  // 平均下载速度
+	DownloadSpeed    float64 `json:"download_speed"`     // 下载速度 (MB/s)
+	ActiveDownloads  int     `json:"active_downloads"`   // 活跃下载数
+	DownloadErrors   int64   `json:"download_errors"`    // 下载错误数
+	TotalDownloaded  int64   `json:"total_downloaded"`   // 总下载字节数
+	AvgDownloadSpeed float64 `json:"avg_download_speed"` // 平均下载速度
 
 	// 搜索指标
 	SearchCacheHitRate float64 `json:"search_cache_hit_rate"` // 搜索缓存命中率
@@ -48,8 +48,8 @@ type PerformanceMetrics struct {
 	ActiveSearches     int     `json:"active_searches"`       // 活跃搜索数
 
 	// 安装指标
-	ActiveInstalls   int     `json:"active_installs"`    // 活跃安装数
-	InstallQueueSize int     `json:"install_queue_size"` // 安装队列大小
+	ActiveInstalls   int `json:"active_installs"`    // 活跃安装数
+	InstallQueueSize int `json:"install_queue_size"` // 安装队列大小
 }
 
 // MetricsSnapshot 指标快照
@@ -147,8 +147,8 @@ type JSPoolMetrics struct {
 type DownloadMetrics struct {
 	ActiveCount    int           `json:"active_count"`
 	QueueSize      int           `json:"queue_size"`
-	CurrentSpeed   float64       `json:"current_speed"`   // MB/s
-	AvgSpeed       float64       `json:"avg_speed"`       // MB/s
+	CurrentSpeed   float64       `json:"current_speed"` // MB/s
+	AvgSpeed       float64       `json:"avg_speed"`     // MB/s
 	TotalBytes     int64         `json:"total_bytes"`
 	ErrorCount     int64         `json:"error_count"`
 	TotalTime      time.Duration `json:"total_time"`

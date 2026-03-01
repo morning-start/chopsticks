@@ -13,7 +13,7 @@ import (
 func TestDetector_DetectFileConflicts(t *testing.T) {
 	// 创建临时目录
 	tempDir := t.TempDir()
-	
+
 	// 创建存储
 	dbPath := filepath.Join(tempDir, "test.db")
 	storage, err := store.New(dbPath)

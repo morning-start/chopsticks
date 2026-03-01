@@ -21,9 +21,9 @@ import (
 
 // HTTP 超时时间常量
 const (
-	DefaultTimeout     = 30 * time.Second
-	DownloadTimeout    = 5 * time.Minute
-	StatusOK           = http.StatusOK
+	DefaultTimeout       = 30 * time.Second
+	DownloadTimeout      = 5 * time.Minute
+	StatusOK             = http.StatusOK
 	StatusPartialContent = http.StatusPartialContent
 )
 

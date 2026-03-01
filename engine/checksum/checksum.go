@@ -23,7 +23,7 @@ const (
 
 // 预定义错误变量
 var (
-	ErrOpenFile       = errors.New("failed to open file")
+	ErrOpenFile          = errors.New("failed to open file")
 	ErrCalculateChecksum = errors.New("failed to calculate checksum")
 )
 

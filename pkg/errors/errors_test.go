@@ -233,11 +233,11 @@ func TestWrapf(t *testing.T) {
 
 func TestWrapWithKind(t *testing.T) {
 	tests := []struct {
-		name    string
-		err     error
-		op      string
-		kind    ErrorKind
-		wantNil bool
+		name     string
+		err      error
+		op       string
+		kind     ErrorKind
+		wantNil  bool
 		wantKind ErrorKind
 	}{
 		{
@@ -364,24 +364,24 @@ func TestIs(t *testing.T) {
 
 func TestAs(t *testing.T) {
 	tests := []struct {
-		name   string
-		err    error
-		want   bool
+		name string
+		err  error
+		want bool
 	}{
 		{
-			name:   "as Error type",
-			err:    New(KindNotFound, "test"),
-			want:   true,
+			name: "as Error type",
+			err:  New(KindNotFound, "test"),
+			want: true,
 		},
 		{
-			name:   "as wrapped Error",
-			err:    Wrap(New(KindNotFound, "test"), "op"),
-			want:   true,
+			name: "as wrapped Error",
+			err:  Wrap(New(KindNotFound, "test"), "op"),
+			want: true,
 		},
 		{
-			name:   "as different type",
-			err:    errors.New("standard error"),
-			want:   false,
+			name: "as different type",
+			err:  errors.New("standard error"),
+			want: false,
 		},
 	}
 
