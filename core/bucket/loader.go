@@ -281,6 +281,100 @@ func extractFromJS(content string) *scriptInfo {
 	return info
 }
 
+// extractDependenciesFromScript 从脚本文件中提取依赖信息
+func extractDependenciesFromScript(scriptPath string) []manifest.Dependency {
+	content, err := os.ReadFile(scriptPath)
+	if err != nil {
+		return nil
+	}
+
+	ext := filepath.Ext(scriptPath)
+	switch ext {
+	case ".js":
+		return extractDependenciesFromJS(string(content))
+	default:
+		return nil
+	}
+}
+
+// extractDependenciesFromJS 从 JavaScript 文件中提取依赖
+func extractDependenciesFromJS(content string) []manifest.Dependency {
+	var deps []manifest.Dependency
+
+	// 查找 depends: [...] 或 depends = [...] 模式
+	lines := strings.Split(content, "\n")
+	inDependsArray := false
+	var dependsContent strings.Builder
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		// 检测 depends 字段开始
+		if !inDependsArray {
+			if strings.Contains(line, "depends:") || strings.Contains(line, "depends =") {
+				// 提取 depends: 后面的内容
+				startIdx := strings.Index(line, "[")
+				if startIdx != -1 {
+					inDependsArray = true
+					dependsContent.WriteString(line[startIdx:])
+					if strings.Contains(line, "]") {
+						inDependsArray = false
+					}
+				}
+			}
+		} else {
+			// 继续在多行数组中
+			dependsContent.WriteString(" ")
+			dependsContent.WriteString(line)
+			if strings.Contains(line, "]") {
+				inDependsArray = false
+			}
+		}
+	}
+
+	// 解析依赖数组内容
+	contentStr := dependsContent.String()
+	if contentStr == "" {
+		return deps
+	}
+
+	// 提取方括号内的内容
+	startIdx := strings.Index(contentStr, "[")
+	endIdx := strings.Index(contentStr, "]")
+	if startIdx == -1 || endIdx == -1 || endIdx <= startIdx {
+		return deps
+	}
+
+	innerContent := contentStr[startIdx+1 : endIdx]
+
+	// 分割依赖项
+	items := strings.Split(innerContent, ",")
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		// 移除引号
+		item = strings.Trim(item, `"'`)
+		if item == "" {
+			continue
+		}
+
+		// 解析依赖名称和版本约束
+		dep := manifest.Dependency{
+			Name:    item,
+			Version: "",
+		}
+
+		// 检查是否有版本约束 (格式: "name:version")
+		if idx := strings.Index(item, ":"); idx != -1 {
+			dep.Name = item[:idx]
+			dep.Version = item[idx+1:]
+		}
+
+		deps = append(deps, dep)
+	}
+
+	return deps
+}
+
 // extractFromLua 从 Lua 文件中提取信息
 func extractFromLua(content string) *scriptInfo {
 	info := &scriptInfo{}

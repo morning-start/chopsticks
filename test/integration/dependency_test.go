@@ -110,17 +110,16 @@ func TestOptionalDependency(t *testing.T) {
 	ctx := context.Background()
 	components := testutil.SetupTestEnvironment(t)
 
-	// 创建带可选依赖的应用
+	// 创建带可选依赖的应用和依赖应用
 	testutil.CreateTestAppWithDeps(t, components, "app-with-optional", []string{"optional-dep"})
+	testutil.CreateTestAppWithDeps(t, components, "optional-dep", nil)
 
 	// 安装应用，可选依赖失败不应该影响主应用安装
 	spec := app.InstallSpec{
 		Bucket: "main",
 		Name:   "app-with-optional",
 	}
-	opts := app.InstallOptions{
-		SkipOptionalDeps: true,
-	}
+	opts := app.InstallOptions{}
 	err := components.AppMgr.Install(ctx, spec, opts)
 	require.NoError(t, err)
 
@@ -133,9 +132,10 @@ func TestDependencyVersionConflict(t *testing.T) {
 	ctx := context.Background()
 	components := testutil.SetupTestEnvironment(t)
 
-	// 创建需要不同版本依赖的应用
+	// 创建需要不同版本依赖的应用和依赖应用
 	testutil.CreateTestAppWithDeps(t, components, "app-req-v1", []string{"dep:1.0.0"})
 	testutil.CreateTestAppWithDeps(t, components, "app-req-v2", []string{"dep:2.0.0"})
+	testutil.CreateTestAppWithDeps(t, components, "dep", nil)
 
 	// 安装第一个应用
 	spec := app.InstallSpec{
