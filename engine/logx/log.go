@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/natefinch/lumberjack.v2"
+	"github.com/natefinch/lumberjack"
 )
 
 // Config 日志配置
