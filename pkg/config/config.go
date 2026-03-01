@@ -67,6 +67,7 @@ type BucketConfig struct {
 // ProxyConfig 代理配置
 type ProxyConfig struct {
 	Enable  bool   `yaml:"enable" json:"enable"`
+	System  bool   `yaml:"system" json:"system"`
 	HTTP    string `yaml:"http" json:"http"`
 	HTTPS   string `yaml:"https" json:"https"`
 	NoProxy string `yaml:"no_proxy" json:"no_proxy"`
@@ -192,7 +193,8 @@ func NewConfig(opts ...Option) *Config {
 			Mirrors:    make(map[string]string),
 		},
 		Proxy: ProxyConfig{
-			Enable:  false,
+			Enable:  true,
+			System:  true,
 			HTTP:    "",
 			HTTPS:   "",
 			NoProxy: "",
@@ -215,7 +217,7 @@ func NewConfig(opts ...Option) *Config {
 	return cfg
 }
 
-// Validate 验证配置有效性
+// Validate 验证配置有效性，并为无效值设置默认值
 func (c *Config) Validate() error {
 	if c.Global.AppsPath == "" {
 		return ErrEmptyAppsPath
@@ -226,11 +228,11 @@ func (c *Config) Validate() error {
 	if c.Global.StoragePath == "" {
 		return ErrEmptyStoragePath
 	}
-	if c.Global.Parallel <= 0 {
-		return ErrInvalidParallel
-	}
 
 	// 设置默认值
+	if c.Global.Parallel <= 0 {
+		c.Global.Parallel = 1
+	}
 	if c.Global.Timeout <= 0 {
 		c.Global.Timeout = DefaultTimeout
 	}
@@ -388,4 +390,60 @@ func (b *Builder) Build() (*Config, error) {
 		return nil, err
 	}
 	return b.config, nil
+}
+
+// GetEffectiveProxy 获取有效的代理配置
+// 如果启用了系统代理，会从环境变量读取代理设置
+func (c *ProxyConfig) GetEffectiveProxy() (httpProxy, httpsProxy, noProxy string) {
+	// 如果未启用代理，返回空
+	if !c.Enable {
+		return "", "", ""
+	}
+
+	// 如果使用系统代理，从环境变量读取
+	if c.System {
+		httpProxy = c.getSystemHTTPProxy()
+		httpsProxy = c.getSystemHTTPSProxy()
+		noProxy = c.getSystemNoProxy()
+		return httpProxy, httpsProxy, noProxy
+	}
+
+	// 使用手动配置的代理
+	return c.HTTP, c.HTTPS, c.NoProxy
+}
+
+// getSystemHTTPProxy 从环境变量获取 HTTP 代理
+func (c *ProxyConfig) getSystemHTTPProxy() string {
+	// 按优先级检查环境变量
+	if proxy := os.Getenv("HTTP_PROXY"); proxy != "" {
+		return proxy
+	}
+	if proxy := os.Getenv("http_proxy"); proxy != "" {
+		return proxy
+	}
+	return c.HTTP
+}
+
+// getSystemHTTPSProxy 从环境变量获取 HTTPS 代理
+func (c *ProxyConfig) getSystemHTTPSProxy() string {
+	// 按优先级检查环境变量
+	if proxy := os.Getenv("HTTPS_PROXY"); proxy != "" {
+		return proxy
+	}
+	if proxy := os.Getenv("https_proxy"); proxy != "" {
+		return proxy
+	}
+	return c.HTTPS
+}
+
+// getSystemNoProxy 从环境变量获取不代理的地址列表
+func (c *ProxyConfig) getSystemNoProxy() string {
+	// 按优先级检查环境变量
+	if noProxy := os.Getenv("NO_PROXY"); noProxy != "" {
+		return noProxy
+	}
+	if noProxy := os.Getenv("no_proxy"); noProxy != "" {
+		return noProxy
+	}
+	return c.NoProxy
 }

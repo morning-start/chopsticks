@@ -57,8 +57,11 @@ func TestDefaultConfig(t *testing.T) {
 	}
 
 	// Test Proxy config
-	if cfg.Proxy.Enable != false {
-		t.Error("DefaultConfig().Proxy.Enable = true, want false")
+	if cfg.Proxy.Enable != true {
+		t.Error("DefaultConfig().Proxy.Enable = false, want true")
+	}
+	if cfg.Proxy.System != true {
+		t.Error("DefaultConfig().Proxy.System = false, want true")
 	}
 
 	// Test Log config
