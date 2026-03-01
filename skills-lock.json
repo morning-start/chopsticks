@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "design-pattern-advisor": {
+      "source": "morning-start/wiki-skills",
+      "sourceType": "github",
+      "computedHash": "1331f1334cd87885448948c476d52e14def36e17cfe33c6badcd856d5fee14b7"
+    },
     "go-code-review": {
       "source": "cxuu/golang-skills",
       "sourceType": "github",
