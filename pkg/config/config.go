@@ -9,7 +9,7 @@ import (
 )
 
 type Config struct {
-	Global  GlobalConfig  `yaml:"global" json:"global"`
+	Global  GlobalConfig `yaml:"global" json:"global"`
 	Buckets BucketConfig `yaml:"buckets" json:"buckets"`
 	Proxy   ProxyConfig  `yaml:"proxy" json:"proxy"`
 	Log     LogConfig    `yaml:"log" json:"log"`
@@ -20,39 +20,42 @@ type GlobalConfig struct {
 	BucketsPath string `yaml:"buckets_path" json:"buckets_path"`
 	CachePath   string `yaml:"cache_path" json:"cache_path"`
 	StoragePath string `yaml:"storage_path" json:"storage_path"`
-	Parallel   int    `yaml:"parallel" json:"parallel"`
-	Timeout    int    `yaml:"timeout" json:"timeout"`
-	Retry      int    `yaml:"retry" json:"retry"`
-	NoConfirm  bool   `yaml:"no_confirm" json:"no_confirm"`
-	Color      bool   `yaml:"color" json:"color"`
-	Verbose    bool   `yaml:"verbose" json:"verbose"`
+	Parallel    int    `yaml:"parallel" json:"parallel"`
+	Timeout     int    `yaml:"timeout" json:"timeout"`
+	Retry       int    `yaml:"retry" json:"retry"`
+	NoConfirm   bool   `yaml:"no_confirm" json:"no_confirm"`
+	Color       bool   `yaml:"color" json:"color"`
+	Verbose     bool   `yaml:"verbose" json:"verbose"`
 }
 
 type BucketConfig struct {
-	Default   string            `yaml:"default" json:"default"`
-	AutoUpdate bool            `yaml:"auto_update" json:"auto_update"`
-	Mirrors  map[string]string `yaml:"mirrors" json:"mirrors"`
+	Default    string            `yaml:"default" json:"default"`
+	AutoUpdate bool              `yaml:"auto_update" json:"auto_update"`
+	Mirrors    map[string]string `yaml:"mirrors" json:"mirrors"`
 }
 
 type ProxyConfig struct {
-	Enable   bool   `yaml:"enable" json:"enable"`
-	HTTP     string `yaml:"http" json:"http"`
-	HTTPS    string `yaml:"https" json:"https"`
-	NoProxy  string `yaml:"no_proxy" json:"no_proxy"`
+	Enable  bool   `yaml:"enable" json:"enable"`
+	HTTP    string `yaml:"http" json:"http"`
+	HTTPS   string `yaml:"https" json:"https"`
+	NoProxy string `yaml:"no_proxy" json:"no_proxy"`
 }
 
 type LogConfig struct {
-	Level    string `yaml:"level" json:"level"`
-	File     string `yaml:"file" json:"file"`
-	MaxSize  int    `yaml:"max_size" json:"max_size"`
-	MaxBackups int  `yaml:"max_backups" json:"max_backups"`
-	MaxAge   int    `yaml:"max_age" json:"max_age"`
-	Compress bool   `yaml:"compress" json:"compress"`
+	Level      string `yaml:"level" json:"level"`
+	File       string `yaml:"file" json:"file"`
+	MaxSize    int    `yaml:"max_size" json:"max_size"`
+	MaxBackups int    `yaml:"max_backups" json:"max_backups"`
+	MaxAge     int    `yaml:"max_age" json:"max_age"`
+	Compress   bool   `yaml:"compress" json:"compress"`
 }
 
 func DefaultConfig() *Config {
-	home, _ := os.UserHomeDir()
-	chopsticksDir := filepath.Join(home, ".chopsticks")
+	chopsticksDir := os.Getenv("CHOPSTICKS_ROOT")
+	if chopsticksDir == "" {
+		home, _ := os.UserHomeDir()
+		chopsticksDir = filepath.Join(home, ".chopsticks")
+	}
 
 	return &Config{
 		Global: GlobalConfig{
@@ -62,15 +65,15 @@ func DefaultConfig() *Config {
 			StoragePath: filepath.Join(chopsticksDir, "data.db"),
 			Parallel:    3,
 			Timeout:     300,
-			Retry:      3,
-			NoConfirm:  false,
-			Color:      true,
-			Verbose:    false,
+			Retry:       3,
+			NoConfirm:   false,
+			Color:       true,
+			Verbose:     false,
 		},
 		Buckets: BucketConfig{
 			Default:    "main",
 			AutoUpdate: false,
-			Mirrors:   make(map[string]string),
+			Mirrors:    make(map[string]string),
 		},
 		Proxy: ProxyConfig{
 			Enable:  false,
@@ -79,12 +82,12 @@ func DefaultConfig() *Config {
 			NoProxy: "",
 		},
 		Log: LogConfig{
-			Level:    "info",
-			File:     "",
-			MaxSize:  10,
+			Level:      "info",
+			File:       "",
+			MaxSize:    10,
 			MaxBackups: 3,
-			MaxAge:   7,
-			Compress: true,
+			MaxAge:     7,
+			Compress:   true,
 		},
 	}
 }

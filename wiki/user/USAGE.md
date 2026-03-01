@@ -680,4 +680,64 @@ chopsticks cache size --verbose
 ---
 
 _最后更新：2026-02-28_
+_版本：v0.6.0-alpha_---
+
+## 12. 缓存管理
+
+Chopsticks 使用多级缓存机制来提升性能。详细说明请查看 [缓存管理指南](cache-management.md)。
+
+### 12.1 常用命令
+
+```bash
+# 查看缓存大小
+chopsticks cache size
+
+# 清理缓存
+chopsticks cache clean
+
+# 查看详细缓存信息
+chopsticks cache size --verbose
+```
+
+### 12.2 缓存类型
+
+| 缓存类型   | 位置               | 说明                 |
+| ---------- | ------------------ | -------------------- |
+| 下载缓存   | `cache/downloads/` | 存储下载的软件包     |
+| 元数据缓存 | `cache/metadata/`  | 存储软件源索引       |
+| 临时文件   | `cache/temp/`      | 安装过程中的临时数据 |
+
+---
+
+_最后更新：2026-02-28_
+_版本：v0.6.0-alpha_---
+
+## 12. 缓存管理
+
+Chopsticks 使用多级缓存机制来提升性能。详细说明请查看 [缓存管理指南](cache-management.md)。
+
+### 12.1 常用命令
+
+```bash
+# 查看缓存大小
+chopsticks cache size
+
+# 清理缓存
+chopsticks cache clean
+
+# 查看详细缓存信息
+chopsticks cache size --verbose
+```
+
+### 12.2 缓存类型
+
+| 缓存类型   | 位置               | 说明                 |
+| ---------- | ------------------ | -------------------- |
+| 下载缓存   | `cache/downloads/` | 存储下载的软件包     |
+| 元数据缓存 | `cache/metadata/`  | 存储软件源索引       |
+| 临时文件   | `cache/temp/`      | 安装过程中的临时数据 |
+
+---
+
+_最后更新：2026-02-28_
 _版本：v0.6.0-alpha_

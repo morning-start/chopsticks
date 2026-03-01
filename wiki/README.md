@@ -10,42 +10,42 @@
 
 ### 核心文档
 
-| 文档 | 说明 | 目标读者 |
-|------|------|----------|
-| [README](README.md) | 项目概述与快速开始 | 所有人 |
-| [CHANGELOG](CHANGELOG.md) | 变更日志 | 所有人 |
-| [ROADMAP](ROADMAP.md) | 路线图 | 所有人 |
-| [ARCHITECTURE](ARCHITECTURE.md) | 系统架构设计 | 架构师、开发者 |
+| 文档                            | 说明               | 目标读者       |
+| ------------------------------- | ------------------ | -------------- |
+| [README](README.md)             | 项目概述与快速开始 | 所有人         |
+| [CHANGELOG](CHANGELOG.md)       | 变更日志           | 所有人         |
+| [ROADMAP](ROADMAP.md)           | 路线图             | 所有人         |
+| [ARCHITECTURE](ARCHITECTURE.md) | 系统架构设计       | 架构师、开发者 |
 
 ### 用户文档
 
-| 文档 | 说明 | 目标读者 |
-|------|------|----------|
-| [USAGE](user/USAGE.md) | 用户使用指南 | 用户 |
-| [FAQ](user/faq.md) | 常见问题解答 | 用户 |
-| [缓存管理](user/cache-management.md) | 缓存机制与管理 | 用户 |
-| [错误码](user/error-codes.md) | 错误码参考 | 用户 |
+| 文档                                 | 说明           | 目标读者 |
+| ------------------------------------ | -------------- | -------- |
+| [USAGE](user/USAGE.md)               | 用户使用指南   | 用户     |
+| [FAQ](user/faq.md)                   | 常见问题解答   | 用户     |
+| [缓存管理](user/cache-management.md) | 缓存机制与管理 | 用户     |
+| [错误码](user/error-codes.md)        | 错误码参考     | 用户     |
 
 ### 开发者文档
 
-| 文档 | 说明 | 目标读者 |
-|------|------|----------|
-| [DEVELOPER](developer/DEVELOPER.md) | 开发者指南 | 开发者 |
-| [API](developer/API.md) | JavaScript API 参考 | 开发者 |
-| [STYLE](developer/STYLE.md) | Go 编码规范 | 开发者 |
-| [Bucket 创建指南](developer/bucket-guide.md) | 软件源创建完整教程 | 开发者 |
-| [App 最佳实践](developer/app-best-practices.md) | 应用编写指南 | 开发者 |
-| [命令别名](developer/command-aliases.md) | 命令别名配置 | 开发者 |
+| 文档                                            | 说明                | 目标读者 |
+| ----------------------------------------------- | ------------------- | -------- |
+| [DEVELOPER](developer/DEVELOPER.md)             | 开发者指南          | 开发者   |
+| [API](developer/API.md)                         | JavaScript API 参考 | 开发者   |
+| [STYLE](developer/STYLE.md)                     | Go 编码规范         | 开发者   |
+| [Bucket 创建指南](developer/bucket-guide.md)    | 软件源创建完整教程  | 开发者   |
+| [App 最佳实践](developer/app-best-practices.md) | 应用编写指南        | 开发者   |
+| [命令别名](developer/command-aliases.md)        | 命令别名配置        | 开发者   |
 
 ### 设计文档
 
-| 文档 | 说明 | 目标读者 |
-|------|------|----------|
-| [REQUIREMENT](design/REQUIREMENT.md) | 功能需求规格 | 产品经理、开发者 |
-| [DATABASE](design/DATABASE.md) | 数据库设计 | 架构师、开发者 |
-| [STATE](design/STATE.md) | 状态管理设计 | 架构师、开发者 |
-| [BUCKET-SCAFFOLD](design/BUCKET-SCAFFOLD.md) | Bucket 脚手架设计 | 开发者 |
-| [PERFORMANCE-OPTIMIZATION](design/PERFORMANCE-OPTIMIZATION.md) | 性能优化设计 | 架构师、开发者 |
+| 文档                                                           | 说明              | 目标读者         |
+| -------------------------------------------------------------- | ----------------- | ---------------- |
+| [REQUIREMENT](design/REQUIREMENT.md)                           | 功能需求规格      | 产品经理、开发者 |
+| [DATABASE](design/DATABASE.md)                                 | 数据库设计        | 架构师、开发者   |
+| [STATE](design/STATE.md)                                       | 状态管理设计      | 架构师、开发者   |
+| [BUCKET-SCAFFOLD](design/BUCKET-SCAFFOLD.md)                   | Bucket 脚手架设计 | 开发者           |
+| [PERFORMANCE-OPTIMIZATION](design/PERFORMANCE-OPTIMIZATION.md) | 性能优化设计      | 架构师、开发者   |
 
 ---
 
@@ -66,13 +66,13 @@ Chopsticks（筷子）是一个基于 JavaScript 的 **Windows 包管理器**，
 
 ### 术语对照表
 
-| 用户友好术语 | 英文 | 说明 |
-|-------------|------|------|
-| 软件源 (Source) | Bucket | 软件包的集合 |
-| 软件包 (Package) | App | 单个软件定义 |
-| 安装 (Install) | Install | 部署软件 |
-| 卸载 (Uninstall) | Uninstall | 移除软件 |
-| 更新 (Update) | Update | 升级软件 |
+| 用户友好术语     | 英文      | 说明         |
+| ---------------- | --------- | ------------ |
+| 软件源 (Source)  | Bucket    | 软件包的集合 |
+| 软件包 (Package) | App       | 单个软件定义 |
+| 安装 (Install)   | Install   | 部署软件     |
+| 卸载 (Uninstall) | Uninstall | 移除软件     |
+| 更新 (Update)    | Update    | 升级软件     |
 
 ---
 
@@ -183,12 +183,12 @@ chopsticks perf
 
 ## 🛠️ 技术栈
 
-| 组件 | 技术选型 | 说明 |
-|------|----------|------|
-| 核心语言 | Go | 高性能、并发支持 |
-| 脚本引擎 | Goja | JavaScript 引擎 |
-| 数据库 | SQLite | 关系型数据库 |
-| Git 操作 | go-git | 纯 Go Git 库 |
+| 组件     | 技术选型 | 说明             |
+| -------- | -------- | ---------------- |
+| 核心语言 | Go       | 高性能、并发支持 |
+| 脚本引擎 | Goja     | JavaScript 引擎  |
+| 数据库   | SQLite   | 关系型数据库     |
+| Git 操作 | go-git   | 纯 Go Git 库     |
 
 ---
 
