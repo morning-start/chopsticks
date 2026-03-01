@@ -31,6 +31,13 @@ func NewParallelSearcher(mgr Manager, maxWorkers int) *ParallelSearcher {
 	}
 }
 
+// Close 关闭搜索器，释放资源
+func (s *ParallelSearcher) Close() {
+	if s.cache != nil {
+		s.cache.Close()
+	}
+}
+
 // SearchAllBuckets 并行搜索所有 bucket
 func (s *ParallelSearcher) SearchAllBuckets(
 	ctx context.Context,
@@ -166,6 +173,7 @@ type SearchCache struct {
 	mu     sync.RWMutex
 	hits   int64
 	misses int64
+	stop   chan struct{}
 }
 
 type cacheEntry struct {
@@ -178,6 +186,7 @@ func NewSearchCache(ttl time.Duration) *SearchCache {
 	cache := &SearchCache{
 		data: make(map[string]cacheEntry),
 		ttl:  ttl,
+		stop: make(chan struct{}),
 	}
 
 	// 启动清理协程
@@ -233,9 +242,19 @@ func (c *SearchCache) cleanupLoop() {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		c.cleanup()
+	for {
+		select {
+		case <-ticker.C:
+			c.cleanup()
+		case <-c.stop:
+			return
+		}
 	}
+}
+
+// Close 关闭缓存，停止清理协程
+func (c *SearchCache) Close() {
+	close(c.stop)
 }
 
 // cleanup 清理过期条目
