@@ -2,13 +2,22 @@
 package semver
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
+// 预定义错误变量
+var (
+	ErrInvalidVersion = errors.New("invalid version format")
+	ErrParseVersion1  = errors.New("failed to parse version 1")
+	ErrParseVersion2  = errors.New("failed to parse version 2")
+)
+
 // Version 表示语义化版本。
+// 字段按内存对齐优化排序
 type Version struct {
 	Major int
 	Minor int
@@ -27,7 +36,7 @@ func Parse(version string) (*Version, error) {
 
 	matches := versionRegex.FindStringSubmatch(version)
 	if matches == nil {
-		return nil, fmt.Errorf("无效的版本格式: %s", version)
+		return nil, fmt.Errorf("%w: %s", ErrInvalidVersion, version)
 	}
 
 	major, _ := strconv.Atoi(matches[1])
@@ -171,11 +180,11 @@ func (v *Version) LTE(other *Version) bool {
 func CompareStrings(v1, v2 string) (int, error) {
 	ver1, err := Parse(v1)
 	if err != nil {
-		return 0, fmt.Errorf("解析版本1: %w", err)
+		return 0, fmt.Errorf("%w: %w", ErrParseVersion1, err)
 	}
 	ver2, err := Parse(v2)
 	if err != nil {
-		return 0, fmt.Errorf("解析版本2: %w", err)
+		return 0, fmt.Errorf("%w: %w", ErrParseVersion2, err)
 	}
 	return ver1.Compare(ver2), nil
 }
@@ -186,6 +195,42 @@ func IsValid(version string) bool {
 	return err == nil
 }
 
+// ConstraintType 表示约束类型
+type ConstraintType int
+
+const (
+	ConstraintGTE ConstraintType = iota // >=
+	ConstraintLTE                       // <=
+	ConstraintGT                        // >
+	ConstraintLT                        // <
+	ConstraintCaret                     // ^
+	ConstraintTilde                     // ~
+	ConstraintExact                     // = or no prefix
+)
+
+// parseConstraint 解析约束字符串
+func parseConstraint(constraint string) (ConstraintType, string, error) {
+	constraint = strings.TrimSpace(constraint)
+
+	switch {
+	case strings.HasPrefix(constraint, ">="):
+		return ConstraintGTE, strings.TrimSpace(constraint[2:]), nil
+	case strings.HasPrefix(constraint, "<="):
+		return ConstraintLTE, strings.TrimSpace(constraint[2:]), nil
+	case strings.HasPrefix(constraint, ">"):
+		return ConstraintGT, strings.TrimSpace(constraint[1:]), nil
+	case strings.HasPrefix(constraint, "<"):
+		return ConstraintLT, strings.TrimSpace(constraint[1:]), nil
+	case strings.HasPrefix(constraint, "^"):
+		return ConstraintCaret, strings.TrimSpace(constraint[1:]), nil
+	case strings.HasPrefix(constraint, "~"):
+		return ConstraintTilde, strings.TrimSpace(constraint[1:]), nil
+	default:
+		constraint = strings.TrimPrefix(constraint, "=")
+		return ConstraintExact, strings.TrimSpace(constraint), nil
+	}
+}
+
 // Satisfies 检查版本是否满足约束。
 func Satisfies(version, constraint string) (bool, error) {
 	v, err := Parse(version)
@@ -193,72 +238,59 @@ func Satisfies(version, constraint string) (bool, error) {
 		return false, err
 	}
 
-	// 处理简单约束
-	constraint = strings.TrimSpace(constraint)
+	conType, conVersion, err := parseConstraint(constraint)
+	if err != nil {
+		return false, err
+	}
 
-	// >= x.y.z
-	if strings.HasPrefix(constraint, ">=") {
-		min, err := Parse(constraint[2:])
+	switch conType {
+	case ConstraintGTE:
+		min, err := Parse(conVersion)
 		if err != nil {
 			return false, err
 		}
 		return v.GTE(min), nil
-	}
-
-	// <= x.y.z
-	if strings.HasPrefix(constraint, "<=") {
-		max, err := Parse(constraint[2:])
+	case ConstraintLTE:
+		max, err := Parse(conVersion)
 		if err != nil {
 			return false, err
 		}
 		return v.LTE(max), nil
-	}
-
-	// > x.y.z
-	if strings.HasPrefix(constraint, ">") {
-		min, err := Parse(constraint[1:])
+	case ConstraintGT:
+		min, err := Parse(conVersion)
 		if err != nil {
 			return false, err
 		}
 		return v.GT(min), nil
-	}
-
-	// < x.y.z
-	if strings.HasPrefix(constraint, "<") {
-		max, err := Parse(constraint[1:])
+	case ConstraintLT:
+		max, err := Parse(conVersion)
 		if err != nil {
 			return false, err
 		}
 		return v.LT(max), nil
-	}
-
-	// ^x.y.z - 兼容版本（不改变主版本号）
-	if strings.HasPrefix(constraint, "^") {
-		base, err := Parse(constraint[1:])
+	case ConstraintCaret:
+		base, err := Parse(conVersion)
 		if err != nil {
 			return false, err
 		}
 		// ^1.2.3 表示 >=1.2.3 <2.0.0
 		upper := &Version{Major: base.Major + 1, Minor: 0, Patch: 0}
 		return v.GTE(base) && v.LT(upper), nil
-	}
-
-	// ~x.y.z - 近似版本（不改变次版本号）
-	if strings.HasPrefix(constraint, "~") {
-		base, err := Parse(constraint[1:])
+	case ConstraintTilde:
+		base, err := Parse(conVersion)
 		if err != nil {
 			return false, err
 		}
 		// ~1.2.3 表示 >=1.2.3 <1.3.0
 		upper := &Version{Major: base.Major, Minor: base.Minor + 1, Patch: 0}
 		return v.GTE(base) && v.LT(upper), nil
+	case ConstraintExact:
+		exact, err := Parse(conVersion)
+		if err != nil {
+			return false, err
+		}
+		return v.EQ(exact), nil
+	default:
+		return false, fmt.Errorf("%w: %s", ErrInvalidVersion, constraint)
 	}
-
-	// =x.y.z 或 x.y.z - 精确版本
-	constraint = strings.TrimPrefix(constraint, "=")
-	exact, err := Parse(constraint)
-	if err != nil {
-		return false, err
-	}
-	return v.EQ(exact), nil
 }

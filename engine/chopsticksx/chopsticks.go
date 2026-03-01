@@ -22,9 +22,9 @@ type Module struct {
 
 // NewModule 创建新的 chopsticks 模块。
 func NewModule(appsPath, shimsPath, persistPath string) *Module {
-	// 获取缓存目录
+	// Get cache directory
 	cachePath := filepath.Join(os.Getenv("LOCALAPPDATA"), "chopsticks", "cache")
-	// 获取配置目录
+	// Get config directory
 	configPath := filepath.Join(os.Getenv("APPDATA"), "chopsticks")
 
 	return &Module{
@@ -43,14 +43,14 @@ func (m *Module) GetCookDir(name, version string) string {
 
 // GetCurrentVersion 返回应用的当前版本（如果已安装）。
 func (m *Module) GetCurrentVersion(name string) (string, error) {
-	// 检查安装目录中的版本
+	// Check version in install directory
 	appPath := filepath.Join(m.appsPath, name)
 	entries, err := os.ReadDir(appPath)
 	if err != nil {
 		return "", fmt.Errorf("app not installed: %s", name)
 	}
 
-	// 返回第一个找到的版本目录
+	// Return first version directory found
 	for _, entry := range entries {
 		if entry.IsDir() {
 			return entry.Name(), nil
@@ -62,62 +62,62 @@ func (m *Module) GetCurrentVersion(name string) (string, error) {
 
 // AddToPath 将路径添加到环境变量 PATH。
 func (m *Module) AddToPath(path string) error {
-	// 打开用户环境变量注册表键
+	// Open user environment registry key
 	key, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.READ|registry.WRITE)
 	if err != nil {
-		return fmt.Errorf("打开注册表键: %w", err)
+		return fmt.Errorf("open registry key: %w", err)
 	}
 	defer key.Close()
 
-	// 读取当前 PATH
+	// Read current PATH
 	currentPath, _, err := key.GetStringValue("Path")
 	if err != nil && err != registry.ErrNotExist {
-		return fmt.Errorf("读取 PATH: %w", err)
+		return fmt.Errorf("read PATH: %w", err)
 	}
 
-	// 检查路径是否已存在
+	// Check if path already exists
 	paths := strings.Split(currentPath, ";")
 	for _, p := range paths {
 		if strings.EqualFold(strings.TrimSpace(p), path) {
-			return nil // 已存在
+			return nil // Already exists
 		}
 	}
 
-	// 添加新路径
+	// Add new path
 	newPath := currentPath
 	if newPath != "" && !strings.HasSuffix(newPath, ";") {
 		newPath += ";"
 	}
 	newPath += path
 
-	// 写入注册表
+	// Write to registry
 	if err := key.SetStringValue("Path", newPath); err != nil {
-		return fmt.Errorf("写入 PATH: %w", err)
+		return fmt.Errorf("write PATH: %w", err)
 	}
 
-	// 通知系统环境变量已更改
+	// Notify system environment changed
 	return notifyEnvironmentChange()
 }
 
 // RemoveFromPath 从环境变量 PATH 移除路径。
 func (m *Module) RemoveFromPath(path string) error {
-	// 打开用户环境变量注册表键
+	// Open user environment registry key
 	key, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.READ|registry.WRITE)
 	if err != nil {
-		return fmt.Errorf("打开注册表键: %w", err)
+		return fmt.Errorf("open registry key: %w", err)
 	}
 	defer key.Close()
 
-	// 读取当前 PATH
+	// Read current PATH
 	currentPath, _, err := key.GetStringValue("Path")
 	if err != nil {
 		if err == registry.ErrNotExist {
 			return nil
 		}
-		return fmt.Errorf("读取 PATH: %w", err)
+		return fmt.Errorf("read PATH: %w", err)
 	}
 
-	// 移除路径
+	// Remove path
 	paths := strings.Split(currentPath, ";")
 	var newPaths []string
 	for _, p := range paths {
@@ -128,18 +128,18 @@ func (m *Module) RemoveFromPath(path string) error {
 
 	newPath := strings.Join(newPaths, ";")
 
-	// 写入注册表
+	// Write to registry
 	if err := key.SetStringValue("Path", newPath); err != nil {
-		return fmt.Errorf("写入 PATH: %w", err)
+		return fmt.Errorf("write PATH: %w", err)
 	}
 
-	// 通知系统环境变量已更改
+	// Notify system environment changed
 	return notifyEnvironmentChange()
 }
 
 // notifyEnvironmentChange 通知系统环境变量已更改
 func notifyEnvironmentChange() error {
-	// 使用 rundll32 通知环境变量更改
+	// Use rundll32 to notify environment change
 	cmd := exec.Command("rundll32", "user32.dll,UpdatePerUserSystemParameters")
 	return cmd.Run()
 }
@@ -157,35 +157,35 @@ func (m *Module) GetEnv(key string) string {
 // CreateShim 创建命令链接（shim）。
 func (m *Module) CreateShim(source, name string) error {
 	if err := os.MkdirAll(m.shimsPath, 0755); err != nil {
-		return fmt.Errorf("创建 shims 目录: %w", err)
+		return fmt.Errorf("create shims directory: %w", err)
 	}
 
 	shimPath := filepath.Join(m.shimsPath, name+".exe")
 
-	// 如果源文件是 .exe，创建符号链接
+	// If source is .exe, create symlink
 	if strings.HasSuffix(strings.ToLower(source), ".exe") {
-		// 删除已存在的 shim
+		// Remove existing shim
 		if _, err := os.Stat(shimPath); err == nil {
 			if err := os.Remove(shimPath); err != nil {
-				return fmt.Errorf("删除旧 shim: %w", err)
+				return fmt.Errorf("remove old shim: %w", err)
 			}
 		}
 
-		// 创建符号链接
+		// Create symlink
 		if err := os.Symlink(source, shimPath); err != nil {
-			// 如果符号链接失败，尝试复制文件
+			// If symlink fails, try copying file
 			if err := copyFile(source, shimPath); err != nil {
-				return fmt.Errorf("创建 shim: %w", err)
+				return fmt.Errorf("create shim: %w", err)
 			}
 		}
 	} else {
-		// 创建批处理文件作为 shim
+		// Create batch file as shim
 		batPath := filepath.Join(m.shimsPath, name+".bat")
 		content := fmt.Sprintf(`@echo off
 "%s" %%*
 `, source)
 		if err := os.WriteFile(batPath, []byte(content), 0755); err != nil {
-			return fmt.Errorf("创建 bat shim: %w", err)
+			return fmt.Errorf("create bat shim: %w", err)
 		}
 	}
 
@@ -203,19 +203,19 @@ func copyFile(src, dst string) error {
 
 // RemoveShim 移除命令链接（shim）。
 func (m *Module) RemoveShim(name string) error {
-	// 尝试删除 .exe shim
+	// Try to delete .exe shim
 	shimPath := filepath.Join(m.shimsPath, name+".exe")
 	if _, err := os.Stat(shimPath); err == nil {
 		if err := os.Remove(shimPath); err != nil {
-			return fmt.Errorf("删除 exe shim: %w", err)
+			return fmt.Errorf("remove exe shim: %w", err)
 		}
 	}
 
-	// 尝试删除 .bat shim
+	// Try to delete .bat shim
 	batPath := filepath.Join(m.shimsPath, name+".bat")
 	if _, err := os.Stat(batPath); err == nil {
 		if err := os.Remove(batPath); err != nil {
-			return fmt.Errorf("删除 bat shim: %w", err)
+			return fmt.Errorf("remove bat shim: %w", err)
 		}
 	}
 
@@ -225,36 +225,36 @@ func (m *Module) RemoveShim(name string) error {
 // PersistData 持久化数据目录。
 func (m *Module) PersistData(name string, dirs []string) error {
 	if err := os.MkdirAll(m.persistPath, 0755); err != nil {
-		return fmt.Errorf("创建持久化目录: %w", err)
+		return fmt.Errorf("create persist directory: %w", err)
 	}
 
 	appPersistPath := filepath.Join(m.persistPath, name)
 	if err := os.MkdirAll(appPersistPath, 0755); err != nil {
-		return fmt.Errorf("创建应用持久化目录: %w", err)
+		return fmt.Errorf("create app persist directory: %w", err)
 	}
 
-	// 为每个需要持久化的目录创建 Junction
+	// Create Junction for each directory that needs persistence
 	for _, dir := range dirs {
 		targetPath := filepath.Join(appPersistPath, filepath.Base(dir))
 		if err := os.MkdirAll(targetPath, 0755); err != nil {
-			return fmt.Errorf("创建目标目录: %w", err)
+			return fmt.Errorf("create target directory: %w", err)
 		}
 
-		// 如果源目录存在，先备份数据
+		// If source directory exists, backup data first
 		if _, err := os.Stat(dir); err == nil {
-			// 复制现有数据到持久化目录
+			// Copy existing data to persist directory
 			if err := copyDirContents(dir, targetPath); err != nil {
-				return fmt.Errorf("复制数据: %w", err)
+				return fmt.Errorf("copy data: %w", err)
 			}
-			// 删除原目录
+			// Delete original directory
 			if err := os.RemoveAll(dir); err != nil {
-				return fmt.Errorf("删除原目录: %w", err)
+				return fmt.Errorf("remove original directory: %w", err)
 			}
 		}
 
-		// 创建 Junction（Windows 符号链接）
+		// Create Junction (Windows symlink)
 		if err := createJunction(dir, targetPath); err != nil {
-			return fmt.Errorf("创建 Junction: %w", err)
+			return fmt.Errorf("create Junction: %w", err)
 		}
 	}
 
@@ -291,7 +291,7 @@ func copyDirContents(src, dst string) error {
 
 // createJunction 创建 Windows Junction
 func createJunction(link, target string) error {
-	// 使用 mklink 命令创建 Junction
+	// Use mklink command to create Junction
 	cmd := exec.Command("cmd", "/c", "mklink", "/J", link, target)
 	return cmd.Run()
 }
@@ -306,11 +306,11 @@ type ShortcutOptions struct {
 
 // CreateShortcut 创建快捷方式。
 func (m *Module) CreateShortcut(opts ShortcutOptions) error {
-	// 获取开始菜单路径
+	// Get start menu path
 	startMenuPath := filepath.Join(os.Getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs")
 	shortcutPath := filepath.Join(startMenuPath, opts.Name+".lnk")
 
-	// 使用 PowerShell 创建快捷方式
+	// Use PowerShell to create shortcut
 	psScript := fmt.Sprintf(`
 $WshShell = New-Object -comObject WScript.Shell
 $Shortcut = $WshShell.CreateShortcut("%s")
@@ -327,7 +327,7 @@ $Shortcut.Description = "%s"
 
 	cmd := exec.Command("powershell", "-Command", psScript)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("创建快捷方式: %w", err)
+		return fmt.Errorf("create shortcut: %w", err)
 	}
 
 	return nil
@@ -340,7 +340,7 @@ func (m *Module) RemoveShortcut(name string) error {
 
 	if _, err := os.Stat(shortcutPath); err == nil {
 		if err := os.Remove(shortcutPath); err != nil {
-			return fmt.Errorf("删除快捷方式: %w", err)
+			return fmt.Errorf("remove shortcut: %w", err)
 		}
 	}
 
@@ -359,22 +359,22 @@ func (m *Module) GetConfigDir() string {
 
 // DeleteEnv 删除环境变量。
 func (m *Module) DeleteEnv(key string) error {
-	// 打开用户环境变量注册表键
+	// Open user environment registry key
 	keyReg, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.READ|registry.WRITE)
 	if err != nil {
-		return fmt.Errorf("打开注册表键: %w", err)
+		return fmt.Errorf("open registry key: %w", err)
 	}
 	defer keyReg.Close()
 
-	// 删除环境变量
+	// Delete environment variable
 	if err := keyReg.DeleteValue(key); err != nil {
 		if err == registry.ErrNotExist {
-			return nil // 不存在则忽略
+			return nil // Ignore if not exists
 		}
-		return fmt.Errorf("删除环境变量: %w", err)
+		return fmt.Errorf("delete environment variable: %w", err)
 	}
 
-	// 通知系统环境变量已更改
+	// Notify system environment changed
 	return notifyEnvironmentChange()
 }
 

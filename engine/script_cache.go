@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -12,36 +13,50 @@ import (
 	"github.com/dop251/goja"
 )
 
+// 默认缓存配置常量
+const (
+	DefaultMaxCacheSize = 100 * 1024 * 1024 // 100MB
+)
+
+// 预定义错误变量
+var (
+	ErrComputeFileHash = errors.New("failed to compute file hash")
+	ErrReadScript      = errors.New("failed to read script")
+	ErrCompileScript   = errors.New("failed to compile script")
+)
+
 // ScriptCache 脚本编译缓存
+// 字段按内存对齐优化排序
 type ScriptCache struct {
-	maxSize    int64         // 最大缓存大小 (字节)
-	maxEntries int           // 最大条目数
-	entries    map[string]*cachedScript
-	lruList    *list.List    // LRU 列表
 	mu         sync.RWMutex
+	entries    map[string]*cachedScript
+	lruList    *list.List
+	maxSize    int64 // 最大缓存大小 (字节)
+	maxEntries int   // 最大条目数
 	hits       int64
 	misses     int64
 }
 
 // cachedScript 缓存的脚本
+// 字段按内存对齐优化排序
 type cachedScript struct {
-	path      string
-	code      string
-	program   *goja.Program  // 编译后的程序
-	hash      string
-	size      int64
-	lastUsed  time.Time
-	useCount  int
-	element   *list.Element // LRU 列表中的元素
+	program  *goja.Program // 编译后的程序
+	size     int64
+	lastUsed time.Time
+	element  *list.Element // LRU 列表中的元素
+	path     string
+	code     string
+	hash     string
+	useCount int
 }
 
 // NewScriptCache 创建脚本缓存
 func NewScriptCache(maxSize int64, maxEntries int) *ScriptCache {
 	if maxSize <= 0 {
-		maxSize = 100 * 1024 * 1024 // 默认 100MB
+		maxSize = DefaultMaxCacheSize
 	}
 	if maxEntries <= 0 {
-		maxEntries = 100 // 默认 100 个条目
+		maxEntries = DefaultMaxCacheEntries
 	}
 
 	return &ScriptCache{
@@ -91,7 +106,7 @@ func (c *ScriptCache) Get(path string) (*cachedScript, bool) {
 func (c *ScriptCache) Set(path string, code string, program *goja.Program) error {
 	hash, err := c.computeFileHash(path)
 	if err != nil {
-		return fmt.Errorf("failed to compute file hash: %w", err)
+		return fmt.Errorf("%w: %w", ErrComputeFileHash, err)
 	}
 
 	size := int64(len(code))
@@ -164,23 +179,24 @@ func (c *ScriptCache) Stats() CacheStats {
 	}
 
 	return CacheStats{
-		Entries:  len(c.entries),
 		Hits:     c.hits,
 		Misses:   c.misses,
 		HitRate:  hitRate,
 		Size:     c.currentSize(),
 		MaxSize:  c.maxSize,
+		Entries:  len(c.entries),
 	}
 }
 
 // CacheStats 缓存统计
+// int64 字段放在一起以优化内存布局
 type CacheStats struct {
-	Entries int
 	Hits    int64
 	Misses  int64
-	HitRate float64
 	Size    int64
 	MaxSize int64
+	HitRate float64
+	Entries int
 }
 
 // computeFileHash 计算文件哈希
@@ -255,13 +271,13 @@ func (c *ScriptCache) LoadAndCompile(vm *goja.Runtime, path string) (*goja.Progr
 	// 读取文件
 	code, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read script %s: %w", path, err)
+		return nil, fmt.Errorf("%w %s: %w", ErrReadScript, path, err)
 	}
 
 	// 编译脚本
 	program, err := goja.Compile(path, string(code), false)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compile script %s: %w", path, err)
+		return nil, fmt.Errorf("%w %s: %w", ErrCompileScript, path, err)
 	}
 
 	// 缓存编译结果

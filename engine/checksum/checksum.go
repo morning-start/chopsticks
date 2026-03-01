@@ -6,11 +6,25 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
 	"os"
 	"strings"
+)
+
+// 校验和长度常量
+const (
+	MD5Len    = 32
+	SHA256Len = 64
+	SHA512Len = 128
+)
+
+// 预定义错误变量
+var (
+	ErrOpenFile       = errors.New("failed to open file")
+	ErrCalculateChecksum = errors.New("failed to calculate checksum")
 )
 
 // Algorithm 表示校验和算法类型。
@@ -54,13 +68,13 @@ func New(alg Algorithm) Calculator {
 func (c *calculator) Calculate(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("打开文件: %w", err)
+		return "", fmt.Errorf("%w: %w", ErrOpenFile, err)
 	}
 	defer file.Close()
 
 	h := c.newHash()
 	if _, err := io.Copy(h, file); err != nil {
-		return "", fmt.Errorf("计算校验和: %w", err)
+		return "", fmt.Errorf("%w: %w", ErrCalculateChecksum, err)
 	}
 
 	return hex.EncodeToString(h.Sum(nil)), nil
@@ -123,11 +137,11 @@ func CalculateBytes(data []byte, alg Algorithm) string {
 // AutoDetectAlgorithm 从校验和字符串自动检测算法。
 func AutoDetectAlgorithm(checksum string) Algorithm {
 	switch len(checksum) {
-	case 32:
+	case MD5Len:
 		return MD5
-	case 64:
+	case SHA256Len:
 		return SHA256
-	case 128:
+	case SHA512Len:
 		return SHA512
 	default:
 		return SHA256
@@ -139,13 +153,20 @@ func IsValidChecksum(checksum string) bool {
 	if len(checksum) == 0 {
 		return false
 	}
+
 	// 检查是否为十六进制字符
 	for _, c := range checksum {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+		if !isHexChar(c) {
 			return false
 		}
 	}
+
 	// 检查长度
 	length := len(checksum)
-	return length == 32 || length == 64 || length == 128
+	return length == MD5Len || length == SHA256Len || length == SHA512Len
+}
+
+// isHexChar 检查字符是否为十六进制字符
+func isHexChar(c rune) bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,8 +19,31 @@ import (
 	"chopsticks/pkg/output"
 )
 
+// HTTP 超时时间常量
+const (
+	DefaultTimeout     = 30 * time.Second
+	DownloadTimeout    = 5 * time.Minute
+	StatusOK           = http.StatusOK
+	StatusPartialContent = http.StatusPartialContent
+)
+
+// 预定义错误变量
+var (
+	ErrCreateRequest   = errors.New("failed to create request")
+	ErrExecuteRequest  = errors.New("failed to execute request")
+	ErrDownloadFailed  = errors.New("download failed")
+	ErrCreateDirectory = errors.New("failed to create directory")
+	ErrCreateFile      = errors.New("failed to create file")
+	ErrCopyResponse    = errors.New("failed to copy response body")
+	ErrParseURL        = errors.New("failed to parse URL")
+	ErrSerializeBody   = errors.New("failed to serialize body")
+	ErrDeserializeJSON = errors.New("failed to deserialize JSON")
+	ErrDeserializeXML  = errors.New("failed to deserialize XML")
+	ErrSerializeXML    = errors.New("failed to serialize XML")
+)
+
 var defaultClient = &http.Client{
-	Timeout: 30 * time.Second,
+	Timeout: DefaultTimeout,
 }
 
 // RequestOptions 包含 HTTP 请求的选项。
@@ -55,7 +79,7 @@ func Get(client *http.Client, requestURL string) (*Response, error) {
 	}
 	req, err := http.NewRequest("GET", requestURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateRequest, err)
 	}
 	return doRequest(client, req, nil)
 }
@@ -65,30 +89,14 @@ func Post(client *http.Client, requestURL string, body interface{}, contentType 
 	if client == nil {
 		client = defaultClient
 	}
-	var bodyReader io.Reader
-	var err error
-
-	switch v := body.(type) {
-	case string:
-		bodyReader = strings.NewReader(v)
-	case []byte:
-		bodyReader = bytes.NewReader(v)
-	case io.Reader:
-		bodyReader = v
-	default:
-		jsonBody, jsonErr := json.Marshal(body)
-		if jsonErr != nil {
-			return nil, fmt.Errorf("序列化 body: %w", jsonErr)
-		}
-		bodyReader = bytes.NewReader(jsonBody)
-		if contentType == "" {
-			contentType = "application/json"
-		}
+	bodyReader, err := prepareBody(body, &contentType)
+	if err != nil {
+		return nil, err
 	}
 
 	req, err := http.NewRequest("POST", requestURL, bodyReader)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateRequest, err)
 	}
 
 	if contentType != "" {
@@ -96,6 +104,31 @@ func Post(client *http.Client, requestURL string, body interface{}, contentType 
 	}
 
 	return doRequest(client, req, nil)
+}
+
+// prepareBody 准备请求体
+func prepareBody(body interface{}, contentType *string) (io.Reader, error) {
+	if body == nil {
+		return nil, nil
+	}
+
+	switch v := body.(type) {
+	case string:
+		return strings.NewReader(v), nil
+	case []byte:
+		return bytes.NewReader(v), nil
+	case io.Reader:
+		return v, nil
+	default:
+		jsonBody, err := json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrSerializeBody, err)
+		}
+		if *contentType == "" {
+			*contentType = "application/json"
+		}
+		return bytes.NewReader(jsonBody), nil
+	}
 }
 
 // Download 从 url 下载文件到 destPath。
@@ -110,44 +143,22 @@ func DownloadWithContext(ctx context.Context, url, destPath string) error {
 
 // DownloadWithProgress 使用进度条下载文件。
 func DownloadWithProgress(ctx context.Context, url, destPath string, pm *output.ProgressManager) error {
-	client := &http.Client{Timeout: 5 * time.Minute}
+	client := &http.Client{Timeout: DownloadTimeout}
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return fmt.Errorf("创建请求: %w", err)
+		return fmt.Errorf("%w: %w", ErrCreateRequest, err)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("获取 url: %w", err)
+		return fmt.Errorf("%w: %w", ErrExecuteRequest, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("下载失败: %s", resp.Status)
+	if resp.StatusCode != StatusOK {
+		return fmt.Errorf("%w: %s", ErrDownloadFailed, resp.Status)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-		return fmt.Errorf("创建目录: %w", err)
-	}
-
-	out, err := os.Create(destPath)
-	if err != nil {
-		return fmt.Errorf("创建文件: %w", err)
-	}
-	defer out.Close()
-
-	// 如果有进度管理器，使用进度条
-	if pm != nil && resp.ContentLength > 0 {
-		filename := filepath.Base(destPath)
-		reader := pm.ProxyReader(resp.Body, filename, resp.ContentLength)
-		_, err = io.Copy(out, reader)
-	} else {
-		_, err = io.Copy(out, resp.Body)
-	}
-
-	if err != nil {
-		return fmt.Errorf("复制响应体: %w", err)
-	}
-	return nil
+	return saveResponseBody(resp, destPath, pm)
 }
 
 // DownloadFile 使用自定义请求头下载文件。
@@ -158,12 +169,12 @@ func DownloadFile(client *http.Client, url, destPath string, headers map[string]
 // DownloadFileWithProgress 使用进度条下载文件。
 func DownloadFileWithProgress(client *http.Client, url, destPath string, headers map[string]string, pm *output.ProgressManager) error {
 	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Minute}
+		client = &http.Client{Timeout: DownloadTimeout}
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return fmt.Errorf("创建请求: %w", err)
+		return fmt.Errorf("%w: %w", ErrCreateRequest, err)
 	}
 
 	for k, v := range headers {
@@ -172,81 +183,70 @@ func DownloadFileWithProgress(client *http.Client, url, destPath string, headers
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("执行请求: %w", err)
+		return fmt.Errorf("%w: %w", ErrExecuteRequest, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("下载失败: %s", resp.Status)
+	if resp.StatusCode != StatusOK {
+		return fmt.Errorf("%w: %s", ErrDownloadFailed, resp.Status)
 	}
 
+	return saveResponseBody(resp, destPath, pm)
+}
+
+// saveResponseBody 保存响应体到文件
+func saveResponseBody(resp *http.Response, destPath string, pm *output.ProgressManager) error {
 	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-		return fmt.Errorf("创建目录: %w", err)
+		return fmt.Errorf("%w: %w", ErrCreateDirectory, err)
 	}
 
 	out, err := os.Create(destPath)
 	if err != nil {
-		return fmt.Errorf("创建文件: %w", err)
+		return fmt.Errorf("%w: %w", ErrCreateFile, err)
 	}
 	defer out.Close()
 
-	// 如果有进度管理器，使用进度条
+	var reader io.Reader = resp.Body
 	if pm != nil && resp.ContentLength > 0 {
 		filename := filepath.Base(destPath)
-		reader := pm.ProxyReader(resp.Body, filename, resp.ContentLength)
-		_, err = io.Copy(out, reader)
-	} else {
-		_, err = io.Copy(out, resp.Body)
+		reader = pm.ProxyReader(resp.Body, filename, resp.ContentLength)
 	}
 
-	if err != nil {
-		return fmt.Errorf("复制响应体: %w", err)
+	if _, err = io.Copy(out, reader); err != nil {
+		return fmt.Errorf("%w: %w", ErrCopyResponse, err)
 	}
 	return nil
 }
 
 // DownloadRange 下载文件的指定字节范围 (用于并行下载/断点续传)。
 func DownloadRange(url, destPath string, startBytes, endBytes int64) error {
-	client := &http.Client{Timeout: 5 * time.Minute}
+	client := &http.Client{Timeout: DownloadTimeout}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return fmt.Errorf("创建请求: %w", err)
+		return fmt.Errorf("%w: %w", ErrCreateRequest, err)
 	}
 
 	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", startBytes, endBytes))
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("执行请求: %w", err)
+		return fmt.Errorf("%w: %w", ErrExecuteRequest, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
-		return fmt.Errorf("下载失败: %s", resp.Status)
+	if resp.StatusCode != StatusOK && resp.StatusCode != StatusPartialContent {
+		return fmt.Errorf("%w: %s", ErrDownloadFailed, resp.Status)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-		return fmt.Errorf("创建目录: %w", err)
-	}
-
-	out, err := os.Create(destPath)
-	if err != nil {
-		return fmt.Errorf("创建文件: %w", err)
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, resp.Body); err != nil {
-		return fmt.Errorf("复制响应体: %w", err)
-	}
-	return nil
+	return saveResponseBody(resp, destPath, nil)
 }
 
 // ParseURL 解析 URL 字符串为组件。
 func ParseURL(rawURL string) (*URLInfo, error) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, fmt.Errorf("解析 url: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrParseURL, err)
 	}
 
 	queryParams := make(map[string]string, len(parsed.Query()))
@@ -269,7 +269,7 @@ func ParseURL(rawURL string) (*URLInfo, error) {
 func BuildURL(baseURL string, params map[string]string) (string, error) {
 	parsed, err := url.Parse(baseURL)
 	if err != nil {
-		return "", fmt.Errorf("解析基础 url: %w", err)
+		return "", fmt.Errorf("%w: %w", ErrParseURL, err)
 	}
 
 	query := parsed.Query()
@@ -291,30 +291,14 @@ func Request(client *http.Client, requestURL string, opts *RequestOptions) (*Res
 		opts = &RequestOptions{Method: "GET"}
 	}
 
-	var bodyReader io.Reader
-	if opts.Body != nil {
-		switch v := opts.Body.(type) {
-		case string:
-			bodyReader = strings.NewReader(v)
-		case []byte:
-			bodyReader = bytes.NewReader(v)
-		case io.Reader:
-			bodyReader = v
-		default:
-			jsonBody, jsonErr := json.Marshal(opts.Body)
-			if jsonErr != nil {
-				return nil, fmt.Errorf("序列化 body: %w", jsonErr)
-			}
-			bodyReader = bytes.NewReader(jsonBody)
-			if opts.ContentType == "" {
-				opts.ContentType = "application/json"
-			}
-		}
+	bodyReader, err := prepareBody(opts.Body, &opts.ContentType)
+	if err != nil {
+		return nil, err
 	}
 
 	req, err := http.NewRequest(opts.Method, requestURL, bodyReader)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateRequest, err)
 	}
 
 	if opts.ContentType != "" {
@@ -335,13 +319,13 @@ func Request(client *http.Client, requestURL string, opts *RequestOptions) (*Res
 func doRequest(client *http.Client, req *http.Request, _ *RequestOptions) (*Response, error) {
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("执行请求: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrExecuteRequest, err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("读取响应体: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrCopyResponse, err)
 	}
 
 	headers := make(map[string]string, len(resp.Header))
@@ -364,7 +348,7 @@ func GetJSON(client *http.Client, requestURL string, result interface{}) error {
 		return err
 	}
 	if err := json.Unmarshal([]byte(resp.Body), result); err != nil {
-		return fmt.Errorf("反序列化 json: %w", err)
+		return fmt.Errorf("%w: %w", ErrDeserializeJSON, err)
 	}
 	return nil
 }
@@ -377,7 +361,7 @@ func PostJSON(client *http.Client, requestURL string, body interface{}, result i
 	}
 	if result != nil {
 		if err := json.Unmarshal([]byte(resp.Body), result); err != nil {
-			return fmt.Errorf("反序列化 json: %w", err)
+			return fmt.Errorf("%w: %w", ErrDeserializeJSON, err)
 		}
 	}
 	return nil
@@ -390,7 +374,7 @@ func GetXML(client *http.Client, requestURL string, result interface{}) error {
 		return err
 	}
 	if err := xml.Unmarshal([]byte(resp.Body), result); err != nil {
-		return fmt.Errorf("反序列化 xml: %w", err)
+		return fmt.Errorf("%w: %w", ErrDeserializeXML, err)
 	}
 	return nil
 }
@@ -399,7 +383,7 @@ func GetXML(client *http.Client, requestURL string, result interface{}) error {
 func PostXML(client *http.Client, requestURL string, body interface{}, result interface{}) error {
 	xmlBody, err := xml.Marshal(body)
 	if err != nil {
-		return fmt.Errorf("序列化 xml: %w", err)
+		return fmt.Errorf("%w: %w", ErrSerializeXML, err)
 	}
 
 	resp, err := Post(client, requestURL, xmlBody, "application/xml")
@@ -408,7 +392,7 @@ func PostXML(client *http.Client, requestURL string, body interface{}, result in
 	}
 	if result != nil {
 		if err := xml.Unmarshal([]byte(resp.Body), result); err != nil {
-			return fmt.Errorf("反序列化 xml: %w", err)
+			return fmt.Errorf("%w: %w", ErrDeserializeXML, err)
 		}
 	}
 	return nil

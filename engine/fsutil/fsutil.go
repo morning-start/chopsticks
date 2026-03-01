@@ -2,10 +2,24 @@
 package fsutil
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+)
+
+// 文件权限常量
+const (
+	FilePerm0644 = 0644
+	FilePerm0755 = 0755
+)
+
+// 预定义错误变量
+var (
+	ErrReadSourceFile = errors.New("failed to read source file")
+	ErrWriteDestFile  = errors.New("failed to write destination file")
 )
 
 // Read 读取 path 处的整个文件并返回其内容为字符串。
@@ -16,15 +30,15 @@ func Read(path string) (string, error) {
 
 // Write 将 content 写入 path 处的文件，根据需要创建目录。
 func Write(path, content string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), FilePerm0755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(content), 0644)
+	return os.WriteFile(path, []byte(content), FilePerm0644)
 }
 
 // Append 将 content 追加到 path 处的文件，如果文件不存在则创建它。
 func Append(path, content string) error {
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, FilePerm0644)
 	if err != nil {
 		return err
 	}
@@ -35,7 +49,7 @@ func Append(path, content string) error {
 
 // Mkdir 创建目录及所有必要的父目录。
 func Mkdir(path string) error {
-	return os.MkdirAll(path, 0755)
+	return os.MkdirAll(path, FilePerm0755)
 }
 
 // Rmdir 删除目录及其所有内容。
@@ -94,15 +108,28 @@ func List(path string) ([]string, error) {
 	return entries, err
 }
 
-// Copy 将文件从 src 复制到 dst。
+// Copy 将文件从 src 复制到 dst，使用 io.Copy 优化大文件复制。
 func Copy(src, dst string) error {
-	data, err := os.ReadFile(src)
+	srcFile, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("读取源文件: %w", err)
+		return fmt.Errorf("%w: %w", ErrReadSourceFile, err)
 	}
-	if err := Write(dst, string(data)); err != nil {
-		return fmt.Errorf("写入目标文件: %w", err)
+	defer srcFile.Close()
+
+	if err := os.MkdirAll(filepath.Dir(dst), FilePerm0755); err != nil {
+		return fmt.Errorf("%w: %w", ErrWriteDestFile, err)
 	}
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrWriteDestFile, err)
+	}
+	defer dstFile.Close()
+
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return fmt.Errorf("%w: %w", ErrWriteDestFile, err)
+	}
+
 	return nil
 }
 
@@ -112,13 +139,14 @@ func Rename(oldPath, newPath string) error {
 }
 
 // FileInfo 文件信息结构体
+// 字段按内存对齐优化排序
 type FileInfo struct {
-	Name    string `json:"name"`     // 文件名
-	Size    int64  `json:"size"`     // 文件大小（字节）
-	IsDir   bool   `json:"isDir"`    // 是否为目录
-	IsFile  bool   `json:"isFile"`   // 是否为文件
-	ModTime int64  `json:"modTime"`  // 修改时间（Unix时间戳）
-	Mode    uint32 `json:"mode"`     // 权限模式
+	Size    int64  `json:"size"`    // 文件大小（字节）
+	ModTime int64  `json:"modTime"` // 修改时间（Unix时间戳）
+	Mode    uint32 `json:"mode"`    // 权限模式
+	Name    string `json:"name"`    // 文件名
+	IsDir   bool   `json:"isDir"`   // 是否为目录
+	IsFile  bool   `json:"isFile"`  // 是否为文件
 }
 
 // Stat 返回文件的详细信息
@@ -129,11 +157,11 @@ func Stat(path string) (*FileInfo, error) {
 	}
 
 	return &FileInfo{
-		Name:    info.Name(),
 		Size:    info.Size(),
-		IsDir:   info.IsDir(),
-		IsFile:  !info.IsDir(),
 		ModTime: info.ModTime().Unix(),
 		Mode:    uint32(info.Mode()),
+		Name:    info.Name(),
+		IsDir:   info.IsDir(),
+		IsFile:  !info.IsDir(),
 	}, nil
 }
