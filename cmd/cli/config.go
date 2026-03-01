@@ -35,6 +35,8 @@ var configGetCmd = &cobra.Command{
   global.apps_path      - 应用安装路径
   global.buckets_path   - 软件源路径
   global.cache_path     - 缓存路径
+  global.persist_path   - 持久化数据路径
+  global.shim_path      - 可执行文件shim路径
   global.storage_path   - 数据库路径
   global.parallel       - 并行下载数
   global.timeout        - 超时时间(秒)
@@ -118,6 +120,8 @@ var configGetters = map[string]map[string]configValueGetter{
 		"apps_path":    func(cfg *config.Config) (string, error) { return cfg.Global.AppsPath, nil },
 		"buckets_path": func(cfg *config.Config) (string, error) { return cfg.Global.BucketsPath, nil },
 		"cache_path":   func(cfg *config.Config) (string, error) { return cfg.Global.CachePath, nil },
+		"persist_path": func(cfg *config.Config) (string, error) { return cfg.Global.PersistPath, nil },
+		"shim_path":    func(cfg *config.Config) (string, error) { return cfg.Global.ShimPath, nil },
 		"storage_path": func(cfg *config.Config) (string, error) { return cfg.Global.StoragePath, nil },
 		"parallel":     func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Global.Parallel), nil },
 		"timeout":      func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Global.Timeout), nil },
@@ -153,6 +157,8 @@ var configSetters = map[string]map[string]configValueSetter{
 		"apps_path":    func(cfg *config.Config, v string) error { cfg.Global.AppsPath = v; return nil },
 		"buckets_path": func(cfg *config.Config, v string) error { cfg.Global.BucketsPath = v; return nil },
 		"cache_path":   func(cfg *config.Config, v string) error { cfg.Global.CachePath = v; return nil },
+		"persist_path": func(cfg *config.Config, v string) error { cfg.Global.PersistPath = v; return nil },
+		"shim_path":    func(cfg *config.Config, v string) error { cfg.Global.ShimPath = v; return nil },
 		"storage_path": func(cfg *config.Config, v string) error { cfg.Global.StoragePath = v; return nil },
 		"parallel": func(cfg *config.Config, v string) error {
 			i, err := strconv.Atoi(v)

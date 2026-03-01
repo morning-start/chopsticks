@@ -52,6 +52,8 @@ type GlobalConfig struct {
 	AppsPath    string `yaml:"apps_path" json:"apps_path"`
 	BucketsPath string `yaml:"buckets_path" json:"buckets_path"`
 	CachePath   string `yaml:"cache_path" json:"cache_path"`
+	PersistPath string `yaml:"persist_path" json:"persist_path"`
+	ShimPath    string `yaml:"shim_path" json:"shim_path"`
 	StoragePath string `yaml:"storage_path" json:"storage_path"`
 	Parallel    int    `yaml:"parallel" json:"parallel"`
 	Timeout     int    `yaml:"timeout" json:"timeout"`
@@ -183,6 +185,8 @@ func NewConfig(opts ...Option) *Config {
 			AppsPath:    filepath.Join(rootDir, "apps"),
 			BucketsPath: filepath.Join(rootDir, "buckets"),
 			CachePath:   filepath.Join(rootDir, "cache"),
+			PersistPath: filepath.Join(rootDir, "persist"),
+			ShimPath:    filepath.Join(rootDir, "shims"),
 			StoragePath: filepath.Join(rootDir, "data.db"),
 			Parallel:    DefaultParallel,
 			Timeout:     DefaultTimeout,
@@ -261,6 +265,18 @@ func Load(path string) (*Config, error) {
 
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	// 为缺失的路径字段设置默认值
+	rootDir := getRootDir()
+	if cfg.Global.CachePath == "" {
+		cfg.Global.CachePath = filepath.Join(rootDir, "cache")
+	}
+	if cfg.Global.PersistPath == "" {
+		cfg.Global.PersistPath = filepath.Join(rootDir, "persist")
+	}
+	if cfg.Global.ShimPath == "" {
+		cfg.Global.ShimPath = filepath.Join(rootDir, "shims")
 	}
 
 	if err := cfg.Validate(); err != nil {

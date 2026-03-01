@@ -25,7 +25,23 @@ func main() {
 	}
 }
 
+// isHelpOrVersionOnly 检查是否只请求 help 或 version
+func isHelpOrVersionOnly() bool {
+	for _, arg := range os.Args[1:] {
+		switch arg {
+		case "-h", "--help", "-v", "--version", "help", "version":
+			return true
+		}
+	}
+	return false
+}
+
 func run() error {
+	// 如果只请求 help 或 version，跳过应用初始化
+	if isHelpOrVersionOnly() {
+		return cli.Execute(context.Background(), nil)
+	}
+
 	// 加载用户配置
 	userCfg, err := config.LoadDefault()
 	if err != nil {
@@ -38,6 +54,8 @@ func run() error {
 		AppsPath:    userCfg.Global.AppsPath,
 		BucketsPath: userCfg.Global.BucketsPath,
 		CachePath:   userCfg.Global.CachePath,
+		PersistPath: userCfg.Global.PersistPath,
+		ShimPath:    userCfg.Global.ShimPath,
 		StoragePath: userCfg.Global.StoragePath,
 	}
 
