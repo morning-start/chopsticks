@@ -51,6 +51,7 @@ func configGetCommand() *cli.Command {
   buckets.default       - 默认软件源
   buckets.auto_update   - 是否自动更新软件源
   proxy.enable          - 是否启用代理
+  proxy.system          - 是否使用系统代理(从环境变量读取)
   proxy.http            - HTTP 代理地址
   proxy.https           - HTTPS 代理地址
   proxy.no_proxy        - 不代理的地址列表
@@ -62,13 +63,13 @@ func configGetCommand() *cli.Command {
   log.compress          - 是否压缩日志`,
 		Action: func(c *cli.Context) error {
 			if c.NArg() != 1 {
-				return fmt.Errorf("请指定配置项名称，例如: chopsticks config get global.parallel")
+				return fmt.Errorf("please specify config key, e.g., chopsticks config get global.parallel")
 			}
 
 			key := c.Args().First()
 			cfg, err := config.LoadDefault()
 			if err != nil {
-				return fmt.Errorf("加载配置失败: %w", err)
+				return fmt.Errorf("failed to load config: %w", err)
 			}
 
 			value, err := getConfigValue(cfg, key)
@@ -80,6 +81,47 @@ func configGetCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+// configValueGetter 配置值获取函数类型
+type configValueGetter func(*config.Config) (string, error)
+
+// configValueSetter 配置值设置函数类型
+type configValueSetter func(*config.Config, string) error
+
+// configGetters 配置获取器映射
+var configGetters = map[string]map[string]configValueGetter{
+	"global": {
+		"apps_path":    func(cfg *config.Config) (string, error) { return cfg.Global.AppsPath, nil },
+		"buckets_path": func(cfg *config.Config) (string, error) { return cfg.Global.BucketsPath, nil },
+		"cache_path":   func(cfg *config.Config) (string, error) { return cfg.Global.CachePath, nil },
+		"storage_path": func(cfg *config.Config) (string, error) { return cfg.Global.StoragePath, nil },
+		"parallel":     func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Global.Parallel), nil },
+		"timeout":      func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Global.Timeout), nil },
+		"retry":        func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Global.Retry), nil },
+		"no_confirm":   func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Global.NoConfirm), nil },
+		"color":        func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Global.Color), nil },
+		"verbose":      func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Global.Verbose), nil },
+	},
+	"buckets": {
+		"default":     func(cfg *config.Config) (string, error) { return cfg.Buckets.Default, nil },
+		"auto_update": func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Buckets.AutoUpdate), nil },
+	},
+	"proxy": {
+		"enable":   func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Proxy.Enable), nil },
+		"system":   func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Proxy.System), nil },
+		"http":     func(cfg *config.Config) (string, error) { return cfg.Proxy.HTTP, nil },
+		"https":    func(cfg *config.Config) (string, error) { return cfg.Proxy.HTTPS, nil },
+		"no_proxy": func(cfg *config.Config) (string, error) { return cfg.Proxy.NoProxy, nil },
+	},
+	"log": {
+		"level":       func(cfg *config.Config) (string, error) { return cfg.Log.Level, nil },
+		"file":        func(cfg *config.Config) (string, error) { return cfg.Log.File, nil },
+		"max_size":    func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Log.MaxSize), nil },
+		"max_backups": func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Log.MaxBackups), nil },
+		"max_age":     func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Log.MaxAge), nil },
+		"compress":    func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Log.Compress), nil },
+	},
 }
 
 // configSetCommand 返回配置设置子命令
@@ -101,7 +143,7 @@ func configSetCommand() *cli.Command {
 布尔值使用 true/false，多个值使用逗号分隔。`,
 		Action: func(c *cli.Context) error {
 			if c.NArg() != 2 {
-				return fmt.Errorf("请指定配置项名称和值，例如: chopsticks config set global.parallel 5")
+				return fmt.Errorf("please specify config key and value, e.g., chopsticks config set global.parallel 5")
 			}
 
 			key := c.Args().Get(0)
@@ -109,7 +151,7 @@ func configSetCommand() *cli.Command {
 
 			cfg, err := config.LoadDefault()
 			if err != nil {
-				return fmt.Errorf("加载配置失败: %w", err)
+				return fmt.Errorf("failed to load config: %w", err)
 			}
 
 			if err := setConfigValue(cfg, key, value); err != nil {
@@ -117,13 +159,139 @@ func configSetCommand() *cli.Command {
 			}
 
 			if err := config.SaveDefault(cfg); err != nil {
-				return fmt.Errorf("保存配置失败: %w", err)
+				return fmt.Errorf("failed to save config: %w", err)
 			}
 
-			output.Success("配置已更新: %s = %s", key, value)
+			output.Success("Config updated: %s = %s", key, value)
 			return nil
 		},
 	}
+}
+
+// configSetters 配置设置器映射
+var configSetters = map[string]map[string]configValueSetter{
+	"global": {
+		"apps_path":    func(cfg *config.Config, v string) error { cfg.Global.AppsPath = v; return nil },
+		"buckets_path": func(cfg *config.Config, v string) error { cfg.Global.BucketsPath = v; return nil },
+		"cache_path":   func(cfg *config.Config, v string) error { cfg.Global.CachePath = v; return nil },
+		"storage_path": func(cfg *config.Config, v string) error { cfg.Global.StoragePath = v; return nil },
+		"parallel": func(cfg *config.Config, v string) error {
+			i, err := strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("parallel must be an integer")
+			}
+			cfg.Global.Parallel = i
+			return nil
+		},
+		"timeout": func(cfg *config.Config, v string) error {
+			i, err := strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("timeout must be an integer")
+			}
+			cfg.Global.Timeout = i
+			return nil
+		},
+		"retry": func(cfg *config.Config, v string) error {
+			i, err := strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("retry must be an integer")
+			}
+			cfg.Global.Retry = i
+			return nil
+		},
+		"no_confirm": func(cfg *config.Config, v string) error {
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return fmt.Errorf("no_confirm must be true or false")
+			}
+			cfg.Global.NoConfirm = b
+			return nil
+		},
+		"color": func(cfg *config.Config, v string) error {
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return fmt.Errorf("color must be true or false")
+			}
+			cfg.Global.Color = b
+			return nil
+		},
+		"verbose": func(cfg *config.Config, v string) error {
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return fmt.Errorf("verbose must be true or false")
+			}
+			cfg.Global.Verbose = b
+			return nil
+		},
+	},
+	"buckets": {
+		"default": func(cfg *config.Config, v string) error { cfg.Buckets.Default = v; return nil },
+		"auto_update": func(cfg *config.Config, v string) error {
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return fmt.Errorf("auto_update must be true or false")
+			}
+			cfg.Buckets.AutoUpdate = b
+			return nil
+		},
+	},
+	"proxy": {
+		"enable": func(cfg *config.Config, v string) error {
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return fmt.Errorf("enable must be true or false")
+			}
+			cfg.Proxy.Enable = b
+			return nil
+		},
+		"system": func(cfg *config.Config, v string) error {
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return fmt.Errorf("system must be true or false")
+			}
+			cfg.Proxy.System = b
+			return nil
+		},
+		"http":     func(cfg *config.Config, v string) error { cfg.Proxy.HTTP = v; return nil },
+		"https":    func(cfg *config.Config, v string) error { cfg.Proxy.HTTPS = v; return nil },
+		"no_proxy": func(cfg *config.Config, v string) error { cfg.Proxy.NoProxy = v; return nil },
+	},
+	"log": {
+		"level": func(cfg *config.Config, v string) error { cfg.Log.Level = v; return nil },
+		"file":  func(cfg *config.Config, v string) error { cfg.Log.File = v; return nil },
+		"max_size": func(cfg *config.Config, v string) error {
+			i, err := strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("max_size must be an integer")
+			}
+			cfg.Log.MaxSize = i
+			return nil
+		},
+		"max_backups": func(cfg *config.Config, v string) error {
+			i, err := strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("max_backups must be an integer")
+			}
+			cfg.Log.MaxBackups = i
+			return nil
+		},
+		"max_age": func(cfg *config.Config, v string) error {
+			i, err := strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("max_age must be an integer")
+			}
+			cfg.Log.MaxAge = i
+			return nil
+		},
+		"compress": func(cfg *config.Config, v string) error {
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return fmt.Errorf("compress must be true or false")
+			}
+			cfg.Log.Compress = b
+			return nil
+		},
+	},
 }
 
 // configListCommand 返回配置列子命令
@@ -148,11 +316,11 @@ func configListCommand() *cli.Command {
 			} else {
 				cfg, err = config.LoadDefault()
 				if err != nil {
-					return fmt.Errorf("加载配置失败: %w", err)
+					return fmt.Errorf("failed to load config: %w", err)
 				}
 			}
 
-			fmt.Println("全局配置:")
+			fmt.Println("Global Config:")
 			fmt.Printf("  apps_path:      %s\n", cfg.Global.AppsPath)
 			fmt.Printf("  buckets_path:   %s\n", cfg.Global.BucketsPath)
 			fmt.Printf("  cache_path:     %s\n", cfg.Global.CachePath)
@@ -164,7 +332,7 @@ func configListCommand() *cli.Command {
 			fmt.Printf("  color:          %t\n", cfg.Global.Color)
 			fmt.Printf("  verbose:        %t\n", cfg.Global.Verbose)
 
-			fmt.Println("\n软件源配置:")
+			fmt.Println("\nBucket Config:")
 			fmt.Printf("  default:        %s\n", cfg.Buckets.Default)
 			fmt.Printf("  auto_update:    %t\n", cfg.Buckets.AutoUpdate)
 			if len(cfg.Buckets.Mirrors) > 0 {
@@ -174,18 +342,26 @@ func configListCommand() *cli.Command {
 				}
 			}
 
-			fmt.Println("\n代理配置:")
+			fmt.Println("\nProxy Config:")
 			fmt.Printf("  enable:         %t\n", cfg.Proxy.Enable)
+			fmt.Printf("  system:         %t\n", cfg.Proxy.System)
 			fmt.Printf("  http:           %s\n", cfg.Proxy.HTTP)
 			fmt.Printf("  https:          %s\n", cfg.Proxy.HTTPS)
 			fmt.Printf("  no_proxy:       %s\n", cfg.Proxy.NoProxy)
+			if cfg.Proxy.Enable && cfg.Proxy.System {
+				httpProxy, httpsProxy, noProxy := cfg.Proxy.GetEffectiveProxy()
+				fmt.Println("  effective:")
+				fmt.Printf("    http:         %s\n", httpProxy)
+				fmt.Printf("    https:        %s\n", httpsProxy)
+				fmt.Printf("    no_proxy:     %s\n", noProxy)
+			}
 
-			fmt.Println("\n日志配置:")
+			fmt.Println("\nLog Config:")
 			fmt.Printf("  level:          %s\n", cfg.Log.Level)
 			fmt.Printf("  file:           %s\n", cfg.Log.File)
 			fmt.Printf("  max_size:       %d MB\n", cfg.Log.MaxSize)
 			fmt.Printf("  max_backups:    %d\n", cfg.Log.MaxBackups)
-			fmt.Printf("  max_age:        %d 天\n", cfg.Log.MaxAge)
+			fmt.Printf("  max_age:        %d days\n", cfg.Log.MaxAge)
 			fmt.Printf("  compress:       %t\n", cfg.Log.Compress)
 
 			return nil
@@ -213,21 +389,21 @@ func configInitCommand() *cli.Command {
 
 			// 检查文件是否已存在
 			if _, err := os.Stat(configPath); err == nil && !c.Bool("force") {
-				return fmt.Errorf("配置文件已存在: %s\n使用 --force 覆盖", configPath)
+				return fmt.Errorf("config file already exists: %s\nuse --force to overwrite", configPath)
 			}
 
 			// 确保配置目录存在
 			if err := config.EnsureConfigDir(); err != nil {
-				return fmt.Errorf("创建配置目录失败: %w", err)
+				return fmt.Errorf("failed to create config directory: %w", err)
 			}
 
 			// 创建默认配置
 			cfg := config.DefaultConfig()
 			if err := config.SaveDefault(cfg); err != nil {
-				return fmt.Errorf("保存配置失败: %w", err)
+				return fmt.Errorf("failed to save config: %w", err)
 			}
 
-			output.Success("配置文件已创建: %s", configPath)
+			output.Success("Config file created: %s", configPath)
 			return nil
 		},
 	}
@@ -251,208 +427,42 @@ func configPathCommand() *cli.Command {
 func getConfigValue(cfg *config.Config, key string) (string, error) {
 	parts := strings.Split(key, ".")
 	if len(parts) != 2 {
-		return "", fmt.Errorf("配置项格式错误，应为: section.key")
+		return "", fmt.Errorf("invalid config key format, expected: section.key")
 	}
 
-	section := parts[0]
-	name := parts[1]
+	section, name := parts[0], parts[1]
 
-	switch section {
-	case "global":
-		switch name {
-		case "apps_path":
-			return cfg.Global.AppsPath, nil
-		case "buckets_path":
-			return cfg.Global.BucketsPath, nil
-		case "cache_path":
-			return cfg.Global.CachePath, nil
-		case "storage_path":
-			return cfg.Global.StoragePath, nil
-		case "parallel":
-			return strconv.Itoa(cfg.Global.Parallel), nil
-		case "timeout":
-			return strconv.Itoa(cfg.Global.Timeout), nil
-		case "retry":
-			return strconv.Itoa(cfg.Global.Retry), nil
-		case "no_confirm":
-			return strconv.FormatBool(cfg.Global.NoConfirm), nil
-		case "color":
-			return strconv.FormatBool(cfg.Global.Color), nil
-		case "verbose":
-			return strconv.FormatBool(cfg.Global.Verbose), nil
-		default:
-			return "", fmt.Errorf("未知的配置项: global.%s", name)
-		}
-	case "buckets":
-		switch name {
-		case "default":
-			return cfg.Buckets.Default, nil
-		case "auto_update":
-			return strconv.FormatBool(cfg.Buckets.AutoUpdate), nil
-		default:
-			return "", fmt.Errorf("未知的配置项: buckets.%s", name)
-		}
-	case "proxy":
-		switch name {
-		case "enable":
-			return strconv.FormatBool(cfg.Proxy.Enable), nil
-		case "http":
-			return cfg.Proxy.HTTP, nil
-		case "https":
-			return cfg.Proxy.HTTPS, nil
-		case "no_proxy":
-			return cfg.Proxy.NoProxy, nil
-		default:
-			return "", fmt.Errorf("未知的配置项: proxy.%s", name)
-		}
-	case "log":
-		switch name {
-		case "level":
-			return cfg.Log.Level, nil
-		case "file":
-			return cfg.Log.File, nil
-		case "max_size":
-			return strconv.Itoa(cfg.Log.MaxSize), nil
-		case "max_backups":
-			return strconv.Itoa(cfg.Log.MaxBackups), nil
-		case "max_age":
-			return strconv.Itoa(cfg.Log.MaxAge), nil
-		case "compress":
-			return strconv.FormatBool(cfg.Log.Compress), nil
-		default:
-			return "", fmt.Errorf("未知的配置项: log.%s", name)
-		}
-	default:
-		return "", fmt.Errorf("未知的配置段: %s", section)
+	sectionMap, ok := configGetters[section]
+	if !ok {
+		return "", fmt.Errorf("unknown config section: %s", section)
 	}
+
+	getter, ok := sectionMap[name]
+	if !ok {
+		return "", fmt.Errorf("unknown config key: %s.%s", section, name)
+	}
+
+	return getter(cfg)
 }
 
 // setConfigValue 设置配置项的值
 func setConfigValue(cfg *config.Config, key, value string) error {
 	parts := strings.Split(key, ".")
 	if len(parts) != 2 {
-		return fmt.Errorf("配置项格式错误，应为: section.key")
+		return fmt.Errorf("invalid config key format, expected: section.key")
 	}
 
-	section := parts[0]
-	name := parts[1]
+	section, name := parts[0], parts[1]
 
-	switch section {
-	case "global":
-		switch name {
-		case "apps_path":
-			cfg.Global.AppsPath = value
-		case "buckets_path":
-			cfg.Global.BucketsPath = value
-		case "cache_path":
-			cfg.Global.CachePath = value
-		case "storage_path":
-			cfg.Global.StoragePath = value
-		case "parallel":
-			v, err := strconv.Atoi(value)
-			if err != nil {
-				return fmt.Errorf("parallel 必须是整数")
-			}
-			cfg.Global.Parallel = v
-		case "timeout":
-			v, err := strconv.Atoi(value)
-			if err != nil {
-				return fmt.Errorf("timeout 必须是整数")
-			}
-			cfg.Global.Timeout = v
-		case "retry":
-			v, err := strconv.Atoi(value)
-			if err != nil {
-				return fmt.Errorf("retry 必须是整数")
-			}
-			cfg.Global.Retry = v
-		case "no_confirm":
-			v, err := strconv.ParseBool(value)
-			if err != nil {
-				return fmt.Errorf("no_confirm 必须是 true 或 false")
-			}
-			cfg.Global.NoConfirm = v
-		case "color":
-			v, err := strconv.ParseBool(value)
-			if err != nil {
-				return fmt.Errorf("color 必须是 true 或 false")
-			}
-			cfg.Global.Color = v
-		case "verbose":
-			v, err := strconv.ParseBool(value)
-			if err != nil {
-				return fmt.Errorf("verbose 必须是 true 或 false")
-			}
-			cfg.Global.Verbose = v
-		default:
-			return fmt.Errorf("未知的配置项: global.%s", name)
-		}
-	case "buckets":
-		switch name {
-		case "default":
-			cfg.Buckets.Default = value
-		case "auto_update":
-			v, err := strconv.ParseBool(value)
-			if err != nil {
-				return fmt.Errorf("auto_update 必须是 true 或 false")
-			}
-			cfg.Buckets.AutoUpdate = v
-		default:
-			return fmt.Errorf("未知的配置项: buckets.%s", name)
-		}
-	case "proxy":
-		switch name {
-		case "enable":
-			v, err := strconv.ParseBool(value)
-			if err != nil {
-				return fmt.Errorf("enable 必须是 true 或 false")
-			}
-			cfg.Proxy.Enable = v
-		case "http":
-			cfg.Proxy.HTTP = value
-		case "https":
-			cfg.Proxy.HTTPS = value
-		case "no_proxy":
-			cfg.Proxy.NoProxy = value
-		default:
-			return fmt.Errorf("未知的配置项: proxy.%s", name)
-		}
-	case "log":
-		switch name {
-		case "level":
-			cfg.Log.Level = value
-		case "file":
-			cfg.Log.File = value
-		case "max_size":
-			v, err := strconv.Atoi(value)
-			if err != nil {
-				return fmt.Errorf("max_size 必须是整数")
-			}
-			cfg.Log.MaxSize = v
-		case "max_backups":
-			v, err := strconv.Atoi(value)
-			if err != nil {
-				return fmt.Errorf("max_backups 必须是整数")
-			}
-			cfg.Log.MaxBackups = v
-		case "max_age":
-			v, err := strconv.Atoi(value)
-			if err != nil {
-				return fmt.Errorf("max_age 必须是整数")
-			}
-			cfg.Log.MaxAge = v
-		case "compress":
-			v, err := strconv.ParseBool(value)
-			if err != nil {
-				return fmt.Errorf("compress 必须是 true 或 false")
-			}
-			cfg.Log.Compress = v
-		default:
-			return fmt.Errorf("未知的配置项: log.%s", name)
-		}
-	default:
-		return fmt.Errorf("未知的配置段: %s", section)
+	sectionMap, ok := configSetters[section]
+	if !ok {
+		return fmt.Errorf("unknown config section: %s", section)
 	}
 
-	return nil
+	setter, ok := sectionMap[name]
+	if !ok {
+		return fmt.Errorf("unknown config key: %s.%s", section, name)
+	}
+
+	return setter(cfg, value)
 }
