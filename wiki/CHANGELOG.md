@@ -7,6 +7,59 @@
 
 ---
 
+## [0.10.0-alpha] - 2026-03-01
+
+### Changed
+
+- **CLI 框架迁移** - 从 urfave/cli/v2 迁移到 spf13/cobra
+  - 迁移所有 10 个主命令到 Cobra
+  - 迁移所有 19 个子命令到 Cobra
+  - 保留所有命令别名和标志
+  - 更好的生态工具支持（自动生成补全、文档）
+  - 为未来 TUI 集成做准备
+
+- **颜色输出库迁移** - 从 fatih/color 迁移到 charmbracelet/lipgloss
+  - 使用 HEX 颜色定义，更现代化的 API
+  - 支持更好的跨平台终端颜色渲染
+  - 为未来 TUI 功能打下基础
+
+- **依赖库升级**
+  - YAML 解析库从 gopkg.in/yaml.v3 升级到 github.com/goccy/go-yaml
+  - lumberjack 从 gopkg.in 迁移到 GitHub 版本
+  - 移除未使用的 gopher-lua 依赖
+
+### Removed
+
+- **移除 urfave/cli/v2 依赖** - 完全迁移到 Cobra
+- **移除 fatih/color 依赖** - 完全迁移到 Lipgloss
+- **移除 gopher-lua 依赖** - 清理未使用的依赖
+
+---
+
+## [0.9.0-alpha] - 2026-03-01
+
+### Added
+
+- **代码质量工具** - 配置 golangci-lint
+  - 添加 .golangci.yml 配置文件
+  - 启用 revive, copyloopvar 等现代 linter
+  - 提升代码质量和一致性
+
+### Changed
+
+- **接口命名优化** - 重命名 Manager 接口避免冲突
+  - 将 core/app.Manager 重命名为 AppManager
+  - 将 core/bucket.Manager 重命名为 BucketManager
+  - 删除 core/install 包中的重复 Installer 接口
+  - 提高代码可读性
+
+### Fixed
+
+- 修复 Manager 接口重命名后的引用错误
+- 修复 core/app/install.go 中的未使用变量问题
+
+---
+
 ## [0.8.0-alpha] - 2026-03-01
 
 ### Added
@@ -337,7 +390,9 @@
 | 0.6.0-alpha | 2026-02-28 | ✅ 已发布 | 功能完善      |
 | 0.7.0-alpha | 2026-02-28 | ✅ 已发布 | 架构精简      |
 | 0.8.0-alpha | 2026-03-01 | ✅ 已发布 | 性能优化      |
-| 0.9.0-beta  | 2026-03-14 | ⏳ 计划中 | 稳定化        |
+| 0.9.0-alpha | 2026-03-01 | ✅ 已发布 | 代码质量      |
+| 0.10.0-alpha | 2026-03-01 | ✅ 已发布 | CLI 框架迁移  |
+| 0.11.0-beta | 2026-03-14 | ⏳ 计划中 | 稳定化        |
 | 1.0.0       | 2026-04-11 | ⏳ 计划中 | 正式版本      |
 
 ---
