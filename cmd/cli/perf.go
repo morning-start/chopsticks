@@ -10,6 +10,13 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// ANSI 转义序列常量
+const (
+	ansiClearScreen   = "\033[H\033[2J"
+	ansiMoveCursorFmt = "\033[%d;%dH"
+	ansiClearBelow    = "\033[J"
+)
+
 // PerfCommand 性能监控命令
 var PerfCommand = &cli.Command{
 	Name:  "perf",
@@ -62,7 +69,7 @@ func perfMonitorAction(c *cli.Context) error {
 	}
 
 	output.Infoln("========================================")
-	output.Infoln("性能监控 - 按 Ctrl+C 退出")
+	output.Infoln("Performance Monitor - Press Ctrl+C to exit")
 	output.Infoln("========================================")
 	fmt.Println()
 
@@ -94,7 +101,7 @@ func perfReportAction(c *cli.Context) error {
 	}
 
 	output.Infoln("========================================")
-	output.Infof("开始收集性能数据 (%d 秒)...\n", duration)
+	output.Infof("Collecting performance data (%d seconds)...\n", duration)
 	output.Infoln("========================================")
 
 	// 初始化指标收集
@@ -109,13 +116,13 @@ func perfReportAction(c *cli.Context) error {
 	snapshots := history.GetAll()
 
 	if len(snapshots) == 0 {
-		output.Warningln("没有收集到性能数据")
+		output.Warningln("No performance data collected")
 		return nil
 	}
 
 	fmt.Println()
 	output.Infoln("========================================")
-	output.Infoln("性能报告")
+	output.Infoln("Performance Report")
 	output.Infoln("========================================")
 
 	// 计算统计数据
@@ -140,32 +147,32 @@ func perfReportAction(c *cli.Context) error {
 	avgDownloadSpeed := totalDownloadSpeed / float64(count)
 
 	// 显示统计
-	output.Successf("监控时长: %d 秒\n", duration)
-	output.Successf("数据点: %d\n", count)
+	output.Successf("Monitor duration: %d seconds\n", duration)
+	output.Successf("Data points: %d\n", count)
 	fmt.Println()
 
-	output.Highlightln("任务统计:")
-	output.Dimf("  总任务数: %d\n", totalTasks)
-	output.Dimf("  完成任务: %d\n", completedTasks)
-	output.Dimf("  失败任务: %d\n", failedTasks)
+	output.Highlightln("Task Statistics:")
+	output.Dimf("  Total tasks: %d\n", totalTasks)
+	output.Dimf("  Completed: %d\n", completedTasks)
+	output.Dimf("  Failed: %d\n", failedTasks)
 	if totalTasks > 0 {
 		successRate := float64(completedTasks) / float64(totalTasks) * 100
-		output.Dimf("  成功率: %.1f%%\n", successRate)
+		output.Dimf("  Success rate: %.1f%%\n", successRate)
 	}
 	fmt.Println()
 
-	output.Highlightln("资源使用:")
-	output.Dimf("  平均内存: %.2f MB\n", avgMemory)
-	output.Dimf("  最大 Goroutines: %d\n", maxGoroutines)
+	output.Highlightln("Resource Usage:")
+	output.Dimf("  Avg memory: %.2f MB\n", avgMemory)
+	output.Dimf("  Max goroutines: %d\n", maxGoroutines)
 	fmt.Println()
 
-	output.Highlightln("下载统计:")
-	output.Dimf("  平均下载速度: %.2f MB/s\n", avgDownloadSpeed)
+	output.Highlightln("Download Statistics:")
+	output.Dimf("  Avg download speed: %.2f MB/s\n", avgDownloadSpeed)
 	fmt.Println()
 
 	// 显示最新指标
 	latest := snapshots[len(snapshots)-1].Metrics
-	output.Highlightln("当前指标:")
+	output.Highlightln("Current Metrics:")
 	printMetricsDetail(latest)
 
 	return nil
@@ -176,7 +183,7 @@ func perfStatusAction(c *cli.Context) error {
 	m := metrics.GetMetrics()
 
 	output.Infoln("========================================")
-	output.Infoln("当前性能状态")
+	output.Infoln("Current Performance Status")
 	output.Infoln("========================================")
 	fmt.Println()
 
@@ -190,29 +197,30 @@ func perfJSPoolAction(c *cli.Context) error {
 	m := metrics.GetMetrics()
 
 	output.Infoln("========================================")
-	output.Infoln("JS 引擎池状态")
+	output.Infoln("JS Engine Pool Status")
 	output.Infoln("========================================")
 	fmt.Println()
 
-	output.Highlightln("池信息:")
-	output.Dimf("  池大小: %d\n", m.JSPoolSize)
-	output.Dimf("  活跃引擎: %d\n", m.JSPoolActive)
-	output.Dimf("  空闲引擎: %d\n", m.JSPoolSize-m.JSPoolActive)
-	output.Dimf("  利用率: %.1f%%\n", m.JSPoolUtilization)
+	output.Highlightln("Pool Info:")
+	output.Dimf("  Pool size: %d\n", m.JSPoolSize)
+	output.Dimf("  Active engines: %d\n", m.JSPoolActive)
+	output.Dimf("  Idle engines: %d\n", m.JSPoolSize-m.JSPoolActive)
+	output.Dimf("  Utilization: %.1f%%\n", m.JSPoolUtilization)
 	fmt.Println()
 
-	output.Highlightln("缓存信息:")
-	output.Dimf("  缓存大小: %d\n", m.JSCacheSize)
-	output.Dimf("  缓存命中率: %.1f%%\n", m.JSCacheHitRate)
+	output.Highlightln("Cache Info:")
+	output.Dimf("  Cache size: %d\n", m.JSCacheSize)
+	output.Dimf("  Cache hit rate: %.1f%%\n", m.JSCacheHitRate)
 	fmt.Println()
 
 	// 健康状态
-	if m.JSPoolUtilization > 90 {
-		output.Warningln("警告: JS 池利用率过高")
-	} else if m.JSPoolUtilization < 10 && m.JSPoolSize > 0 {
-		output.Dimln("提示: JS 池利用率较低，可考虑减小池大小")
-	} else {
-		output.Successln("JS 池状态良好")
+	switch {
+	case m.JSPoolUtilization > highUtilizationThreshold:
+		output.Warningln("Warning: JS pool utilization is too high")
+	case m.JSPoolUtilization < lowUtilizationThreshold && m.JSPoolSize > 0:
+		output.Dimln("Tip: JS pool utilization is low, consider reducing pool size")
+	default:
+		output.Successln("JS pool status is healthy")
 	}
 
 	return nil
@@ -220,8 +228,8 @@ func perfJSPoolAction(c *cli.Context) error {
 
 // printMonitorHeader 打印监控表头
 func printMonitorHeader() {
-	fmt.Println("时间        任务    内存(MB)  Goroutines  下载速度(MB/s)  JS池利用")
-	fmt.Println("----------  ------  --------  ----------  --------------  --------")
+	fmt.Println("Time       Tasks   Memory(MB) Goroutines  Download(MB/s)  JSPool%")
+	fmt.Println("---------- ------  ---------- ----------  --------------  --------")
 }
 
 // printMetrics 打印指标
@@ -241,47 +249,47 @@ func printMetrics() {
 
 // printMetricsDetail 打印详细指标
 func printMetricsDetail(m metrics.PerformanceMetrics) {
-	output.Highlightln("任务指标:")
-	output.Dimf("  进行中: %d\n", m.TaskInProgress)
-	output.Dimf("  已完成: %d\n", m.CompletedTasks)
-	output.Dimf("  失败: %d\n", m.FailedTasks)
-	output.Dimf("  提交速率: %.2f 任务/秒\n", m.TaskSubmitRate)
-	output.Dimf("  完成速率: %.2f 任务/秒\n", m.TaskCompleteRate)
+	output.Highlightln("Task Metrics:")
+	output.Dimf("  In progress: %d\n", m.TaskInProgress)
+	output.Dimf("  Completed: %d\n", m.CompletedTasks)
+	output.Dimf("  Failed: %d\n", m.FailedTasks)
+	output.Dimf("  Submit rate: %.2f tasks/sec\n", m.TaskSubmitRate)
+	output.Dimf("  Complete rate: %.2f tasks/sec\n", m.TaskCompleteRate)
 	fmt.Println()
 
-	output.Highlightln("资源使用:")
-	output.Dimf("  内存: %.2f MB\n", m.MemoryUsage)
+	output.Highlightln("Resource Usage:")
+	output.Dimf("  Memory: %.2f MB\n", m.MemoryUsage)
 	output.Dimf("  Goroutines: %d\n", m.GoroutineCount)
-	output.Dimf("  GC 次数: %d\n", m.NumGC)
+	output.Dimf("  GC count: %d\n", m.NumGC)
 	fmt.Println()
 
-	output.Highlightln("下载指标:")
-	output.Dimf("  活跃下载: %d\n", m.ActiveDownloads)
-	output.Dimf("  下载速度: %.2f MB/s\n", m.DownloadSpeed)
-	output.Dimf("  下载错误: %d\n", m.DownloadErrors)
+	output.Highlightln("Download Metrics:")
+	output.Dimf("  Active downloads: %d\n", m.ActiveDownloads)
+	output.Dimf("  Download speed: %.2f MB/s\n", m.DownloadSpeed)
+	output.Dimf("  Download errors: %d\n", m.DownloadErrors)
 	fmt.Println()
 
-	output.Highlightln("搜索指标:")
-	output.Dimf("  活跃搜索: %d\n", m.ActiveSearches)
-	output.Dimf("  缓存命中率: %.1f%%\n", m.SearchCacheHitRate)
+	output.Highlightln("Search Metrics:")
+	output.Dimf("  Active searches: %d\n", m.ActiveSearches)
+	output.Dimf("  Cache hit rate: %.1f%%\n", m.SearchCacheHitRate)
 	fmt.Println()
 
-	output.Highlightln("安装指标:")
-	output.Dimf("  活跃安装: %d\n", m.ActiveInstalls)
-	output.Dimf("  队列大小: %d\n", m.InstallQueueSize)
+	output.Highlightln("Install Metrics:")
+	output.Dimf("  Active installs: %d\n", m.ActiveInstalls)
+	output.Dimf("  Queue size: %d\n", m.InstallQueueSize)
 }
 
 // clearScreen 清屏
 func clearScreen() {
-	fmt.Print("\033[H\033[2J")
+	fmt.Print(ansiClearScreen)
 }
 
 // moveCursor 移动光标
 func moveCursor(row, col int) {
-	fmt.Printf("\033[%d;%dH", row, col)
+	fmt.Printf(ansiMoveCursorFmt, row, col)
 }
 
 // clearBelow 清除光标下方内容
 func clearBelow() {
-	fmt.Print("\033[J")
+	fmt.Print(ansiClearBelow)
 }

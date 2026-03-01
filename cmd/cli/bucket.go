@@ -47,11 +47,11 @@ func bucketInitCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:  "js",
-				Usage: "使用 JavaScript 模板",
+				Usage: "Use JavaScript template",
 			},
 			&cli.BoolFlag{
 				Name:  "lua",
-				Usage: "使用 Lua 模板",
+				Usage: "Use Lua template",
 			},
 			&cli.StringFlag{
 				Name:  "dir",
@@ -165,8 +165,8 @@ func bucketUpdateCommand() *cli.Command {
 // bucketInitAction 处理 bucket init 命令。
 func bucketInitAction(c *cli.Context) error {
 	if c.NArg() < 1 {
-		output.Errorln("错误: 缺少 Bucket 名称")
-		output.Dimln("用法: chopsticks bucket init <name>")
+		output.Errorln("Error: missing bucket name")
+		output.Dimln("Usage: chopsticks bucket init <name>")
 		return cli.Exit("", 1)
 	}
 
@@ -184,19 +184,19 @@ func bucketInitAction(c *cli.Context) error {
 		targetDir = name
 	}
 
-	output.Infof("初始化 Bucket: ")
+	output.Infof("Initializing Bucket: ")
 	output.Highlight("%s", name)
 	output.Dimf(" (%s)\n", map[string]string{"js": "JavaScript", "lua": "Lua"}[templateType])
 
 	// 这里应该调用实际的模板复制逻辑
 	// 暂时使用简化的实现
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		output.ErrorCrossf("创建目录失败: %v", err)
+		output.ErrorCrossf("Failed to create directory: %v", err)
 		return cli.Exit("", 1)
 	}
 
-	output.SuccessCheckf("Bucket %s 初始化完成", name)
-	output.Highlightln("\n下一步:")
+	output.SuccessCheckf("Bucket %s initialized", name)
+	output.Highlightln("\nNext steps:")
 	output.Dimf("  cd %s\n", targetDir)
 	if templateType != "lua" {
 		output.Dimln("  npm install")
@@ -208,8 +208,8 @@ func bucketInitAction(c *cli.Context) error {
 // bucketCreateAction 处理 bucket create 命令。
 func bucketCreateAction(c *cli.Context) error {
 	if c.NArg() < 1 {
-		output.Errorln("错误: 缺少应用名称")
-		output.Dimln("用法: chopsticks bucket create <app-name>")
+		output.Errorln("Error: missing app name")
+		output.Dimln("Usage: chopsticks bucket create <app-name>")
 		return cli.Exit("", 1)
 	}
 
@@ -229,15 +229,15 @@ func bucketCreateAction(c *cli.Context) error {
 		filepath.Join(targetDir, "tests"),
 	}
 
-	output.Infof("创建 App 模板: ")
+	output.Infof("Creating App template: ")
 	output.Highlightln(name)
 
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			output.ErrorCrossf("创建目录失败: %v", err)
+			output.ErrorCrossf("Failed to create directory: %v", err)
 			return cli.Exit("", 1)
 		}
-		output.Dimf("  创建目录: %s\n", dir)
+		output.Dimf("  Created directory: %s\n", dir)
 	}
 
 	// 创建 manifest.yaml
@@ -295,10 +295,10 @@ env:
 
 	manifestPath := filepath.Join(targetDir, "manifest.yaml")
 	if err := os.WriteFile(manifestPath, []byte(manifestContent), 0644); err != nil {
-		output.ErrorCrossf("创建清单文件失败: %v", err)
+		output.ErrorCrossf("Failed to create manifest file: %v", err)
 		return cli.Exit("", 1)
 	}
-	output.Dimf("  创建文件: %s\n", manifestPath)
+	output.Dimf("  Created file: %s\n", manifestPath)
 
 	// 创建 README.md
 	readmeContent := fmt.Sprintf(`# %s
@@ -317,10 +317,10 @@ env:
 
 	readmePath := filepath.Join(targetDir, "README.md")
 	if err := os.WriteFile(readmePath, []byte(readmeContent), 0644); err != nil {
-		output.ErrorCrossf("创建说明文件失败: %v", err)
+		output.ErrorCrossf("Failed to create README file: %v", err)
 		return cli.Exit("", 1)
 	}
-	output.Dimf("  创建文件: %s\n", readmePath)
+	output.Dimf("  Created file: %s\n", readmePath)
 
 	// 创建安装脚本
 	scriptContent := fmt.Sprintf(`// %s 安装脚本
@@ -360,23 +360,23 @@ function postUninstall() {
 
 	scriptPath := filepath.Join(targetDir, "scripts", "install.js")
 	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0644); err != nil {
-		output.ErrorCrossf("创建脚本文件失败: %v", err)
+		output.ErrorCrossf("Failed to create script file: %v", err)
 		return cli.Exit("", 1)
 	}
-	output.Dimf("  创建文件: %s\n", scriptPath)
+	output.Dimf("  Created file: %s\n", scriptPath)
 
-	output.SuccessCheckf("App %s 模板创建完成", name)
-	output.Highlightln("\n下一步:")
-	output.Dimln("  编辑 manifest.yaml 添加软件包信息")
-	output.Dimln("  编辑 scripts/install.js 添加安装逻辑")
+	output.SuccessCheckf("App %s template created", name)
+	output.Highlightln("\nNext steps:")
+	output.Dimln("  Edit manifest.yaml to add package info")
+	output.Dimln("  Edit scripts/install.js to add installation logic")
 	return nil
 }
 
 // bucketAddAction 处理 bucket add 命令。
 func bucketAddAction(c *cli.Context) error {
 	if c.NArg() < 2 {
-		output.Errorln("错误: 缺少参数")
-		output.Dimln("用法: chopsticks bucket add <name> <url>")
+		output.Errorln("Error: missing arguments")
+		output.Dimln("Usage: chopsticks bucket add <name> <url>")
 		return cli.Exit("", 1)
 	}
 
@@ -388,11 +388,11 @@ func bucketAddAction(c *cli.Context) error {
 		Branch: branch,
 	}
 
-	output.Infof("添加软件源: ")
+	output.Infof("Adding bucket: ")
 	output.Highlightln(name)
 	output.Dimf("  URL: %s\n", url)
 	if opts.Branch != "" {
-		output.Dimf("  分支: %s\n", opts.Branch)
+		output.Dimf("  Branch: %s\n", opts.Branch)
 	}
 	fmt.Println()
 
@@ -400,31 +400,31 @@ func bucketAddAction(c *cli.Context) error {
 	application := getApp()
 
 	if err := application.BucketManager().Add(ctx, name, url, opts); err != nil {
-		output.ErrorCrossf("添加软件源失败: %v", err)
+		output.ErrorCrossf("Failed to add bucket: %v", err)
 		return cli.Exit("", 1)
 	}
 
-	output.SuccessCheckf("软件源 %s 添加成功", name)
-	output.Highlightln("\n下一步:")
-	output.Dimln("  chopsticks search <应用名>")
+	output.SuccessCheckf("Bucket %s added successfully", name)
+	output.Highlightln("\nNext steps:")
+	output.Dimln("  chopsticks search <app-name>")
 	return nil
 }
 
 // bucketRemoveAction 处理 bucket remove 命令。
 func bucketRemoveAction(c *cli.Context) error {
 	if c.NArg() < 1 {
-		output.Errorln("错误: 缺少软件源名称")
-		output.Dimln("用法: chopsticks bucket remove <name>")
+		output.Errorln("Error: missing bucket name")
+		output.Dimln("Usage: chopsticks bucket remove <name>")
 		return cli.Exit("", 1)
 	}
 
 	name := c.Args().First()
 	purge := c.Bool("purge")
 
-	output.Infof("删除软件源: ")
+	output.Infof("Removing bucket: ")
 	output.Highlightln(name)
 	if purge {
-		output.Warningln("  模式: 完全删除（包括本地文件）")
+		output.Warningln("  Mode: purge (including local files)")
 	}
 	fmt.Println()
 
@@ -432,11 +432,11 @@ func bucketRemoveAction(c *cli.Context) error {
 	application := getApp()
 
 	if err := application.BucketManager().Remove(ctx, name, purge); err != nil {
-		output.ErrorCrossf("删除软件源失败: %v", err)
+		output.ErrorCrossf("Failed to remove bucket: %v", err)
 		return cli.Exit("", 1)
 	}
 
-	output.SuccessCheckf("软件源 %s 已删除", name)
+	output.SuccessCheckf("Bucket %s removed", name)
 	return nil
 }
 
@@ -448,33 +448,33 @@ func bucketListAction(c *cli.Context) error {
 	// 获取所有软件源
 	buckets, err := application.BucketManager().ListBuckets(ctx)
 	if err != nil {
-		output.ErrorCrossf("获取软件源列表失败: %v", err)
+		output.ErrorCrossf("Failed to list buckets: %v", err)
 		return cli.Exit("", 1)
 	}
 
-	output.Highlightln("已添加的软件源:")
+	output.Highlightln("Added buckets:")
 	output.Dimln("--------------")
 
 	if len(buckets) == 0 {
-		output.Dimln("  (暂无软件源)")
+		output.Dimln("  (no buckets)")
 	} else {
 		for _, name := range buckets {
 			// 获取详细信息
 			b, err := application.BucketManager().GetBucket(ctx, name)
 			if err != nil {
-				output.Warningf("  %-10s (无法获取详细信息)\n", name)
+				output.Warningf("  %-10s (unable to get details)\n", name)
 				continue
 			}
 			url := b.Repository.URL
 			if url == "" {
-				url = "本地"
+				url = "local"
 			}
 			output.Successf("  %-10s ", name)
 			output.Dimln(url)
 		}
 	}
 
-	output.Dimln("\n使用 'chopsticks bucket add <name> <url>' 添加更多软件源")
+	output.Dimln("\nUse 'chopsticks bucket add <name> <url>' to add more buckets")
 	return nil
 }
 
@@ -485,28 +485,28 @@ func bucketUpdateAction(c *cli.Context) error {
 
 	if c.NArg() == 0 {
 		// 更新所有软件源
-		output.Infoln("更新所有软件源...")
+		output.Infoln("Updating all buckets...")
 		fmt.Println()
 
 		if err := application.BucketManager().UpdateAll(ctx); err != nil {
-			output.ErrorCrossf("更新软件源失败: %v", err)
+			output.ErrorCrossf("Failed to update buckets: %v", err)
 			return cli.Exit("", 1)
 		}
 
-		output.SuccessCheck("所有软件源更新成功")
+		output.SuccessCheck("All buckets updated successfully")
 		return nil
 	}
 
 	// 更新指定软件源
 	name := c.Args().First()
-	output.Infof("更新软件源: %s...\n", name)
+	output.Infof("Updating bucket: %s...\n", name)
 	fmt.Println()
 
 	if err := application.BucketManager().Update(ctx, name); err != nil {
-		output.ErrorCrossf("更新软件源失败: %v", err)
+		output.ErrorCrossf("Failed to update bucket: %v", err)
 		return cli.Exit("", 1)
 	}
 
-	output.SuccessCheckf("软件源 %s 更新成功", name)
+	output.SuccessCheckf("Bucket %s updated successfully", name)
 	return nil
 }

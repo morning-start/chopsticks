@@ -16,13 +16,21 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// 性能阈值常量
+const (
+	// 高利用率阈值
+	highUtilizationThreshold = 90.0
+	// 低利用率阈值
+	lowUtilizationThreshold = 10.0
+)
+
 // updateAsyncAction 异步更新命令
 func updateAsyncAction(c *cli.Context) error {
 	force := c.Bool("force")
 	updateAll := c.Bool("all")
 	maxWorkers := c.Int("workers")
 	if maxWorkers <= 0 {
-		maxWorkers = 4
+		maxWorkers = defaultWorkers
 	}
 
 	ctx, cancel := context.WithCancel(getContext(c))
@@ -33,7 +41,7 @@ func updateAsyncAction(c *cli.Context) error {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigChan
-		output.Warningln("\n收到取消信号，正在停止...")
+		output.Warningln("\nReceived cancel signal, stopping...")
 		cancel()
 	}()
 
@@ -41,19 +49,19 @@ func updateAsyncAction(c *cli.Context) error {
 
 	// 更新所有
 	if updateAll {
-		output.Infoln("正在异步更新所有软件包...")
+		output.Infoln("Updating all packages asynchronously...")
 		if err := application.AppManager().UpdateAll(ctx, app.UpdateOptions{Force: force}); err != nil {
-			output.ErrorCrossf("更新失败: %v", err)
+			output.ErrorCrossf("Update failed: %v", err)
 			return cli.Exit("", 1)
 		}
-		output.SuccessCheck("所有软件包更新成功")
+		output.SuccessCheck("All packages updated successfully")
 		return nil
 	}
 
 	// 没有参数时显示错误
 	if c.NArg() < 1 {
-		output.Errorln("错误: 缺少软件包名称")
-		output.Dimln("用法: chopsticks update [package ...] [--all] --async")
+		output.Errorln("Error: missing package name")
+		output.Dimln("Usage: chopsticks update [package ...] [--all] --async")
 		return cli.Exit("", 1)
 	}
 
@@ -66,7 +74,7 @@ func updateAsyncAction(c *cli.Context) error {
 	total := len(packages)
 
 	output.Infoln("========================================")
-	output.Infof("开始异步更新 %d 个软件包 (最大并发: %d)\n", total, maxWorkers)
+	output.Infof("Starting async update of %d packages (max concurrency: %d)\n", total, maxWorkers)
 	output.Infoln("========================================")
 	fmt.Println()
 
@@ -76,15 +84,15 @@ func updateAsyncAction(c *cli.Context) error {
 	var mu sync.Mutex
 
 	for i, pkg := range packages {
-		idx := i
-		pkg := pkg
-		pool.Add(func() error {
-			result := updatePackage(ctx, application.AppManager(), pkg, force)
-			mu.Lock()
-			results[idx] = result
-			mu.Unlock()
-			return result.err
-		})
+		pool.Add(func(idx int, name string) func() error {
+			return func() error {
+				result := updatePackage(ctx, application.AppManager(), name, force)
+				mu.Lock()
+				results[idx] = result
+				mu.Unlock()
+				return result.err
+			}
+		}(i, pkg))
 	}
 
 	// 执行并行任务
@@ -111,11 +119,11 @@ func updatePackage(ctx context.Context, mgr app.Manager, name string, force bool
 	}
 }
 
-// updateResult 更新结果
+// updateResult 更新结果 - 优化内存布局（按字段大小排序）
 type updateResult struct {
-	name     string
 	duration time.Duration
 	err      error
+	name     string
 }
 
 // printAsyncUpdateResults 打印异步更新结果
@@ -128,34 +136,34 @@ func printAsyncUpdateResults(results []updateResult, poolErr error) error {
 		if result.err != nil {
 			failCount++
 			failedApps = append(failedApps, result.name)
-			output.ErrorCross(fmt.Sprintf("%s 更新失败: %v", result.name, result.err))
-		} else {
-			successCount++
-			totalDuration += result.duration
-			output.SuccessCheck(fmt.Sprintf("%s 更新成功 (%.2fs)", result.name, result.duration.Seconds()))
+			output.ErrorCross(fmt.Sprintf("%s update failed: %v", result.name, result.err))
+			continue
 		}
+		successCount++
+		totalDuration += result.duration
+		output.SuccessCheck(fmt.Sprintf("%s updated successfully (%.2fs)", result.name, result.duration.Seconds()))
 	}
 
 	fmt.Println()
 	output.Infoln("========================================")
-	output.Infoln("异步更新完成")
+	output.Infoln("Async update completed")
 	output.Infoln("========================================")
-	output.Successf("成功: %d\n", successCount)
+	output.Successf("Success: %d\n", successCount)
 	if failCount > 0 {
-		output.Errorf("失败: %d\n", failCount)
-		output.Errorln("失败的软件包:")
+		output.Errorf("Failed: %d\n", failCount)
+		output.Errorln("Failed packages:")
 		for _, name := range failedApps {
 			output.Errorf("  - %s\n", name)
 		}
 	}
 	if successCount > 0 {
 		avgDuration := totalDuration / time.Duration(successCount)
-		output.Dimf("平均耗时: %.2fs\n", avgDuration.Seconds())
+		output.Dimf("Average duration: %.2fs\n", avgDuration.Seconds())
 	}
 
 	if failCount > 0 || poolErr != nil {
 		return cli.Exit("", 1)
 	}
-	output.SuccessCheck("所有软件包更新完成")
+	output.SuccessCheck("All packages updated")
 	return nil
 }

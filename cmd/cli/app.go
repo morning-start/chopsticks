@@ -72,16 +72,16 @@ func Execute(ctx context.Context, appInstance app.Application) error {
 			return nil
 		},
 		CommandNotFound: func(c *cli.Context, command string) {
-			fmt.Fprintf(os.Stderr, "错误: 未知命令 '%s'\n", command)
-			fmt.Fprintf(os.Stderr, "使用 'chopsticks --help' 查看可用命令\n")
+			fmt.Fprintf(os.Stderr, "Error: unknown command '%s'\n", command)
+			fmt.Fprintf(os.Stderr, "Use 'chopsticks --help' for available commands\n")
 			os.Exit(1)
 		},
 		OnUsageError: func(c *cli.Context, err error, isSubcommand bool) error {
-			fmt.Fprintf(os.Stderr, "错误: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			if isSubcommand {
-				fmt.Fprintf(os.Stderr, "使用 'chopsticks %s --help' 查看用法\n", c.Command.Name)
+				fmt.Fprintf(os.Stderr, "Use 'chopsticks %s --help' for usage\n", c.Command.Name)
 			} else {
-				fmt.Fprintf(os.Stderr, "使用 'chopsticks --help' 查看用法\n")
+				fmt.Fprintf(os.Stderr, "Use 'chopsticks --help' for usage\n")
 			}
 			return err
 		},

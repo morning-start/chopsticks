@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -14,6 +15,9 @@ import (
 	"chopsticks/pkg/output"
 )
 
+// 关闭超时常量
+const shutdownTimeout = 5 * time.Second
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "chopsticks: %v\n", err)
@@ -25,7 +29,7 @@ func run() error {
 	// 加载用户配置
 	userCfg, err := config.LoadDefault()
 	if err != nil {
-		output.Warn("加载配置文件失败，使用默认配置: %v", err)
+		output.Warn("Failed to load config file, using default: %v", err)
 		userCfg = config.DefaultConfig()
 	}
 
@@ -39,13 +43,13 @@ func run() error {
 
 	application, err := coreapp.New(cfg)
 	if err != nil {
-		return fmt.Errorf("创建应用: %w", err)
+		return fmt.Errorf("failed to create application: %w", err)
 	}
 	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
-		if err := application.Shutdown(shutdownCtx); err != nil {
-			fmt.Fprintf(os.Stderr, "关闭错误: %v\n", err)
+		if err := application.Shutdown(shutdownCtx); err != nil && !errors.Is(err, context.DeadlineExceeded) {
+			fmt.Fprintf(os.Stderr, "Shutdown error: %v\n", err)
 		}
 	}()
 

@@ -39,14 +39,14 @@ func updateCommand() *cli.Command {
 				Usage:   "强制更新，即使版本相同",
 			},
 			&cli.BoolFlag{
-				Name:    "async",
-				Usage:   "使用异步模式更新（并行更新多个包）",
+				Name:  "async",
+				Usage: "使用异步模式更新（并行更新多个包）",
 			},
 			&cli.IntFlag{
 				Name:    "workers",
 				Aliases: []string{"w"},
-				Usage:   "异步模式下的最大并发数",
-				Value:   4,
+				Usage:   "Max concurrency for async mode",
+				Value:   defaultWorkers,
 			},
 		},
 		Action: updateAction,
@@ -72,19 +72,19 @@ func updateAction(c *cli.Context) error {
 
 	// 更新所有
 	if updateAll {
-		output.Infoln("正在更新所有软件包...")
+		output.Infoln("Updating all packages...")
 		if err := application.AppManager().UpdateAll(ctx, opts); err != nil {
-			output.ErrorCrossf("更新失败: %v", err)
+			output.ErrorCrossf("Update failed: %v", err)
 			return cli.Exit("", 1)
 		}
-		output.SuccessCheck("所有软件包更新成功")
+		output.SuccessCheck("All packages updated successfully")
 		return nil
 	}
 
 	// 没有参数时显示错误
 	if c.NArg() < 1 {
-		output.Errorln("错误: 缺少软件包名称")
-		output.Dimln("用法: chopsticks update [package ...] [--all]")
+		output.Errorln("Error: missing package name")
+		output.Dimln("Usage: chopsticks update [package ...] [--all]")
 		return cli.Exit("", 1)
 	}
 
@@ -105,13 +105,13 @@ func updateAction(c *cli.Context) error {
 
 // updateSingle 更新单个软件包
 func updateSingle(ctx context.Context, mgr app.Manager, pkgName string, opts app.UpdateOptions) error {
-	output.Infof("正在更新 %s...\n", pkgName)
+	output.Infof("Updating %s...\n", pkgName)
 	if err := mgr.Update(ctx, pkgName, opts); err != nil {
-		output.ErrorCrossf("更新失败: %v", err)
+		output.ErrorCrossf("Update failed: %v", err)
 		return cli.Exit("", 1)
 	}
 
-	output.SuccessCheckf("%s 更新成功", pkgName)
+	output.SuccessCheckf("%s updated successfully", pkgName)
 	return nil
 }
 
@@ -120,7 +120,7 @@ func updateBatch(ctx context.Context, mgr app.Manager, packages []string, opts a
 	total := len(packages)
 
 	output.Infoln("========================================")
-	output.Infof("开始批量更新 %d 个软件包\n", total)
+	output.Infof("Starting batch update of %d packages\n", total)
 	output.Infoln("========================================")
 	fmt.Println()
 
@@ -129,7 +129,7 @@ func updateBatch(ctx context.Context, mgr app.Manager, packages []string, opts a
 
 	for i, name := range packages {
 		output.Infof("[%d/%d] ", i+1, total)
-		output.Infof("正在更新 %s...\n", name)
+		output.Infof("Updating %s...\n", name)
 
 		err := mgr.Update(ctx, name, opts)
 
@@ -142,9 +142,9 @@ func updateBatch(ctx context.Context, mgr app.Manager, packages []string, opts a
 		mu.Unlock()
 
 		if err != nil {
-			output.ErrorCrossf("更新失败: %v", err)
+			output.ErrorCrossf("Update failed: %v", err)
 		} else {
-			output.SuccessCheckf("%s 更新成功", name)
+			output.SuccessCheckf("%s updated successfully", name)
 		}
 		fmt.Println()
 	}
@@ -161,24 +161,24 @@ func printUpdateResults(results []batchResult) error {
 	for _, r := range results {
 		if r.success {
 			successCount++
-		} else {
-			failCount++
-			failedApps = append(failedApps, r.name)
+			continue
 		}
+		failCount++
+		failedApps = append(failedApps, r.name)
 	}
 
 	output.Infoln("========================================")
-	output.Infoln("批量更新完成")
+	output.Infoln("Batch update completed")
 	output.Infoln("========================================")
-	output.Successf("成功: %d\n", successCount)
-	if failCount > 0 {
-		output.Errorf("失败: %d\n", failCount)
-		output.Errorln("失败的软件包:")
-		for _, name := range failedApps {
-			output.Errorf("  - %s\n", name)
-		}
-		return cli.Exit("", 1)
+	output.Successf("Success: %d\n", successCount)
+	if failCount == 0 {
+		output.SuccessCheck("All packages updated")
+		return nil
 	}
-	output.SuccessCheck("所有软件包更新完成")
-	return nil
+	output.Errorf("Failed: %d\n", failCount)
+	output.Errorln("Failed packages:")
+	for _, name := range failedApps {
+		output.Errorf("  - %s\n", name)
+	}
+	return cli.Exit("", 1)
 }

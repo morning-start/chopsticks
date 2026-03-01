@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -16,11 +17,30 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// 常量定义
+const (
+	// 默认并发数
+	defaultWorkers = 4
+	// 进度报告间隔
+	progressReportInterval = 100 * time.Millisecond
+	// 进度增量
+	progressIncrement = 5.0
+	// 进度上限
+	progressMax = 90.0
+	// 进度条宽度
+	progressBarWidth = 30
+)
+
+// 预定义错误
+var (
+	ErrMissingPackageName = errors.New("missing package name")
+)
+
 // installAsyncAction 异步安装命令
 func installAsyncAction(c *cli.Context) error {
 	if c.NArg() < 1 {
-		output.Errorln("错误: 缺少软件包名称")
-		output.Dimln("用法: chopsticks install <package>[@version] ... --async")
+		output.Errorln("Error: missing package name")
+		output.Dimln("Usage: chopsticks install <package>[@version] ... --async")
 		return cli.Exit("", 1)
 	}
 
@@ -29,7 +49,7 @@ func installAsyncAction(c *cli.Context) error {
 	bucket := c.String("bucket")
 	maxWorkers := c.Int("workers")
 	if maxWorkers <= 0 {
-		maxWorkers = 4
+		maxWorkers = defaultWorkers
 	}
 
 	ctx, cancel := context.WithCancel(getContext(c))
@@ -40,33 +60,25 @@ func installAsyncAction(c *cli.Context) error {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigChan
-		output.Warningln("\n收到取消信号，正在停止...")
+		output.Warningln("\nReceived cancel signal, stopping...")
 		cancel()
 	}()
 
 	application := getApp()
 
 	// 获取所有要安装的包
-	packages := make([]struct {
-		name    string
-		version string
-		spec    string
-	}, c.NArg())
+	packages := make([]packageSpec, c.NArg())
 
 	for i := 0; i < c.NArg(); i++ {
 		spec := c.Args().Get(i)
 		name, version := parseAppSpec(spec)
-		packages[i] = struct {
-			name    string
-			version string
-			spec    string
-		}{name: name, version: version, spec: spec}
+		packages[i] = packageSpec{name: name, version: version, spec: spec}
 	}
 
 	total := len(packages)
 
 	output.Infoln("========================================")
-	output.Infof("开始异步安装 %d 个软件包 (最大并发: %d)\n", total, maxWorkers)
+	output.Infof("Starting async installation of %d packages (max concurrency: %d)\n", total, maxWorkers)
 	output.Infoln("========================================")
 	fmt.Println()
 
@@ -76,15 +88,15 @@ func installAsyncAction(c *cli.Context) error {
 	var mu sync.Mutex
 
 	for i, pkg := range packages {
-		idx := i
-		pkg := pkg
-		pool.Add(func() error {
-			result := installPackage(ctx, application.AppManager(), pkg.name, pkg.version, bucket, arch, force)
-			mu.Lock()
-			results[idx] = result
-			mu.Unlock()
-			return result.err
-		})
+		pool.Add(func(idx int, p packageSpec) func() error {
+			return func() error {
+				result := installPackage(ctx, application.AppManager(), p.name, p.version, bucket, arch, force)
+				mu.Lock()
+				results[idx] = result
+				mu.Unlock()
+				return result.err
+			}
+		}(i, pkg))
 	}
 
 	// 执行并行任务
@@ -119,12 +131,12 @@ func installPackage(ctx context.Context, mgr app.Manager, name, version, bucket,
 	}
 }
 
-// installResult 安装结果
+// installResult 安装结果 - 优化内存布局（按字段大小排序）
 type installResult struct {
-	name     string
-	version  string
 	duration time.Duration
 	err      error
+	name     string
+	version  string
 }
 
 // printInstallResults 打印安装结果
@@ -137,35 +149,35 @@ func printInstallResults(results []installResult, poolErr error) error {
 		if result.err != nil {
 			failCount++
 			failedApps = append(failedApps, result.name)
-			output.ErrorCross(fmt.Sprintf("%s 失败: %v", result.name, result.err))
-		} else {
-			successCount++
-			totalDuration += result.duration
-			output.SuccessCheck(fmt.Sprintf("%s 安装成功 (%.2fs)", result.name, result.duration.Seconds()))
+			output.ErrorCross(fmt.Sprintf("%s failed: %v", result.name, result.err))
+			continue
 		}
+		successCount++
+		totalDuration += result.duration
+		output.SuccessCheck(fmt.Sprintf("%s installed successfully (%.2fs)", result.name, result.duration.Seconds()))
 	}
 
 	fmt.Println()
 	output.Infoln("========================================")
-	output.Infoln("异步安装完成")
+	output.Infoln("Async installation completed")
 	output.Infoln("========================================")
-	output.Successf("成功: %d\n", successCount)
+	output.Successf("Success: %d\n", successCount)
 	if failCount > 0 {
-		output.Errorf("失败: %d\n", failCount)
-		output.Errorln("失败的软件包:")
+		output.Errorf("Failed: %d\n", failCount)
+		output.Errorln("Failed packages:")
 		for _, name := range failedApps {
 			output.Errorf("  - %s\n", name)
 		}
 	}
 	if successCount > 0 {
 		avgDuration := totalDuration / time.Duration(successCount)
-		output.Dimf("平均耗时: %.2fs\n", avgDuration.Seconds())
+		output.Dimf("Average duration: %.2fs\n", avgDuration.Seconds())
 	}
 
 	if failCount > 0 || poolErr != nil {
 		return cli.Exit("", 1)
 	}
-	output.SuccessCheck("所有软件包处理完成")
+	output.SuccessCheck("All packages processed")
 	return nil
 }
 
@@ -194,7 +206,7 @@ func installWithProgress(ctx context.Context, mgr app.Manager, name, version, bu
 	}()
 
 	// 模拟进度更新
-	ticker := time.NewTicker(100 * time.Millisecond)
+	ticker := time.NewTicker(progressReportInterval)
 	defer ticker.Stop()
 
 	progressPercent := 0.0
@@ -208,9 +220,9 @@ func installWithProgress(ctx context.Context, mgr app.Manager, name, version, bu
 			progress.SetComplete()
 			return nil
 		case <-ticker.C:
-			progressPercent += 5.0
-			if progressPercent > 90.0 {
-				progressPercent = 90.0
+			progressPercent += progressIncrement
+			if progressPercent > progressMax {
+				progressPercent = progressMax
 			}
 			progress.SetProgress(progressPercent)
 		case <-ctx.Done():
@@ -220,13 +232,13 @@ func installWithProgress(ctx context.Context, mgr app.Manager, name, version, bu
 	}
 }
 
-// ProgressDisplay 进度显示
+// ProgressDisplay 进度显示 - 优化内存布局（按字段大小排序）
 type ProgressDisplay struct {
 	mu       sync.RWMutex
 	stopChan chan struct{}
+	err      error
 	name     string
 	progress float64
-	err      error
 	stopped  bool
 	complete bool
 }
@@ -242,7 +254,7 @@ func NewProgressDisplay(name string) *ProgressDisplay {
 // Start 开始显示进度
 func (p *ProgressDisplay) Start() {
 	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
+		ticker := time.NewTicker(progressReportInterval)
 		defer ticker.Stop()
 
 		for {
@@ -299,7 +311,7 @@ func (p *ProgressDisplay) draw() {
 	complete := p.complete
 	p.mu.RUnlock()
 
-	width := 30
+	width := progressBarWidth
 	filled := int(float64(width) * progress / 100.0)
 	if filled > width {
 		filled = width
@@ -318,12 +330,13 @@ func (p *ProgressDisplay) draw() {
 	bar += "]"
 
 	status := ""
-	if err != nil {
-		status = " 错误"
-	} else if complete {
-		status = " 完成"
-	} else {
-		status = " 进行中"
+	switch {
+	case err != nil:
+		status = " Error"
+	case complete:
+		status = " Done"
+	default:
+		status = " In Progress"
 	}
 
 	fmt.Printf("\r%s %s %3.0f%%%s", name, bar, progress, status)
