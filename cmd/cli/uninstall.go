@@ -66,7 +66,7 @@ func uninstallAction(c *cli.Context) error {
 }
 
 // uninstallSingle 卸载单个软件包
-func uninstallSingle(ctx context.Context, mgr app.Manager, name string, purge bool) error {
+func uninstallSingle(ctx context.Context, mgr app.AppManager, name string, purge bool) error {
 	output.Info("正在卸载 ")
 	output.Highlight("%s", name)
 	if purge {
@@ -88,7 +88,7 @@ func uninstallSingle(ctx context.Context, mgr app.Manager, name string, purge bo
 }
 
 // uninstallBatch 批量卸载软件包
-func uninstallBatch(ctx context.Context, mgr app.Manager, packages []string, purge bool) error {
+func uninstallBatch(ctx context.Context, mgr app.AppManager, packages []string, purge bool) error {
 	total := len(packages)
 
 	output.Infoln("========================================")

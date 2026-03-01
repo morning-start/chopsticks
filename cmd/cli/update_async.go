@@ -103,7 +103,7 @@ func updateAsyncAction(c *cli.Context) error {
 }
 
 // updatePackage 更新单个包
-func updatePackage(ctx context.Context, mgr app.Manager, name string, force bool) updateResult {
+func updatePackage(ctx context.Context, mgr app.AppManager, name string, force bool) updateResult {
 	opts := app.UpdateOptions{
 		Force: force,
 	}

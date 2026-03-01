@@ -107,7 +107,7 @@ func installAsyncAction(c *cli.Context) error {
 }
 
 // installPackage 安装单个包
-func installPackage(ctx context.Context, mgr app.Manager, name, version, bucket, arch string, force bool) installResult {
+func installPackage(ctx context.Context, mgr app.AppManager, name, version, bucket, arch string, force bool) installResult {
 	opts := app.InstallOptions{
 		Arch:  arch,
 		Force: force,
@@ -182,7 +182,7 @@ func printInstallResults(results []installResult, poolErr error) error {
 }
 
 // installWithProgress 带进度显示的安装
-func installWithProgress(ctx context.Context, mgr app.Manager, name, version, bucket, arch string, force bool) error {
+func installWithProgress(ctx context.Context, mgr app.AppManager, name, version, bucket, arch string, force bool) error {
 	opts := app.InstallOptions{
 		Arch:  arch,
 		Force: force,

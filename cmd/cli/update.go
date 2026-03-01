@@ -104,7 +104,7 @@ func updateAction(c *cli.Context) error {
 }
 
 // updateSingle 更新单个软件包
-func updateSingle(ctx context.Context, mgr app.Manager, pkgName string, opts app.UpdateOptions) error {
+func updateSingle(ctx context.Context, mgr app.AppManager, pkgName string, opts app.UpdateOptions) error {
 	output.Infof("Updating %s...\n", pkgName)
 	if err := mgr.Update(ctx, pkgName, opts); err != nil {
 		output.ErrorCrossf("Update failed: %v", err)
@@ -116,7 +116,7 @@ func updateSingle(ctx context.Context, mgr app.Manager, pkgName string, opts app
 }
 
 // updateBatch 批量更新软件包
-func updateBatch(ctx context.Context, mgr app.Manager, packages []string, opts app.UpdateOptions) error {
+func updateBatch(ctx context.Context, mgr app.AppManager, packages []string, opts app.UpdateOptions) error {
 	total := len(packages)
 
 	output.Infoln("========================================")

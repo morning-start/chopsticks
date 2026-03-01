@@ -39,12 +39,12 @@ type DependencyGraph struct {
 
 // DependencyResolver 依赖解析器
 type DependencyResolver struct {
-	bucketMgr bucket.Manager
+	bucketMgr bucket.BucketManager
 	storage   store.Storage
 }
 
 // NewDependencyResolver 创建依赖解析器
-func NewDependencyResolver(bucketMgr bucket.Manager, storage store.Storage) *DependencyResolver {
+func NewDependencyResolver(bucketMgr bucket.BucketManager, storage store.Storage) *DependencyResolver {
 	return &DependencyResolver{
 		bucketMgr: bucketMgr,
 		storage:   storage,

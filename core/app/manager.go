@@ -61,16 +61,17 @@ type SearchResult struct {
 
 // manager 管理器 - 字段按大小从大到小排列
 type manager struct {
-	bucketMgr  bucket.Manager // 16 bytes (interface)
-	storage    store.Storage  // 16 bytes (interface)
-	installer  Installer      // 16 bytes (interface)
-	config     interface{}    // 16 bytes (interface)
-	installDir string         // 16 bytes (string header)
+	bucketMgr  bucket.BucketManager // 16 bytes (interface)
+	storage    store.Storage        // 16 bytes (interface)
+	installer  Installer            // 16 bytes (interface)
+	config     interface{}          // 16 bytes (interface)
+	installDir string               // 16 bytes (string header)
 }
 
-var _ Manager = (*manager)(nil)
+var _ AppManager = (*manager)(nil)
 
-func NewManager(bucketMgr bucket.Manager, storage store.Storage, installer Installer, config interface{}, installDir string) Manager {
+// NewManager 创建应用管理器
+func NewManager(bucketMgr bucket.BucketManager, storage store.Storage, installer Installer, config interface{}, installDir string) AppManager {
 	return &manager{
 		bucketMgr:  bucketMgr,
 		storage:    storage,

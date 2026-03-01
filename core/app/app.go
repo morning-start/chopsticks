@@ -18,8 +18,8 @@ const (
 )
 
 type Application interface {
-	BucketManager() bucket.Manager
-	AppManager() Manager
+	BucketManager() bucket.BucketManager
+	AppManager() AppManager
 	Installer() Installer
 	Storage() store.Storage
 	Config() *Config
@@ -34,8 +34,8 @@ type Application interface {
 type app struct {
 	jsEngine  *engine.JSEngine // 8 bytes
 	config    *Config          // 8 bytes
-	bucketMgr bucket.Manager   // 16 bytes (interface)
-	appMgr    Manager          // 16 bytes (interface)
+	bucketMgr bucket.BucketManager // 16 bytes (interface)
+	appMgr    AppManager           // 16 bytes (interface)
 	installer Installer        // 16 bytes (interface)
 	storage   store.Storage    // 16 bytes (interface)
 	logger    *logx.Logger     // 8 bytes
@@ -96,11 +96,11 @@ type Config struct {
 	StoragePath string
 }
 
-func (a *app) BucketManager() bucket.Manager {
+func (a *app) BucketManager() bucket.BucketManager {
 	return a.bucketMgr
 }
 
-func (a *app) AppManager() Manager {
+func (a *app) AppManager() AppManager {
 	return a.appMgr
 }
 
