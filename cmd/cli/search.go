@@ -1,76 +1,57 @@
 package cli
 
 import (
+	"fmt"
+
 	"chopsticks/pkg/output"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
-// searchCommand 返回 search 命令定义。
-func searchCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "search",
-		Aliases:   []string{"find", "s"},
-		Usage:     "搜索软件包",
-		ArgsUsage: "<query>",
-		Description: `在软件源中搜索软件包。
+var (
+	searchBucket  string
+	searchAsync   bool
+	searchWorkers int
+)
+
+// searchCmd 表示 search 命令
+var searchCmd = &cobra.Command{
+	Use:     "search <query>",
+	Aliases: []string{"find", "s"},
+	Short:   "搜索软件包",
+	Long: `在软件源中搜索软件包。
 
 示例:
   chopsticks search git
   chopsticks find editor
   chopsticks search node --bucket main`,
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "bucket",
-				Aliases: []string{"b"},
-				Usage:   "指定软件源进行搜索",
-			},
-			&cli.BoolFlag{
-				Name:  "async",
-				Usage: "使用异步模式搜索（并行搜索多个软件源）",
-			},
-			&cli.IntFlag{
-				Name:    "workers",
-				Aliases: []string{"w"},
-				Usage:   "异步模式下的最大并发数",
-				Value:   10,
-			},
-		},
-		Action: searchAction,
-	}
+	Args: cobra.ExactArgs(1),
+	RunE: runSearch,
 }
 
-// searchAction 处理搜索命令。
-func searchAction(c *cli.Context) error {
+func runSearch(cmd *cobra.Command, args []string) error {
 	// 异步模式
-	if c.Bool("async") {
-		return searchAsyncAction(c)
+	if searchAsync {
+		return runSearchAsync(cmd, args)
 	}
 
-	if c.NArg() < 1 {
-		output.Errorln("错误: 缺少搜索关键词")
-		output.Dimln("用法: chopsticks search <query>")
-		return cli.Exit("", 1)
-	}
-
-	query := c.Args().First()
-	bucketName := c.String("bucket")
+	query := args[0]
 
 	output.Info("搜索: ")
 	output.Highlightln(query)
-	if bucketName != "" {
+	if searchBucket != "" {
 		output.Dim("软件源: ")
-		output.Infoln(bucketName)
+		output.Infoln(searchBucket)
 	}
 
-	ctx := getContextFromCli(c)
+	ctx := cmd.Context()
 	application := getApp()
 
 	// 调用 app manager 搜索
-	results, err := application.AppManager().Search(ctx, query, bucketName)
+	results, err := application.AppManager().Search(ctx, query, searchBucket)
 	if err != nil {
 		output.ErrorCrossf("搜索失败: %v", err)
-		return cli.Exit("", 1)
+		return fmt.Errorf("搜索失败: %w", err)
 	}
 
 	// 显示结果
@@ -92,4 +73,11 @@ func searchAction(c *cli.Context) error {
 	}
 
 	return nil
+}
+
+func init() {
+	searchCmd.Flags().StringVarP(&searchBucket, "bucket", "b", "", "指定软件源进行搜索")
+	searchCmd.Flags().BoolVar(&searchAsync, "async", false, "使用异步模式搜索（并行搜索多个软件源）")
+	searchCmd.Flags().IntVarP(&searchWorkers, "workers", "w", 10, "异步模式下的最大并发数")
+	rootCmd.AddCommand(searchCmd)
 }

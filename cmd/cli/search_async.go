@@ -11,25 +11,18 @@ import (
 	"chopsticks/core/bucket"
 	"chopsticks/pkg/output"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
-// searchAsyncAction 异步搜索命令
-func searchAsyncAction(c *cli.Context) error {
-	if c.NArg() < 1 {
-		output.Errorln("错误: 缺少搜索关键词")
-		output.Dimln("用法: chopsticks search <query> --async")
-		return cli.Exit("", 1)
-	}
-
-	query := c.Args().First()
-	bucketName := c.String("bucket")
-	maxWorkers := c.Int("workers")
+// runSearchAsync 异步搜索命令
+func runSearchAsync(cmd *cobra.Command, args []string) error {
+	query := args[0]
+	maxWorkers := searchWorkers
 	if maxWorkers <= 0 {
 		maxWorkers = 10
 	}
 
-	ctx, cancel := context.WithCancel(getContextFromCli(c))
+	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
 	// 设置信号处理
@@ -45,9 +38,9 @@ func searchAsyncAction(c *cli.Context) error {
 
 	output.Info("异步搜索: ")
 	output.Highlightln(query)
-	if bucketName != "" {
+	if searchBucket != "" {
 		output.Dim("软件源: ")
-		output.Infoln(bucketName)
+		output.Infoln(searchBucket)
 	}
 	output.Dimf("并发数: %d\n", maxWorkers)
 	fmt.Println()
@@ -58,13 +51,13 @@ func searchAsyncAction(c *cli.Context) error {
 	searcher := bucket.NewParallelSearcher(application.BucketManager(), maxWorkers)
 
 	opts := bucket.SearchOptions{
-		Bucket: bucketName,
+		Bucket: searchBucket,
 	}
 
 	results, err := searcher.SearchWithCache(ctx, query, opts)
 	if err != nil {
 		output.ErrorCrossf("搜索失败: %v", err)
-		return cli.Exit("", 1)
+		return fmt.Errorf("搜索失败: %w", err)
 	}
 
 	duration := time.Since(startTime)

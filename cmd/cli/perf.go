@@ -7,7 +7,7 @@ import (
 	"chopsticks/pkg/metrics"
 	"chopsticks/pkg/output"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
 // ANSI 转义序列常量
@@ -17,53 +17,48 @@ const (
 	ansiClearBelow    = "\033[J"
 )
 
-// PerfCommand 性能监控命令
-var PerfCommand = &cli.Command{
-	Name:  "perf",
-	Usage: "性能监控和诊断工具",
-	Subcommands: []*cli.Command{
-		{
-			Name:   "monitor",
-			Usage:  "实时监控性能指标",
-			Action: perfMonitorAction,
-			Flags: []cli.Flag{
-				&cli.IntFlag{
-					Name:    "interval",
-					Aliases: []string{"i"},
-					Usage:   "刷新间隔(秒)",
-					Value:   2,
-				},
-			},
-		},
-		{
-			Name:   "report",
-			Usage:  "生成性能报告",
-			Action: perfReportAction,
-			Flags: []cli.Flag{
-				&cli.IntFlag{
-					Name:    "duration",
-					Aliases: []string{"d"},
-					Usage:   "监控时长(秒)",
-					Value:   10,
-				},
-			},
-		},
-		{
-			Name:   "status",
-			Usage:  "查看当前性能状态",
-			Action: perfStatusAction,
-		},
-		{
-			Name:   "js-pool",
-			Usage:  "查看 JS 引擎池状态",
-			Action: perfJSPoolAction,
-		},
-	},
+var (
+	perfMonitorInterval int
+	perfReportDuration  int
+)
+
+// perfCmd 性能监控命令
+var perfCmd = &cobra.Command{
+	Use:   "perf",
+	Short: "性能监控和诊断工具",
+	Long:  `性能监控和诊断工具，用于实时监控和生成性能报告。`,
 }
 
-// perfMonitorAction 实时监控
-func perfMonitorAction(c *cli.Context) error {
-	interval := c.Int("interval")
+// perfMonitorCmd 实时监控
+var perfMonitorCmd = &cobra.Command{
+	Use:   "monitor",
+	Short: "实时监控性能指标",
+	RunE:  runPerfMonitor,
+}
+
+// perfReportCmd 生成性能报告
+var perfReportCmd = &cobra.Command{
+	Use:   "report",
+	Short: "生成性能报告",
+	RunE:  runPerfReport,
+}
+
+// perfStatusCmd 查看当前状态
+var perfStatusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "查看当前性能状态",
+	RunE:  runPerfStatus,
+}
+
+// perfJSPoolCmd 查看 JS 池状态
+var perfJSPoolCmd = &cobra.Command{
+	Use:   "js-pool",
+	Short: "查看 JS 引擎池状态",
+	RunE:  runPerfJSPool,
+}
+
+func runPerfMonitor(cmd *cobra.Command, args []string) error {
+	interval := perfMonitorInterval
 	if interval <= 0 {
 		interval = 2
 	}
@@ -93,9 +88,8 @@ func perfMonitorAction(c *cli.Context) error {
 	return nil
 }
 
-// perfReportAction 生成性能报告
-func perfReportAction(c *cli.Context) error {
-	duration := c.Int("duration")
+func runPerfReport(cmd *cobra.Command, args []string) error {
+	duration := perfReportDuration
 	if duration <= 0 {
 		duration = 10
 	}
@@ -178,8 +172,7 @@ func perfReportAction(c *cli.Context) error {
 	return nil
 }
 
-// perfStatusAction 查看当前状态
-func perfStatusAction(c *cli.Context) error {
+func runPerfStatus(cmd *cobra.Command, args []string) error {
 	m := metrics.GetMetrics()
 
 	output.Infoln("========================================")
@@ -192,8 +185,7 @@ func perfStatusAction(c *cli.Context) error {
 	return nil
 }
 
-// perfJSPoolAction 查看 JS 池状态
-func perfJSPoolAction(c *cli.Context) error {
+func runPerfJSPool(cmd *cobra.Command, args []string) error {
 	m := metrics.GetMetrics()
 
 	output.Infoln("========================================")
@@ -292,4 +284,16 @@ func moveCursor(row, col int) {
 // clearBelow 清除光标下方内容
 func clearBelow() {
 	fmt.Print(ansiClearBelow)
+}
+
+func init() {
+	perfMonitorCmd.Flags().IntVarP(&perfMonitorInterval, "interval", "i", 2, "刷新间隔(秒)")
+	perfReportCmd.Flags().IntVarP(&perfReportDuration, "duration", "d", 10, "监控时长(秒)")
+
+	perfCmd.AddCommand(perfMonitorCmd)
+	perfCmd.AddCommand(perfReportCmd)
+	perfCmd.AddCommand(perfStatusCmd)
+	perfCmd.AddCommand(perfJSPoolCmd)
+
+	rootCmd.AddCommand(perfCmd)
 }

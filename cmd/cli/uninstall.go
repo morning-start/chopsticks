@@ -8,17 +8,19 @@ import (
 	"chopsticks/core/app"
 	"chopsticks/pkg/output"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
-// uninstallCommand 返回 uninstall 命令定义。
-func uninstallCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "uninstall",
-		Aliases:   []string{"remove", "rm"},
-		Usage:     "卸载软件包",
-		ArgsUsage: "<package> ...",
-		Description: `卸载指定的软件包。支持批量卸载多个软件包。
+var (
+	uninstallPurge bool
+)
+
+// uninstallCmd 表示 uninstall 命令
+var uninstallCmd = &cobra.Command{
+	Use:     "uninstall <package> ...",
+	Aliases: []string{"remove", "rm"},
+	Short:   "卸载软件包",
+	Long: `卸载指定的软件包。支持批量卸载多个软件包。
 
 示例:
   chopsticks uninstall git
@@ -26,43 +28,21 @@ func uninstallCommand() *cli.Command {
   chopsticks rm python --purge
   chopsticks uninstall app1 app2 app3
   chopsticks rm --purge app1 app2`,
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "purge",
-				Aliases: []string{"p"},
-				Usage:   "彻底清除，包括配置文件和数据",
-			},
-		},
-		Action: uninstallAction,
-	}
+	Args: cobra.MinimumNArgs(1),
+	RunE: runUninstall,
 }
 
-// uninstallAction 处理卸载命令（支持批量卸载）。
-func uninstallAction(c *cli.Context) error {
-	if c.NArg() < 1 {
-		output.Errorln("错误: 缺少软件包名称")
-		output.Dimln("用法: chopsticks uninstall <package> ...")
-		return cli.Exit("", 1)
-	}
-
-	purge := c.Bool("purge")
-
-	ctx := getContextFromCli(c)
+func runUninstall(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
 	application := getApp()
 
-	// 获取所有要卸载的包
-	packages := make([]string, c.NArg())
-	for i := 0; i < c.NArg(); i++ {
-		packages[i] = c.Args().Get(i)
-	}
-
 	// 单个包直接卸载
-	if len(packages) == 1 {
-		return uninstallSingle(ctx, application.AppManager(), packages[0], purge)
+	if len(args) == 1 {
+		return uninstallSingle(ctx, application.AppManager(), args[0], uninstallPurge)
 	}
 
 	// 批量卸载
-	return uninstallBatch(ctx, application.AppManager(), packages, purge)
+	return uninstallBatch(ctx, application.AppManager(), args, uninstallPurge)
 }
 
 // uninstallSingle 卸载单个软件包
@@ -80,7 +60,7 @@ func uninstallSingle(ctx context.Context, mgr app.AppManager, name string, purge
 
 	if err := mgr.Remove(ctx, name, opts); err != nil {
 		output.ErrorCross(fmt.Sprintf("卸载失败: %v", err))
-		return cli.Exit("", 1)
+		return fmt.Errorf("卸载失败: %w", err)
 	}
 
 	output.SuccessCheck(fmt.Sprintf("%s 卸载成功", name))
@@ -158,8 +138,13 @@ func printUninstallResults(results []batchResult) error {
 		for _, name := range failedApps {
 			output.Errorf("  - %s\n", name)
 		}
-		return cli.Exit("", 1)
+		return fmt.Errorf("部分软件包卸载失败")
 	}
 	output.SuccessCheck("所有软件包卸载完成")
 	return nil
+}
+
+func init() {
+	uninstallCmd.Flags().BoolVarP(&uninstallPurge, "purge", "p", false, "彻底清除，包括配置文件和数据")
+	rootCmd.AddCommand(uninstallCmd)
 }
