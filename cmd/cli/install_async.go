@@ -56,6 +56,9 @@ func runInstallAsync(cmd *cobra.Command, args []string) error {
 	}()
 
 	application := getApp()
+	if application == nil {
+		return fmt.Errorf("应用未初始化")
+	}
 
 	// 解析所有要安装的包
 	packages := make([]packageSpec, len(args))

@@ -33,6 +33,9 @@ func Execute(ctx context.Context, appInstance app.Application) error {
 
 // getApp 获取应用实例
 func getApp() app.Application {
+	if application == nil {
+		return nil
+	}
 	return application
 }
 

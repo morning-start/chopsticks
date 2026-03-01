@@ -35,6 +35,9 @@ var uninstallCmd = &cobra.Command{
 func runUninstall(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	application := getApp()
+	if application == nil {
+		return fmt.Errorf("应用未初始化")
+	}
 
 	// 单个包直接卸载
 	if len(args) == 1 {

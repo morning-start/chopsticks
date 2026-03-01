@@ -46,6 +46,9 @@ func runSearch(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	application := getApp()
+	if application == nil {
+		return fmt.Errorf("应用未初始化")
+	}
 
 	// 调用 app manager 搜索
 	results, err := application.AppManager().Search(ctx, query, searchBucket)

@@ -38,6 +38,9 @@ var conflictCmd = &cobra.Command{
 func runConflict(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	application := getApp()
+	if application == nil {
+		return fmt.Errorf("应用未初始化")
+	}
 
 	ctx := cmd.Context()
 

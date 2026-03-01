@@ -35,6 +35,9 @@ func runSearchAsync(cmd *cobra.Command, args []string) error {
 	}()
 
 	application := getApp()
+	if application == nil {
+		return fmt.Errorf("应用未初始化")
+	}
 
 	output.Info("异步搜索: ")
 	output.Highlightln(query)

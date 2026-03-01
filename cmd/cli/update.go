@@ -43,6 +43,9 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	application := getApp()
+	if application == nil {
+		return fmt.Errorf("应用未初始化")
+	}
 
 	opts := app.UpdateOptions{
 		Force: updateForce,

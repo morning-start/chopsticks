@@ -2,6 +2,7 @@ package cli
 
 import (
 	"chopsticks/pkg/output"
+	"fmt"
 
 	"github.com/spf13/cobra"
 )
@@ -26,6 +27,9 @@ var listCmd = &cobra.Command{
 
 func runList(cmd *cobra.Command, args []string) error {
 	application := getApp()
+	if application == nil {
+		return fmt.Errorf("应用未初始化")
+	}
 
 	if listInstalled {
 		// 列出已安装的软件包

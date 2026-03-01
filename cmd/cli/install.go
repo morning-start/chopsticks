@@ -54,13 +54,16 @@ var installCmd = &cobra.Command{
 }
 
 func runInstall(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+	application := getApp()
+	if application == nil {
+		return fmt.Errorf("application not initialized")
+	}
+
 	// 异步模式
 	if installAsync {
 		return runInstallAsync(cmd, args)
 	}
-
-	ctx := cmd.Context()
-	application := getApp()
 
 	// 解析所有要安装的包
 	packages := make([]packageSpec, len(args))

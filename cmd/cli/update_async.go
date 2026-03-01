@@ -44,6 +44,9 @@ func runUpdateAsync(cmd *cobra.Command, args []string) error {
 	}()
 
 	application := getApp()
+	if application == nil {
+		return fmt.Errorf("应用未初始化")
+	}
 
 	// 更新所有
 	if updateAll {
