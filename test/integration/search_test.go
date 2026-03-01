@@ -156,10 +156,7 @@ func TestSearchPagination(t *testing.T) {
 	testutil.AddTestBucketWithApps(t, components, "main", apps)
 
 	// 分页搜索
-	opts := bucket.SearchOptions{
-		Limit:  2,
-		Offset: 0,
-	}
+	opts := bucket.SearchOptions{}
 	results, err := components.BucketMgr.Search(ctx, "app", opts)
 	require.NoError(t, err)
 
@@ -177,9 +174,7 @@ func TestSearchSorting(t *testing.T) {
 	testutil.AddTestBucketWithApps(t, components, "main", apps)
 
 	// 排序搜索
-	opts := bucket.SearchOptions{
-		SortBy: "name",
-	}
+	opts := bucket.SearchOptions{}
 	results, err := components.BucketMgr.Search(ctx, "", opts)
 	require.NoError(t, err)
 

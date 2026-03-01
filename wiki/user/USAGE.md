@@ -97,12 +97,17 @@ go build -o chopsticks.exe
 
 Chopsticks 默认使用以下目录：
 
-| 目录       | 环境变量          | 默认路径                            |
-| ---------- | ----------------- | ----------------------------------- |
-| 安装目录   | `CHOPSTICKS_HOME` | `%USERPROFILE%\.chopsticks`         |
-| 应用目录   | -                 | `%USERPROFILE%\.chopsticks\apps`    |
-| 缓存目录   | -                 | `%USERPROFILE%\.chopsticks\cache`   |
-| 软件源目录 | -                 | `%USERPROFILE%\.chopsticks\buckets` |
+| 目录         | 环境变量          | 默认路径                                | 说明                                |
+| ------------ | ----------------- | --------------------------------------- | ----------------------------------- |
+| 安装目录     | `CHOPSTICKS_HOME` | `%USERPROFILE%\.chopsticks`             | Chopsticks 主目录，包含所有数据     |
+| 应用目录     | -                 | `%USERPROFILE%\.chopsticks\apps`        | 已安装软件的目录，支持多版本管理    |
+| 缓存目录     | -                 | `%USERPROFILE%\.chopsticks\cache`       | 下载缓存、临时文件和元数据缓存      |
+| 软件源目录   | -                 | `%USERPROFILE%\.chopsticks\buckets`     | 软件源（Bucket）仓库目录            |
+| 持久化目录   | -                 | `%USERPROFILE%\.chopsticks\persist`     | 软件持久化数据，更新时保留          |
+| 快捷方式目录 | -                 | `%USERPROFILE%\.chopsticks\shim`        | 可执行文件快捷方式，添加到 PATH     |
+| 日志目录     | -                 | `%USERPROFILE%\.chopsticks\logs`        | 运行日志文件，便于排查问题          |
+| 配置文件     | -                 | `%USERPROFILE%\.chopsticks\config.yaml` | 用户配置文件，包含代理、超时等设置  |
+| 数据库文件   | -                 | `%USERPROFILE%\.chopsticks\data.db`     | SQLite 数据库，存储软件源和安装记录 |
 
 ---
 

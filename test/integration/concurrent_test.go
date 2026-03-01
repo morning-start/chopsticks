@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"chopsticks/core/app"
+	"chopsticks/core/bucket"
 	"chopsticks/test/testutil"
 
 	"github.com/stretchr/testify/assert"
@@ -257,7 +258,7 @@ func TestConcurrentBucketOperations(t *testing.T) {
 			// 创建 bucket
 			testutil.CreateTestBucket(t, components.TmpDir+"/buckets/"+name)
 			// 添加到存储
-			err := components.BucketMgr.Add(ctx, name, "https://github.com/test/"+name, struct{}{})
+			err := components.BucketMgr.Add(ctx, name, "https://github.com/test/"+name, bucket.AddOptions{})
 			if err != nil {
 				errors <- err
 			}
