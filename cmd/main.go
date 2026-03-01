@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"chopsticks/cmd/chopsticks/cli"
+	"chopsticks/cmd/cli"
 	coreapp "chopsticks/core/app"
 	"chopsticks/pkg/config"
 	"chopsticks/pkg/output"
