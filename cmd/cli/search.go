@@ -63,7 +63,7 @@ func searchAction(c *cli.Context) error {
 		output.Infoln(bucketName)
 	}
 
-	ctx := getContext(c)
+	ctx := getContextFromCli(c)
 	application := getApp()
 
 	// 调用 app manager 搜索

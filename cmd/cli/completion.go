@@ -4,16 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
-// completionCommand 返回 completion 命令定义。
-func completionCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "completion",
-		Usage:     "生成自动补全脚本",
-		ArgsUsage: "<shell>",
-		Description: `生成指定 shell 的自动补全脚本。
+// completionCmd 表示 completion 命令
+var completionCmd = &cobra.Command{
+	Use:   "completion <shell>",
+	Short: "生成自动补全脚本",
+	Long: `生成指定 shell 的自动补全脚本。
 
 支持的 shell:
   bash       生成 Bash 补全脚本
@@ -35,17 +33,12 @@ func completionCommand() *cli.Command {
 
   # Fish
   chopsticks completion fish > ~/.config/fish/completions/chopsticks.fish`,
-		Action: completionAction,
-	}
+	Args: cobra.ExactArgs(1),
+	RunE: runCompletion,
 }
 
-// completionAction 处理 completion 命令。
-func completionAction(c *cli.Context) error {
-	if c.NArg() < 1 {
-		return cli.Exit("错误: 缺少 shell 参数\n用法: chopsticks completion <shell>", 1)
-	}
-
-	shell := strings.ToLower(c.Args().First())
+func runCompletion(cmd *cobra.Command, args []string) error {
+	shell := strings.ToLower(args[0])
 
 	switch shell {
 	case "bash":
@@ -57,8 +50,12 @@ func completionAction(c *cli.Context) error {
 	case "fish":
 		return generateFishCompletion()
 	default:
-		return cli.Exit(fmt.Sprintf("不支持的 shell: %s\n支持的 shell: bash, zsh, powershell, fish", shell), 1)
+		return fmt.Errorf("不支持的 shell: %s\n支持的 shell: bash, zsh, powershell, fish", shell)
 	}
+}
+
+func init() {
+	rootCmd.AddCommand(completionCmd)
 }
 
 // generateBashCompletion 生成 Bash 补全脚本。

@@ -93,7 +93,7 @@ func installAction(c *cli.Context) error {
 	arch := c.String("arch")
 	bucket := c.String("bucket")
 
-	ctx := getContext(c)
+	ctx := getContextFromCli(c)
 	application := getApp()
 
 	// 获取所有要安装的包

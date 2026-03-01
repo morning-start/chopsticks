@@ -29,7 +29,7 @@ func searchAsyncAction(c *cli.Context) error {
 		maxWorkers = 10
 	}
 
-	ctx, cancel := context.WithCancel(getContext(c))
+	ctx, cancel := context.WithCancel(getContextFromCli(c))
 	defer cancel()
 
 	// 设置信号处理

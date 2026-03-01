@@ -3,39 +3,31 @@ package cli
 import (
 	"chopsticks/pkg/output"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
-// listCommand 返回 list 命令定义。
-func listCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "list",
-		Aliases:   []string{"ls"},
-		Usage:     "列出软件包",
-		ArgsUsage: " ",
-		Description: `列出已安装的软件包或可用软件包。
+var (
+	listInstalled bool
+)
+
+// listCmd 表示 list 命令
+var listCmd = &cobra.Command{
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "列出软件包",
+	Long: `列出已安装的软件包或可用软件包。
 
 示例:
   chopsticks list
   chopsticks list --installed
   chopsticks ls`,
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "installed",
-				Aliases: []string{"i"},
-				Usage:   "只显示已安装的软件包",
-			},
-		},
-		Action: listAction,
-	}
+	RunE: runList,
 }
 
-// listAction 处理列表命令。
-func listAction(c *cli.Context) error {
-	installed := c.Bool("installed")
+func runList(cmd *cobra.Command, args []string) error {
 	application := getApp()
 
-	if installed {
+	if listInstalled {
 		// 列出已安装的软件包
 		output.Highlightln("已安装的软件包:")
 		output.Dimln("--------------")
@@ -43,7 +35,7 @@ func listAction(c *cli.Context) error {
 		apps, err := application.AppManager().ListInstalled()
 		if err != nil {
 			output.ErrorCrossf("获取已安装列表失败: %v", err)
-			return cli.Exit("", 1)
+			return err
 		}
 
 		if len(apps) == 0 {
@@ -69,4 +61,9 @@ func listAction(c *cli.Context) error {
 	}
 
 	return nil
+}
+
+func init() {
+	listCmd.Flags().BoolVarP(&listInstalled, "installed", "i", false, "只显示已安装的软件包")
+	rootCmd.AddCommand(listCmd)
 }

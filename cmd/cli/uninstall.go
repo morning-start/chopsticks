@@ -47,7 +47,7 @@ func uninstallAction(c *cli.Context) error {
 
 	purge := c.Bool("purge")
 
-	ctx := getContext(c)
+	ctx := getContextFromCli(c)
 	application := getApp()
 
 	// 获取所有要卸载的包

@@ -63,7 +63,7 @@ func updateAction(c *cli.Context) error {
 	force := c.Bool("force")
 	updateAll := c.Bool("all")
 
-	ctx := getContext(c)
+	ctx := getContextFromCli(c)
 	application := getApp()
 
 	opts := app.UpdateOptions{

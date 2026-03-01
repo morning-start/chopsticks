@@ -442,7 +442,7 @@ func bucketRemoveAction(c *cli.Context) error {
 
 // bucketListAction 处理 bucket list 命令。
 func bucketListAction(c *cli.Context) error {
-	ctx := getContext(c)
+	ctx := getContextFromCli(c)
 	application := getApp()
 
 	// 获取所有软件源
@@ -480,7 +480,7 @@ func bucketListAction(c *cli.Context) error {
 
 // bucketUpdateAction 处理 bucket update 命令。
 func bucketUpdateAction(c *cli.Context) error {
-	ctx := getContext(c)
+	ctx := getContextFromCli(c)
 	application := getApp()
 
 	if c.NArg() == 0 {
