@@ -105,7 +105,7 @@ func TestPipeline_Run(t *testing.T) {
 
 	// 执行流水线
 	input := []interface{}{1, 2, 3, 4, 5}
-	results, err := p.Run(input)
+	results, err := p.Run(context.Background(), input)
 
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
@@ -129,7 +129,7 @@ func TestPipeline_Run_EmptyStages(t *testing.T) {
 	p := NewPipeline(nil)
 
 	input := []interface{}{1, 2, 3}
-	_, err := p.Run(input)
+	_, err := p.Run(context.Background(), input)
 
 	if err == nil {
 		t.Error("Expected error for empty stages")
@@ -149,7 +149,7 @@ func TestPipeline_Run_WithError(t *testing.T) {
 	}, 1)
 
 	input := []interface{}{1, 2, 3, 4, 5}
-	results, err := p.Run(input)
+	results, err := p.Run(context.Background(), input)
 
 	// Run 方法本身不返回错误，错误在结果中
 	if err != nil {
@@ -180,7 +180,7 @@ func TestPipeline_RunAsync(t *testing.T) {
 	}, 1)
 
 	input := []interface{}{1, 2, 3}
-	outputChan := p.RunAsync(input)
+	outputChan := p.RunAsync(context.Background(), input)
 
 	var results []Item
 	for item := range outputChan {
@@ -201,17 +201,20 @@ func TestPipeline_Cancel(t *testing.T) {
 		return item, nil
 	}, 1)
 
+	// 创建可取消的上下文
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// 异步执行
 	input := []interface{}{1, 2, 3, 4, 5}
-	go p.Run(input)
+	go p.Run(ctx, input)
 
 	// 立即取消
 	time.Sleep(10 * time.Millisecond)
-	p.Cancel()
+	cancel()
 
 	// 验证上下文已取消
 	select {
-	case <-p.ctx.Done():
+	case <-ctx.Done():
 		// 成功
 	case <-time.After(100 * time.Millisecond):
 		t.Error("Context should be cancelled")
@@ -495,7 +498,7 @@ func BenchmarkPipeline(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		p.Run(input)
+		p.Run(context.Background(), input)
 	}
 }
 
@@ -517,6 +520,6 @@ func BenchmarkPipelineParallel(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		p.Run(input)
+		p.Run(context.Background(), input)
 	}
 }

@@ -51,8 +51,6 @@ type Pipeline struct {
 	stages      []Stage
 	bufferSize  int
 	errorPolicy ErrorPolicy
-	ctx         context.Context
-	cancel      context.CancelFunc
 }
 
 // ErrorPolicy 错误处理策略
@@ -87,14 +85,10 @@ func NewPipeline(config *Config) *Pipeline {
 		config = DefaultConfig()
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-
 	return &Pipeline{
 		stages:      make([]Stage, 0),
 		bufferSize:  config.BufferSize,
 		errorPolicy: config.ErrorPolicy,
-		ctx:         ctx,
-		cancel:      cancel,
 	}
 }
 
@@ -117,10 +111,14 @@ func (p *Pipeline) AddStageFunc(name string, fn StageFunc, parallelism int) *Pip
 }
 
 // Run 执行流水线
-func (p *Pipeline) Run(input []interface{}) ([]Item, error) {
+func (p *Pipeline) Run(ctx context.Context, input []interface{}) ([]Item, error) {
 	if len(p.stages) == 0 {
 		return nil, fmt.Errorf("%w", ErrNoStages)
 	}
+
+	// 创建可取消的上下文
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	// 创建输入通道
 	inputChan := make(chan Item, p.bufferSize)
@@ -128,7 +126,7 @@ func (p *Pipeline) Run(input []interface{}) ([]Item, error) {
 		defer close(inputChan)
 		for i, data := range input {
 			select {
-			case <-p.ctx.Done():
+			case <-ctx.Done():
 				return
 			case inputChan <- Item{Data: data, Index: i}:
 			}
@@ -147,10 +145,10 @@ func (p *Pipeline) Run(input []interface{}) ([]Item, error) {
 			defer wg.Done()
 			defer close(out)
 
-			if err := s.Process(p.ctx, in, out); err != nil {
+			if err := s.Process(ctx, in, out); err != nil {
 				// 根据错误策略处理
 				if p.errorPolicy == StopOnError {
-					p.cancel()
+					cancel()
 				}
 			}
 		}(stage, currentChan, outputChan)
@@ -163,7 +161,7 @@ func (p *Pipeline) Run(input []interface{}) ([]Item, error) {
 	for item := range currentChan {
 		results = append(results, item)
 		if item.Error != nil && p.errorPolicy == StopOnError {
-			p.cancel()
+			cancel()
 			break
 		}
 	}
@@ -175,13 +173,13 @@ func (p *Pipeline) Run(input []interface{}) ([]Item, error) {
 }
 
 // RunAsync 异步执行流水线
-func (p *Pipeline) RunAsync(input []interface{}) <-chan Item {
+func (p *Pipeline) RunAsync(ctx context.Context, input []interface{}) <-chan Item {
 	outputChan := make(chan Item, p.bufferSize)
 
 	go func() {
 		defer close(outputChan)
 
-		results, err := p.Run(input)
+		results, err := p.Run(ctx, input)
 		if err != nil {
 			outputChan <- Item{Error: err}
 			return
@@ -189,7 +187,7 @@ func (p *Pipeline) RunAsync(input []interface{}) <-chan Item {
 
 		for _, item := range results {
 			select {
-			case <-p.ctx.Done():
+			case <-ctx.Done():
 				return
 			case outputChan <- item:
 			}
@@ -197,11 +195,6 @@ func (p *Pipeline) RunAsync(input []interface{}) <-chan Item {
 	}()
 
 	return outputChan
-}
-
-// Cancel 取消流水线执行
-func (p *Pipeline) Cancel() {
-	p.cancel()
 }
 
 // SetErrorPolicy 设置错误处理策略
@@ -308,7 +301,7 @@ func (pp *ParallelPipeline) AddPipeline(pipeline *Pipeline) *ParallelPipeline {
 }
 
 // Run 执行并行流水线
-func (pp *ParallelPipeline) Run(inputs [][]interface{}) ([]Item, error) {
+func (pp *ParallelPipeline) Run(ctx context.Context, inputs [][]interface{}) ([]Item, error) {
 	if len(pp.pipelines) != len(inputs) {
 		return nil, fmt.Errorf("%w: pipeline count (%d) does not match input count (%d)",
 			ErrMismatchedInputCount, len(pp.pipelines), len(inputs))
@@ -322,7 +315,11 @@ func (pp *ParallelPipeline) Run(inputs [][]interface{}) ([]Item, error) {
 		wg.Add(1)
 		go func(idx int, p *Pipeline, input []interface{}) {
 			defer wg.Done()
-			results[idx], _ = p.Run(input)
+			var err error
+			results[idx], err = p.Run(ctx, input)
+			if err != nil {
+				errChan <- err
+			}
 		}(i, pipeline, inputs[i])
 	}
 
