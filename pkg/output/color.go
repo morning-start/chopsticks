@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/fatih/color"
+	"github.com/charmbracelet/lipgloss"
 )
 
 var (
@@ -15,36 +15,55 @@ var (
 	colorMu      sync.RWMutex
 )
 
-// 预定义的颜色对象
+// 颜色定义
 var (
-	// ColorSuccess 成功颜色（绿色加粗）
-	ColorSuccess = color.New(color.FgGreen, color.Bold)
-	// ColorError 错误颜色（红色加粗）
-	ColorError = color.New(color.FgRed, color.Bold)
-	// ColorWarning 警告颜色（黄色）
-	ColorWarning = color.New(color.FgYellow)
-	// ColorInfo 信息颜色（蓝色）
-	ColorInfo = color.New(color.FgBlue)
-	// ColorHighlight 高亮颜色（青色加粗）
-	ColorHighlight = color.New(color.FgCyan, color.Bold)
-	// ColorDim 暗淡颜色（灰色）
-	ColorDim = color.New(color.FgHiBlack)
-	// ColorBold 粗体
-	ColorBold = color.New(color.Bold)
+	// 基础颜色
+	colorGreen   = lipgloss.Color("#00FF00")
+	colorRed     = lipgloss.Color("#FF0000")
+	colorYellow  = lipgloss.Color("#FFFF00")
+	colorBlue    = lipgloss.Color("#0000FF")
+	colorCyan    = lipgloss.Color("#00FFFF")
+	colorHiBlack = lipgloss.Color("#666666")
+	colorWhite   = lipgloss.Color("#FFFFFF")
+
+	// 样式定义
+	styleSuccess   lipgloss.Style
+	styleError     lipgloss.Style
+	styleWarning   lipgloss.Style
+	styleInfo      lipgloss.Style
+	styleHighlight lipgloss.Style
+	styleDim       lipgloss.Style
+	styleBold      lipgloss.Style
 )
 
 func init() {
-	// 初始化时根据环境自动检测颜色支持
-	updateColorState()
+	updateStyles()
 }
 
-// updateColorState 根据全局开关更新颜色状态
-func updateColorState() {
+// updateStyles 根据颜色开关更新样式
+func updateStyles() {
 	colorMu.RLock()
 	enabled := colorEnabled
 	colorMu.RUnlock()
 
-	color.NoColor = !enabled
+	if enabled {
+		styleSuccess = lipgloss.NewStyle().Foreground(colorGreen).Bold(true)
+		styleError = lipgloss.NewStyle().Foreground(colorRed).Bold(true)
+		styleWarning = lipgloss.NewStyle().Foreground(colorYellow)
+		styleInfo = lipgloss.NewStyle().Foreground(colorBlue)
+		styleHighlight = lipgloss.NewStyle().Foreground(colorCyan).Bold(true)
+		styleDim = lipgloss.NewStyle().Foreground(colorHiBlack)
+		styleBold = lipgloss.NewStyle().Bold(true)
+	} else {
+		// 禁用颜色时，使用无颜色样式
+		styleSuccess = lipgloss.NewStyle()
+		styleError = lipgloss.NewStyle()
+		styleWarning = lipgloss.NewStyle()
+		styleInfo = lipgloss.NewStyle()
+		styleHighlight = lipgloss.NewStyle()
+		styleDim = lipgloss.NewStyle()
+		styleBold = lipgloss.NewStyle()
+	}
 }
 
 // SetColorEnabled 启用/禁用颜色输出
@@ -53,14 +72,14 @@ func SetColorEnabled(enabled bool) {
 	colorEnabled = enabled
 	colorMu.Unlock()
 
-	color.NoColor = !enabled
+	updateStyles()
 }
 
 // IsColorEnabled 检查颜色是否启用
 func IsColorEnabled() bool {
 	colorMu.RLock()
 	defer colorMu.RUnlock()
-	return colorEnabled && !color.NoColor
+	return colorEnabled
 }
 
 // DisableColor 禁用颜色输出
@@ -75,288 +94,163 @@ func EnableColor() {
 
 // Success 输出成功消息（绿色）
 func Success(format string, a ...interface{}) {
-	ColorSuccess.Printf(format, a...)
+	fmt.Print(styleSuccess.Render(fmt.Sprintf(format, a...)))
 }
 
 // Successln 输出成功消息并换行
 func Successln(a ...interface{}) {
-	ColorSuccess.Println(a...)
+	fmt.Println(styleSuccess.Render(fmt.Sprint(a...)))
 }
 
 // Successf 输出格式化的成功消息
 func Successf(format string, a ...interface{}) {
-	ColorSuccess.Printf(format, a...)
+	fmt.Println(styleSuccess.Render(fmt.Sprintf(format, a...)))
 }
 
 // Error 输出错误消息（红色）
 func Error(format string, a ...interface{}) {
-	ColorError.Fprintf(os.Stderr, format, a...)
+	fmt.Fprint(os.Stderr, styleError.Render(fmt.Sprintf(format, a...)))
 }
 
 // Errorln 输出错误消息并换行
 func Errorln(a ...interface{}) {
-	ColorError.Fprintln(os.Stderr, a...)
+	fmt.Fprintln(os.Stderr, styleError.Render(fmt.Sprint(a...)))
 }
 
 // Errorf 输出格式化的错误消息
 func Errorf(format string, a ...interface{}) {
-	ColorError.Fprintf(os.Stderr, format, a...)
+	fmt.Fprintln(os.Stderr, styleError.Render(fmt.Sprintf(format, a...)))
 }
 
 // Warning 输出警告消息（黄色）
 func Warning(format string, a ...interface{}) {
-	ColorWarning.Printf(format, a...)
+	fmt.Print(styleWarning.Render(fmt.Sprintf(format, a...)))
 }
 
 // Warn 输出警告消息（黄色，Warning 的别名）
 func Warn(format string, a ...interface{}) {
-	ColorWarning.Printf(format, a...)
+	Warning(format, a...)
 }
 
 // Warningln 输出警告消息并换行
 func Warningln(a ...interface{}) {
-	ColorWarning.Println(a...)
+	fmt.Println(styleWarning.Render(fmt.Sprint(a...)))
 }
 
 // Warningf 输出格式化的警告消息
 func Warningf(format string, a ...interface{}) {
-	ColorWarning.Printf(format, a...)
+	fmt.Println(styleWarning.Render(fmt.Sprintf(format, a...)))
 }
 
 // Info 输出信息消息（蓝色）
 func Info(format string, a ...interface{}) {
-	ColorInfo.Printf(format, a...)
+	fmt.Print(styleInfo.Render(fmt.Sprintf(format, a...)))
 }
 
 // Infoln 输出信息消息并换行
 func Infoln(a ...interface{}) {
-	ColorInfo.Println(a...)
+	fmt.Println(styleInfo.Render(fmt.Sprint(a...)))
 }
 
 // Infof 输出格式化的信息消息
 func Infof(format string, a ...interface{}) {
-	ColorInfo.Printf(format, a...)
+	fmt.Println(styleInfo.Render(fmt.Sprintf(format, a...)))
 }
 
 // Highlight 输出高亮消息（青色）
 func Highlight(format string, a ...interface{}) {
-	ColorHighlight.Printf(format, a...)
+	fmt.Print(styleHighlight.Render(fmt.Sprintf(format, a...)))
 }
 
 // Highlightln 输出高亮消息并换行
 func Highlightln(a ...interface{}) {
-	ColorHighlight.Println(a...)
+	fmt.Println(styleHighlight.Render(fmt.Sprint(a...)))
 }
 
 // Highlightf 输出格式化的高亮消息
 func Highlightf(format string, a ...interface{}) {
-	ColorHighlight.Printf(format, a...)
+	fmt.Println(styleHighlight.Render(fmt.Sprintf(format, a...)))
 }
 
 // Dim 输出暗淡消息（灰色）
 func Dim(format string, a ...interface{}) {
-	ColorDim.Printf(format, a...)
+	fmt.Print(styleDim.Render(fmt.Sprintf(format, a...)))
 }
 
 // Dimln 输出暗淡消息并换行
 func Dimln(a ...interface{}) {
-	ColorDim.Println(a...)
+	fmt.Println(styleDim.Render(fmt.Sprint(a...)))
 }
 
 // Dimf 输出格式化的暗淡消息
 func Dimf(format string, a ...interface{}) {
-	ColorDim.Printf(format, a...)
-}
-
-// Print 使用指定颜色输出
-func Print(c *color.Color, format string, a ...interface{}) {
-	c.Printf(format, a...)
-}
-
-// Println 使用指定颜色输出并换行
-func Println(c *color.Color, a ...interface{}) {
-	c.Println(a...)
-}
-
-// Printf 使用指定颜色格式化输出
-func Printf(c *color.Color, format string, a ...interface{}) {
-	c.Printf(format, a...)
+	fmt.Println(styleDim.Render(fmt.Sprintf(format, a...)))
 }
 
 // 带图标的消息输出
 
 // SuccessCheck 输出带勾选的成功消息
 func SuccessCheck(msg string) {
-	ColorSuccess.Println("✓", msg)
+	fmt.Println(styleSuccess.Render("✓ " + msg))
 }
 
 // SuccessCheckf 输出带勾选的格式化成功消息
 func SuccessCheckf(format string, a ...interface{}) {
-	ColorSuccess.Printf("✓ "+format+"\n", a...)
+	msg := fmt.Sprintf(format, a...)
+	fmt.Println(styleSuccess.Render("✓ " + msg))
 }
 
 // ErrorCross 输出带叉号的错误消息
 func ErrorCross(msg string) {
-	ColorError.Fprintln(os.Stderr, "✗", msg)
+	fmt.Fprintln(os.Stderr, styleError.Render("✗ "+msg))
 }
 
 // ErrorCrossf 输出带叉号的格式化错误消息
 func ErrorCrossf(format string, a ...interface{}) {
-	ColorError.Fprintf(os.Stderr, "✗ "+format+"\n", a...)
+	msg := fmt.Sprintf(format, a...)
+	fmt.Fprintln(os.Stderr, styleError.Render("✗ "+msg))
 }
 
 // WarningSign 输出带警告符号的警告消息
 func WarningSign(msg string) {
-	ColorWarning.Println("⚠", msg)
+	fmt.Println(styleWarning.Render("⚠ " + msg))
 }
 
 // InfoSign 输出带信息符号的信息消息
 func InfoSign(msg string) {
-	ColorInfo.Println("ℹ", msg)
+	fmt.Println(styleInfo.Render("ℹ " + msg))
 }
 
 // Arrow 输出带箭头的高亮消息
 func Arrow(msg string) {
-	ColorHighlight.Println("→", msg)
+	fmt.Println(styleHighlight.Render("→ " + msg))
 }
 
-// 兼容旧版 API
-
-// Color 颜色类型（兼容旧版）
-type Color int
-
-const (
-	Reset Color = iota
-	Black
-	Red
-	Green
-	Yellow
-	Blue
-	Magenta
-	Cyan
-	White
-
-	BrightBlack
-	BrightRed
-	BrightGreen
-	BrightYellow
-	BrightBlue
-	BrightMagenta
-	BrightCyan
-	BrightWhite
-
-	SuccessColor = Green
-	WarningColor = Yellow
-	ErrorColor   = Red
-	InfoColor    = Cyan
-)
-
-// Colorize 给消息添加颜色（兼容旧版）
-func Colorize(c Color, message string) string {
-	switch c {
-	case Red:
-		return ColorError.Sprint(message)
-	case Green:
-		return ColorSuccess.Sprint(message)
-	case Yellow:
-		return ColorWarning.Sprint(message)
-	case Blue:
-		return ColorInfo.Sprint(message)
-	case Cyan:
-		return ColorHighlight.Sprint(message)
-	case Magenta:
-		return color.MagentaString(message)
-	case White:
-		return color.WhiteString(message)
-	case BrightBlack:
-		return ColorDim.Sprint(message)
-	default:
-		return message
-	}
-}
-
-// ColorizeBg 给消息添加前景色和背景色（兼容旧版，简化实现）
-func ColorizeBg(fg Color, bg Color, message string) string {
-	// 简化实现，只使用前景色
-	return Colorize(fg, message)
-}
-
-// PrintError 输出错误（兼容旧版）
-func PrintError(format string, args ...interface{}) {
-	Errorf(format, args...)
-}
-
-// PrintErrorln 输出错误并换行（兼容旧版）
-func PrintErrorln(args ...interface{}) {
-	Errorln(args...)
-}
-
-// PrintSuccess 输出成功（兼容旧版）
-func PrintSuccess(format string, args ...interface{}) {
-	Successf(format, args...)
-}
-
-// PrintSuccessln 输出成功并换行（兼容旧版）
-func PrintSuccessln(args ...interface{}) {
-	Successln(args...)
-}
-
-// PrintWarning 输出警告（兼容旧版）
-func PrintWarning(format string, args ...interface{}) {
-	Warningf(format, args...)
-}
-
-// PrintWarningln 输出警告并换行（兼容旧版）
-func PrintWarningln(args ...interface{}) {
-	Warningln(args...)
-}
-
-// PrintInfo 输出信息（兼容旧版）
-func PrintInfo(format string, args ...interface{}) {
-	Infof(format, args...)
-}
-
-// PrintInfoln 输出信息并换行（兼容旧版）
-func PrintInfoln(args ...interface{}) {
-	Infoln(args...)
-}
-
-// Header 输出标题（兼容旧版）
-func Header(format string, args ...interface{}) {
-	Highlightf(format, args...)
-}
-
-// SubHeader 输出副标题（兼容旧版）
-func SubHeader(format string, args ...interface{}) {
-	Infof(format, args...)
-}
-
-// Item 输出项目（兼容旧版）
+// Item 输出项目（标签: 值）
 func Item(label, value string) {
-	fmt.Printf("%s %s\n", ColorDim.Sprint(label+":"), value)
+	fmt.Printf("%s %s\n", styleDim.Render(label+":"), value)
 }
 
-// Checkmark 输出勾选（兼容旧版）
-func Checkmark() {
-	Successln("✓")
+// Style 返回指定颜色的 lipgloss.Style（用于高级用法）
+func Style(color lipgloss.Color, bold bool) lipgloss.Style {
+	s := lipgloss.NewStyle().Foreground(color)
+	if bold {
+		s = s.Bold(true)
+	}
+	return s
 }
 
-// CheckmarkWith 输出带勾选的文本（兼容旧版）
-func CheckmarkWith(msg string) {
-	SuccessCheck(msg)
+// Render 使用指定样式渲染文本
+func Render(style lipgloss.Style, format string, a ...interface{}) string {
+	return style.Render(fmt.Sprintf(format, a...))
 }
 
-// Crossmark 输出叉号（兼容旧版）
-func Crossmark() {
-	Errorln("✗")
+// PrintStyled 使用指定样式输出
+func PrintStyled(style lipgloss.Style, format string, a ...interface{}) {
+	fmt.Print(style.Render(fmt.Sprintf(format, a...)))
 }
 
-// CrossmarkWith 输出带叉号的文本（兼容旧版）
-func CrossmarkWith(msg string) {
-	ErrorCross(msg)
-}
-
-// ArrowWith 输出带箭头的文本（兼容旧版）
-func ArrowWith(msg string) {
-	Arrow(msg)
+// PrintlnStyled 使用指定样式输出并换行
+func PrintlnStyled(style lipgloss.Style, a ...interface{}) {
+	fmt.Println(style.Render(fmt.Sprint(a...)))
 }
