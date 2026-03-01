@@ -1,3 +1,7 @@
+// Package engine 提供 JavaScript 脚本引擎功能。
+//
+// 该包实现了基于 Goja 的 JavaScript 运行时环境，支持脚本执行、
+// 模块加载、缓存管理和引擎池等功能，用于执行应用安装脚本。
 package engine
 
 import (
