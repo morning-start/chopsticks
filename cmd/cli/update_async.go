@@ -13,7 +13,7 @@ import (
 	"chopsticks/pkg/output"
 	"chopsticks/pkg/parallel"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
 // 性能阈值常量
@@ -24,16 +24,14 @@ const (
 	lowUtilizationThreshold = 10.0
 )
 
-// updateAsyncAction 异步更新命令
-func updateAsyncAction(c *cli.Context) error {
-	force := c.Bool("force")
-	updateAll := c.Bool("all")
-	maxWorkers := c.Int("workers")
+// runUpdateAsync 异步更新命令
+func runUpdateAsync(cmd *cobra.Command, args []string) error {
+	maxWorkers := updateWorkers
 	if maxWorkers <= 0 {
 		maxWorkers = defaultWorkers
 	}
 
-	ctx, cancel := context.WithCancel(getContextFromCli(c))
+	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
 	// 设置信号处理
@@ -50,28 +48,20 @@ func updateAsyncAction(c *cli.Context) error {
 	// 更新所有
 	if updateAll {
 		output.Infoln("Updating all packages asynchronously...")
-		if err := application.AppManager().UpdateAll(ctx, app.UpdateOptions{Force: force}); err != nil {
+		if err := application.AppManager().UpdateAll(ctx, app.UpdateOptions{Force: updateForce}); err != nil {
 			output.ErrorCrossf("Update failed: %v", err)
-			return cli.Exit("", 1)
+			return err
 		}
 		output.SuccessCheck("All packages updated successfully")
 		return nil
 	}
 
 	// 没有参数时显示错误
-	if c.NArg() < 1 {
-		output.Errorln("Error: missing package name")
-		output.Dimln("Usage: chopsticks update [package ...] [--all] --async")
-		return cli.Exit("", 1)
+	if len(args) < 1 {
+		return fmt.Errorf("missing package name. Usage: chopsticks update [package ...] [--all] --async")
 	}
 
-	// 获取所有要更新的包
-	packages := make([]string, c.NArg())
-	for i := 0; i < c.NArg(); i++ {
-		packages[i] = c.Args().Get(i)
-	}
-
-	total := len(packages)
+	total := len(args)
 
 	output.Infoln("========================================")
 	output.Infof("Starting async update of %d packages (max concurrency: %d)\n", total, maxWorkers)
@@ -83,10 +73,10 @@ func updateAsyncAction(c *cli.Context) error {
 	results := make([]updateResult, total)
 	var mu sync.Mutex
 
-	for i, pkg := range packages {
+	for i, pkg := range args {
 		pool.Add(func(idx int, name string) func() error {
 			return func() error {
-				result := updatePackage(ctx, application.AppManager(), name, force)
+				result := updatePackage(ctx, application.AppManager(), name, updateForce)
 				mu.Lock()
 				results[idx] = result
 				mu.Unlock()
@@ -162,7 +152,7 @@ func printAsyncUpdateResults(results []updateResult, poolErr error) error {
 	}
 
 	if failCount > 0 || poolErr != nil {
-		return cli.Exit("", 1)
+		return fmt.Errorf("some packages failed to update")
 	}
 	output.SuccessCheck("All packages updated")
 	return nil

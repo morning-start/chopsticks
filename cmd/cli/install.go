@@ -9,7 +9,7 @@ import (
 	"chopsticks/core/app"
 	"chopsticks/pkg/output"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
 // 常量定义
@@ -27,14 +27,20 @@ type packageSpec struct {
 	spec    string
 }
 
-// installCommand 返回 install 命令定义。
-func installCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "install",
-		Aliases:   []string{"i"},
-		Usage:     "安装软件包",
-		ArgsUsage: "<package>[@version] ...",
-		Description: `安装指定的软件包。可以指定版本号，格式为 package@version。
+var (
+	installForce   bool
+	installArch    string
+	installBucket  string
+	installAsync   bool
+	installWorkers int
+)
+
+// installCmd 表示 install 命令
+var installCmd = &cobra.Command{
+	Use:     "install <package>[@version] ...",
+	Aliases: []string{"i"},
+	Short:   "安装软件包",
+	Long: `安装指定的软件包。可以指定版本号，格式为 package@version。
 支持批量安装多个软件包。
 
 示例:
@@ -43,75 +49,33 @@ func installCommand() *cli.Command {
   chopsticks install git --force
   chopsticks install app1 app2 app3
   chopsticks install git@2.40 nodejs@18 python@3.11`,
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "force",
-				Aliases: []string{"f"},
-				Usage:   "强制重新安装，即使已存在",
-			},
-			&cli.StringFlag{
-				Name:    "arch",
-				Aliases: []string{"a"},
-				Usage:   "Specify architecture (amd64, x86, arm64)",
-				Value:   defaultArch,
-			},
-			&cli.StringFlag{
-				Name:    "bucket",
-				Aliases: []string{"b"},
-				Usage:   "Specify bucket",
-				Value:   defaultBucket,
-			},
-			&cli.BoolFlag{
-				Name:  "async",
-				Usage: "Use async mode (parallel installation)",
-			},
-			&cli.IntFlag{
-				Name:    "workers",
-				Aliases: []string{"w"},
-				Usage:   "Max concurrency for async mode",
-				Value:   defaultWorkers,
-			},
-		},
-		Action: installAction,
-	}
+	Args: cobra.MinimumNArgs(1),
+	RunE: runInstall,
 }
 
-// installAction 处理安装命令（支持批量安装）。
-func installAction(c *cli.Context) error {
-	if c.NArg() < 1 {
-		output.Errorln("Error: missing package name")
-		output.Dimln("Usage: chopsticks install <package>[@version] ...")
-		return cli.Exit("", 1)
-	}
-
+func runInstall(cmd *cobra.Command, args []string) error {
 	// 异步模式
-	if c.Bool("async") {
-		return installAsyncAction(c)
+	if installAsync {
+		return runInstallAsync(cmd, args)
 	}
 
-	force := c.Bool("force")
-	arch := c.String("arch")
-	bucket := c.String("bucket")
-
-	ctx := getContextFromCli(c)
+	ctx := cmd.Context()
 	application := getApp()
 
-	// 获取所有要安装的包
-	packages := make([]packageSpec, c.NArg())
-
-	for i := 0; i < c.NArg(); i++ {
-		spec := c.Args().Get(i)
+	// 解析所有要安装的包
+	packages := make([]packageSpec, len(args))
+	for i, spec := range args {
 		name, version := parseAppSpec(spec)
 		packages[i] = packageSpec{name: name, version: version, spec: spec}
 	}
 
 	// 单个包直接安装
 	if len(packages) == 1 {
-		return installSingle(ctx, application.AppManager(), packages[0].name, packages[0].version, bucket, arch, force)
+		return installSingle(ctx, application.AppManager(), packages[0].name, packages[0].version, installBucket, installArch, installForce)
 	}
 
 	// 批量安装
-	return installBatch(ctx, application.AppManager(), packages, bucket, arch, force)
+	return installBatch(ctx, application.AppManager(), packages, installBucket, installArch, installForce)
 }
 
 // installSingle 安装单个软件包
@@ -140,7 +104,7 @@ func installSingle(ctx context.Context, mgr app.AppManager, name, version, bucke
 
 	if err := mgr.Install(ctx, installSpec, opts); err != nil {
 		output.ErrorCross(fmt.Sprintf("Installation failed: %v", err))
-		return cli.Exit("", 1)
+		return fmt.Errorf("installation failed: %w", err)
 	}
 
 	output.SuccessCheck(fmt.Sprintf("%s installed successfully", name))
@@ -239,7 +203,7 @@ func printBatchResults(results []batchResult, operation string) error {
 	for _, name := range failedApps {
 		output.Errorf("  - %s\n", name)
 	}
-	return cli.Exit("", 1)
+	return fmt.Errorf("some packages failed")
 }
 
 // parseAppSpec 解析软件包规格（name@version）。
@@ -250,4 +214,14 @@ func parseAppSpec(spec string) (name, version string) {
 		return spec, ""
 	}
 	return spec[:idx], spec[idx+1:]
+}
+
+func init() {
+	installCmd.Flags().BoolVarP(&installForce, "force", "f", false, "强制重新安装，即使已存在")
+	installCmd.Flags().StringVarP(&installArch, "arch", "a", defaultArch, "指定架构 (amd64, x86, arm64)")
+	installCmd.Flags().StringVarP(&installBucket, "bucket", "b", defaultBucket, "指定软件源")
+	installCmd.Flags().BoolVar(&installAsync, "async", false, "使用异步模式（并行安装）")
+	installCmd.Flags().IntVarP(&installWorkers, "workers", "w", defaultWorkers, "异步模式下的最大并发数")
+
+	rootCmd.AddCommand(installCmd)
 }

@@ -8,17 +8,22 @@ import (
 	"chopsticks/core/app"
 	"chopsticks/pkg/output"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
-// updateCommand 返回 update 命令定义。
-func updateCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "update",
-		Aliases:   []string{"upgrade", "up"},
-		Usage:     "更新软件包",
-		ArgsUsage: "[package] ...",
-		Description: `更新指定的软件包，或使用 --all 更新所有软件包。
+var (
+	updateForce   bool
+	updateAll     bool
+	updateAsync   bool
+	updateWorkers int
+)
+
+// updateCmd 表示 update 命令
+var updateCmd = &cobra.Command{
+	Use:     "update [package] ...",
+	Aliases: []string{"upgrade", "up"},
+	Short:   "更新软件包",
+	Long: `更新指定的软件包，或使用 --all 更新所有软件包。
 支持批量更新多个指定软件包。
 
 示例:
@@ -27,47 +32,20 @@ func updateCommand() *cli.Command {
   chopsticks update --all
   chopsticks update app1 app2 app3
   chopsticks upgrade git nodejs python`,
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "all",
-				Aliases: []string{"a"},
-				Usage:   "更新所有已安装的软件包",
-			},
-			&cli.BoolFlag{
-				Name:    "force",
-				Aliases: []string{"f"},
-				Usage:   "强制更新，即使版本相同",
-			},
-			&cli.BoolFlag{
-				Name:  "async",
-				Usage: "使用异步模式更新（并行更新多个包）",
-			},
-			&cli.IntFlag{
-				Name:    "workers",
-				Aliases: []string{"w"},
-				Usage:   "Max concurrency for async mode",
-				Value:   defaultWorkers,
-			},
-		},
-		Action: updateAction,
-	}
+	RunE: runUpdate,
 }
 
-// updateAction 处理更新命令（支持批量更新）。
-func updateAction(c *cli.Context) error {
+func runUpdate(cmd *cobra.Command, args []string) error {
 	// 异步模式
-	if c.Bool("async") {
-		return updateAsyncAction(c)
+	if updateAsync {
+		return runUpdateAsync(cmd, args)
 	}
 
-	force := c.Bool("force")
-	updateAll := c.Bool("all")
-
-	ctx := getContextFromCli(c)
+	ctx := cmd.Context()
 	application := getApp()
 
 	opts := app.UpdateOptions{
-		Force: force,
+		Force: updateForce,
 	}
 
 	// 更新所有
@@ -75,32 +53,24 @@ func updateAction(c *cli.Context) error {
 		output.Infoln("Updating all packages...")
 		if err := application.AppManager().UpdateAll(ctx, opts); err != nil {
 			output.ErrorCrossf("Update failed: %v", err)
-			return cli.Exit("", 1)
+			return err
 		}
 		output.SuccessCheck("All packages updated successfully")
 		return nil
 	}
 
 	// 没有参数时显示错误
-	if c.NArg() < 1 {
-		output.Errorln("Error: missing package name")
-		output.Dimln("Usage: chopsticks update [package ...] [--all]")
-		return cli.Exit("", 1)
-	}
-
-	// 获取所有要更新的包
-	packages := make([]string, c.NArg())
-	for i := 0; i < c.NArg(); i++ {
-		packages[i] = c.Args().Get(i)
+	if len(args) < 1 {
+		return fmt.Errorf("missing package name. Usage: chopsticks update [package ...] [--all]")
 	}
 
 	// 单个包直接更新
-	if len(packages) == 1 {
-		return updateSingle(ctx, application.AppManager(), packages[0], opts)
+	if len(args) == 1 {
+		return updateSingle(ctx, application.AppManager(), args[0], opts)
 	}
 
 	// 批量更新
-	return updateBatch(ctx, application.AppManager(), packages, opts)
+	return updateBatch(ctx, application.AppManager(), args, opts)
 }
 
 // updateSingle 更新单个软件包
@@ -108,7 +78,7 @@ func updateSingle(ctx context.Context, mgr app.AppManager, pkgName string, opts 
 	output.Infof("Updating %s...\n", pkgName)
 	if err := mgr.Update(ctx, pkgName, opts); err != nil {
 		output.ErrorCrossf("Update failed: %v", err)
-		return cli.Exit("", 1)
+		return err
 	}
 
 	output.SuccessCheckf("%s updated successfully", pkgName)
@@ -180,5 +150,14 @@ func printUpdateResults(results []batchResult) error {
 	for _, name := range failedApps {
 		output.Errorf("  - %s\n", name)
 	}
-	return cli.Exit("", 1)
+	return fmt.Errorf("some packages failed to update")
+}
+
+func init() {
+	updateCmd.Flags().BoolVarP(&updateAll, "all", "a", false, "更新所有已安装的软件包")
+	updateCmd.Flags().BoolVarP(&updateForce, "force", "f", false, "强制更新，即使版本相同")
+	updateCmd.Flags().BoolVar(&updateAsync, "async", false, "使用异步模式更新（并行更新多个包）")
+	updateCmd.Flags().IntVarP(&updateWorkers, "workers", "w", defaultWorkers, "异步模式下的最大并发数")
+
+	rootCmd.AddCommand(updateCmd)
 }

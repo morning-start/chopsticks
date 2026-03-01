@@ -14,7 +14,7 @@ import (
 	"chopsticks/pkg/output"
 	"chopsticks/pkg/parallel"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
 // 常量定义
@@ -36,23 +36,14 @@ var (
 	ErrMissingPackageName = errors.New("missing package name")
 )
 
-// installAsyncAction 异步安装命令
-func installAsyncAction(c *cli.Context) error {
-	if c.NArg() < 1 {
-		output.Errorln("Error: missing package name")
-		output.Dimln("Usage: chopsticks install <package>[@version] ... --async")
-		return cli.Exit("", 1)
-	}
-
-	force := c.Bool("force")
-	arch := c.String("arch")
-	bucket := c.String("bucket")
-	maxWorkers := c.Int("workers")
+// runInstallAsync 异步安装命令
+func runInstallAsync(cmd *cobra.Command, args []string) error {
+	maxWorkers := installWorkers
 	if maxWorkers <= 0 {
 		maxWorkers = defaultWorkers
 	}
 
-	ctx, cancel := context.WithCancel(getContextFromCli(c))
+	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
 	// 设置信号处理
@@ -66,11 +57,9 @@ func installAsyncAction(c *cli.Context) error {
 
 	application := getApp()
 
-	// 获取所有要安装的包
-	packages := make([]packageSpec, c.NArg())
-
-	for i := 0; i < c.NArg(); i++ {
-		spec := c.Args().Get(i)
+	// 解析所有要安装的包
+	packages := make([]packageSpec, len(args))
+	for i, spec := range args {
 		name, version := parseAppSpec(spec)
 		packages[i] = packageSpec{name: name, version: version, spec: spec}
 	}
@@ -90,7 +79,7 @@ func installAsyncAction(c *cli.Context) error {
 	for i, pkg := range packages {
 		pool.Add(func(idx int, p packageSpec) func() error {
 			return func() error {
-				result := installPackage(ctx, application.AppManager(), p.name, p.version, bucket, arch, force)
+				result := installPackage(ctx, application.AppManager(), p.name, p.version, installBucket, installArch, installForce)
 				mu.Lock()
 				results[idx] = result
 				mu.Unlock()
@@ -175,7 +164,7 @@ func printInstallResults(results []installResult, poolErr error) error {
 	}
 
 	if failCount > 0 || poolErr != nil {
-		return cli.Exit("", 1)
+		return fmt.Errorf("some packages failed to install")
 	}
 	output.SuccessCheck("All packages processed")
 	return nil
