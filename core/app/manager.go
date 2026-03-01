@@ -24,7 +24,8 @@ var (
 	ErrDependencyConflict  = errors.ErrDependencyConflict
 )
 
-type Manager interface {
+// AppManager 定义应用管理器接口。
+type AppManager interface {
 	Install(ctx context.Context, spec InstallSpec, opts InstallOptions) error
 	Remove(ctx context.Context, name string, opts RemoveOptions) error
 	Update(ctx context.Context, name string, opts UpdateOptions) error

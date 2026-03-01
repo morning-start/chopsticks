@@ -115,7 +115,7 @@ func installAction(c *cli.Context) error {
 }
 
 // installSingle 安装单个软件包
-func installSingle(ctx context.Context, mgr app.Manager, name, version, bucket, arch string, force bool) error {
+func installSingle(ctx context.Context, mgr app.AppManager, name, version, bucket, arch string, force bool) error {
 	output.Info("Installing ")
 	output.Highlight("%s", name)
 	if version != "" {
@@ -148,7 +148,7 @@ func installSingle(ctx context.Context, mgr app.Manager, name, version, bucket, 
 }
 
 // installBatch 批量安装软件包
-func installBatch(ctx context.Context, mgr app.Manager, packages []packageSpec, bucket, arch string, force bool) error {
+func installBatch(ctx context.Context, mgr app.AppManager, packages []packageSpec, bucket, arch string, force bool) error {
 	total := len(packages)
 
 	output.Infoln("========================================")

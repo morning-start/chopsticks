@@ -18,7 +18,8 @@ var (
 	ErrInvalidURL          = errors.ErrInvalidBucketURL
 )
 
-type Manager interface {
+// BucketManager 定义软件源管理器接口。
+type BucketManager interface {
 	Add(ctx context.Context, name, url string, opts AddOptions) error
 	Remove(ctx context.Context, name string, purge bool) error
 	Update(ctx context.Context, name string) error
@@ -54,10 +55,10 @@ type manager struct {
 	git        git.Git
 }
 
-var _ Manager = (*manager)(nil)
+var _ BucketManager = (*manager)(nil)
 
-func NewManager(db store.Storage, config interface{}, bucketsDir string) Manager {
-	return &manager{
+// NewManager 创建软件源管理器
+func NewManager(db store.Storage, config interface{}, bucketsDir string) BucketManager {return &manager{
 		buckets:    make(map[string]*manifest.Bucket),
 		db:         db,
 		config:     config,

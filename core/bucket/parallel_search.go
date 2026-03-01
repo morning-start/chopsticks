@@ -13,13 +13,13 @@ import (
 
 // ParallelSearcher 并行搜索器
 type ParallelSearcher struct {
-	mgr        Manager
+	mgr        BucketManager
 	maxWorkers int
 	cache      *SearchCache
 }
 
 // NewParallelSearcher 创建并行搜索器
-func NewParallelSearcher(mgr Manager, maxWorkers int) *ParallelSearcher {
+func NewParallelSearcher(mgr BucketManager, maxWorkers int) *ParallelSearcher {
 	if maxWorkers <= 0 {
 		maxWorkers = 10
 	}
