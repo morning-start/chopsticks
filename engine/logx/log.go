@@ -20,8 +20,8 @@ type Config struct {
 	MaxSize    int        // 单个日志文件最大大小（MB）
 	MaxBackups int        // 保留的旧日志文件数量
 	MaxAge     int        // 日志文件保留天数
-	Compress   bool       // 是否压缩旧日志
 	Level      slog.Level // 日志级别
+	Compress   bool       // 是否压缩旧日志
 	JSONFormat bool       // 是否使用 JSON 格式
 }
 
