@@ -86,16 +86,19 @@ func CreateTestBucket(t *testing.T, path string) {
 		t.Fatalf("创建 apps 目录失败: %v", err)
 	}
 
-	// Create bucket.yaml
-	bucketConfig := `name: test-bucket
-description: Test bucket
+	// Create bucket.json
+	bucketConfig := `{
+  "id": "test-bucket",
+  "name": "test-bucket",
+  "description": "Test bucket"
+}
 `
 	if err := os.WriteFile(
-		filepath.Join(path, "bucket.yaml"),
+		filepath.Join(path, "bucket.json"),
 		[]byte(bucketConfig),
 		0644,
 	); err != nil {
-		t.Fatalf("创建 bucket.yaml 失败: %v", err)
+		t.Fatalf("创建 bucket.json 失败: %v", err)
 	}
 }
 
@@ -103,31 +106,33 @@ description: Test bucket
 func CreateTestApp(t *testing.T, bucketPath, name string, deps []string) {
 	t.Helper()
 
-	appDir := filepath.Join(bucketPath, "apps", name)
-	if err := os.MkdirAll(appDir, 0755); err != nil {
-		t.Fatalf("创建应用目录失败: %v", err)
-	}
+	// Create app script file directly in apps directory
+	scriptContent := fmt.Sprintf(`/**
+ * @description Test app %s
+ * @version 1.0.0
+ */
 
-	// Create manifest
-	manifestContent := fmt.Sprintf(`
-name: %s
-version: 1.0.0
-description: Test app %s
-`, name, name)
+const app = {
+  name: "%s",
+  version: "1.0.0",
+  architecture: {
+    "64bit": {
+      url: "https://example.com/%s-1.0.0.zip",
+      hash: "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  bin: ["%s.exe"]
+};
 
-	if len(deps) > 0 {
-		manifestContent += "dependencies:\n"
-		for _, dep := range deps {
-			manifestContent += fmt.Sprintf("  - %s\n", dep)
-		}
-	}
+module.exports = app;
+`, name, name, name, name)
 
 	if err := os.WriteFile(
-		filepath.Join(appDir, "manifest.yaml"),
-		[]byte(manifestContent),
+		filepath.Join(bucketPath, "apps", name+".js"),
+		[]byte(scriptContent),
 		0644,
 	); err != nil {
-		t.Fatalf("创建 manifest 失败: %v", err)
+		t.Fatalf("创建应用脚本失败: %v", err)
 	}
 }
 

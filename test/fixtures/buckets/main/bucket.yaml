@@ -1,0 +1,6 @@
+name: main
+description: Main test bucket
+version: "1.0.0"
+author: Test Author
+homepage: https://github.com/test/main
+license: MIT

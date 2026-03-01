@@ -1,0 +1,32 @@
+name: git
+version: 2.40.0
+description: Distributed version control system
+homepage: https://git-scm.com
+license: GPL-2.0-only
+
+architecture:
+  64bit:
+    url: https://example.com/git-2.40.0-64-bit.exe
+    hash: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+bin:
+  - cmd\git.exe
+  - cmd\gitk.exe
+  - cmd\git-gui.exe
+
+shortcuts:
+  - - git-bash.exe
+    - Git Bash
+  - - git-cmd.exe
+    - Git CMD
+  - - cmd\git-gui.exe
+    - Git GUI
+
+checkver:
+  url: https://git-scm.com/download/win
+  regex: 'Git for Windows ([\d.]+)'
+
+autoupdate:
+  architecture:
+    64bit:
+      url: https://example.com/git-$version-64-bit.exe

@@ -1,0 +1,30 @@
+name: test-app
+version: 1.0.0
+description: A test application for integration testing
+homepage: https://github.com/test/test-app
+license: MIT
+
+architecture:
+  64bit:
+    url: https://example.com/test-app-1.0.0.zip
+    hash: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  32bit:
+    url: https://example.com/test-app-1.0.0-x86.zip
+    hash: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+bin:
+  - test-app.exe
+
+shortcuts:
+  - - test-app.exe
+    - Test App
+
+checkver:
+  github: https://github.com/test/test-app
+
+autoupdate:
+  architecture:
+    64bit:
+      url: https://example.com/test-app-$version.zip
+    32bit:
+      url: https://example.com/test-app-$version-x86.zip

@@ -1,0 +1,13 @@
+{
+  "id": "main",
+  "name": "main",
+  "description": "Main test bucket",
+  "author": "Test Author",
+  "homepage": "https://github.com/test/main",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/test/main",
+    "branch": "main"
+  }
+}
