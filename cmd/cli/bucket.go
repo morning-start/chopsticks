@@ -396,7 +396,7 @@ func bucketAddAction(c *cli.Context) error {
 	}
 	fmt.Println()
 
-	ctx := getContext(c)
+	ctx := getContextFromCli(c)
 	application := getApp()
 
 	if err := application.BucketManager().Add(ctx, name, url, opts); err != nil {
@@ -428,7 +428,7 @@ func bucketRemoveAction(c *cli.Context) error {
 	}
 	fmt.Println()
 
-	ctx := getContext(c)
+	ctx := getContextFromCli(c)
 	application := getApp()
 
 	if err := application.BucketManager().Remove(ctx, name, purge); err != nil {
