@@ -6,29 +6,45 @@ import (
 	"time"
 )
 
-// BandwidthMonitor 带宽监控器
-type BandwidthMonitor struct {
-	// 当前速度 (bytes per second)
-	currentSpeed int64
-	// 平均速度
-	avgSpeed int64
-	// 峰值速度
-	peakSpeed int64
-	// 总字节数
-	totalBytes int64
-	// 开始时间
-	startTime time.Time
+// 带宽监控相关常量
+const (
+	// 默认速度采样窗口大小
+	DefaultSpeedWindowSize = 5 * time.Second
+	// 默认采样容量
+	DefaultSampleCapacity = 100
+	// 默认最小并发数
+	DefaultMinConcurrency = 1
+	// 默认最大并发数
+	DefaultMaxConcurrency = 16
+	// 默认慢启动阈值
+	DefaultSlowStartThreshold = 8.0
+	// 默认拥塞窗口初始值
+	DefaultInitialCongestionWindow = 1.0
+	// 最小慢启动阈值
+	MinSlowStartThreshold = 2.0
+)
 
-	// 采样窗口
+// BandwidthMonitor 带宽监控器 - 按字段大小从大到小排列优化内存布局
+// time.Time: 24字节, int64: 8字节, 指针: 8字节
+type BandwidthMonitor struct {
+	// 24字节字段
+	startTime time.Time
+	// 8字节字段
+	currentSpeed int64
+	avgSpeed     int64
+	peakSpeed    int64
+	totalBytes   int64
+	// 指针字段
 	window *SpeedWindow
-	mu     sync.RWMutex
+	// 互斥锁
+	mu sync.RWMutex
 }
 
 // SpeedWindow 速度采样窗口
 type SpeedWindow struct {
-	samples   []SpeedSample
+	samples    []SpeedSample
 	windowSize time.Duration
-	mu        sync.RWMutex
+	mu         sync.RWMutex
 }
 
 // SpeedSample 速度样本
@@ -42,8 +58,8 @@ func NewBandwidthMonitor() *BandwidthMonitor {
 	return &BandwidthMonitor{
 		startTime: time.Now(),
 		window: &SpeedWindow{
-			samples:    make([]SpeedSample, 0, 100),
-			windowSize: 5 * time.Second,
+			samples:    make([]SpeedSample, 0, DefaultSampleCapacity),
+			windowSize: DefaultSpeedWindowSize,
 		},
 	}
 }
@@ -103,24 +119,26 @@ func (bm *BandwidthMonitor) calculateSpeed() {
 	}
 
 	duration := latest.Sub(earliest).Seconds()
-	if duration > 0 {
-		speed := int64(float64(totalBytes) / duration)
-		atomic.StoreInt64(&bm.currentSpeed, speed)
+	if duration <= 0 {
+		return
+	}
 
-		// 更新峰值速度
-		for {
-			peak := atomic.LoadInt64(&bm.peakSpeed)
-			if speed <= peak || atomic.CompareAndSwapInt64(&bm.peakSpeed, peak, speed) {
-				break
-			}
-		}
+	speed := int64(float64(totalBytes) / duration)
+	atomic.StoreInt64(&bm.currentSpeed, speed)
 
-		// 更新平均速度
-		total := atomic.LoadInt64(&bm.totalBytes)
-		elapsed := time.Since(bm.startTime).Seconds()
-		if elapsed > 0 {
-			atomic.StoreInt64(&bm.avgSpeed, int64(float64(total)/elapsed))
+	// 更新峰值速度
+	for {
+		peak := atomic.LoadInt64(&bm.peakSpeed)
+		if speed <= peak || atomic.CompareAndSwapInt64(&bm.peakSpeed, peak, speed) {
+			break
 		}
+	}
+
+	// 更新平均速度
+	total := atomic.LoadInt64(&bm.totalBytes)
+	elapsed := time.Since(bm.startTime).Seconds()
+	if elapsed > 0 {
+		atomic.StoreInt64(&bm.avgSpeed, int64(float64(total)/elapsed))
 	}
 }
 
@@ -159,21 +177,20 @@ func (bm *BandwidthMonitor) Reset() {
 	bm.mu.Unlock()
 }
 
-// CongestionController 拥塞控制器
+// CongestionController 拥塞控制器 - 按字段大小从大到小排列优化内存布局
+// float64: 8字节, int32: 4字节
 type CongestionController struct {
-	// 当前并发数
-	currentConcurrency int32
-	// 最大并发数
-	maxConcurrency int32
-	// 最小并发数
-	minConcurrency int32
-	// 拥塞窗口
-	congestionWindow float64
-	// 慢启动阈值
+	// 8字节字段 (float64)
+	congestionWindow   float64
 	slowStartThreshold float64
-	// 状态
+	// 4字节字段 (int32)
+	currentConcurrency int32
+	maxConcurrency     int32
+	minConcurrency     int32
+	// 1字节字段
 	state CongestionState
-	mu    sync.RWMutex
+	// 互斥锁
+	mu sync.RWMutex
 }
 
 // CongestionState 拥塞状态
@@ -188,11 +205,11 @@ const (
 // NewCongestionController 创建拥塞控制器
 func NewCongestionController() *CongestionController {
 	return &CongestionController{
-		currentConcurrency: 1,
-		maxConcurrency:     16,
-		minConcurrency:     1,
-		congestionWindow:   1.0,
-		slowStartThreshold: 8.0,
+		currentConcurrency: DefaultMinConcurrency,
+		maxConcurrency:     DefaultMaxConcurrency,
+		minConcurrency:     DefaultMinConcurrency,
+		congestionWindow:   DefaultInitialCongestionWindow,
+		slowStartThreshold: DefaultSlowStartThreshold,
 		state:              StateSlowStart,
 	}
 }
@@ -228,10 +245,10 @@ func (cc *CongestionController) OnFailure() {
 
 	// 发生丢包，降低窗口
 	cc.slowStartThreshold = cc.congestionWindow / 2
-	if cc.slowStartThreshold < 2 {
-		cc.slowStartThreshold = 2
+	if cc.slowStartThreshold < MinSlowStartThreshold {
+		cc.slowStartThreshold = MinSlowStartThreshold
 	}
-	cc.congestionWindow = 1.0
+	cc.congestionWindow = DefaultInitialCongestionWindow
 	cc.state = StateSlowStart
 
 	cc.updateConcurrency()

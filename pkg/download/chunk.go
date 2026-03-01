@@ -11,33 +11,37 @@ import (
 	"time"
 )
 
-// Chunk 表示一个下载分片
+// Chunk 表示一个下载分片 - 按字段大小从大到小排列优化内存布局
+// string: 16字节, int64: 8字节, int: 8字节 (64位系统), bool: 1字节
 type Chunk struct {
-	Index      int
+	// 16字节字段
+	URL      string
+	TempPath string
+	// 8字节字段 (指针)
+	Downloader *AdaptiveDownloader
+	// 8字节字段 (int64)
 	Start      int64
 	End        int64
-	URL        string
-	TempPath   string
-	Downloader *AdaptiveDownloader
-
-	// 下载状态
+	// 8字节字段 (int, 64位系统)
+	Index int
+	// 8字节字段 (需要8字节对齐)
 	downloaded int64
-	completed  bool
-	mu         sync.RWMutex
+	// 互斥锁
+	mu sync.RWMutex
+	// 1字节字段
+	completed bool
 }
 
 // Download 下载分片
 func (c *Chunk) Download(ctx context.Context) error {
 	// 检查是否已存在临时文件（断点续传）
 	if c.Downloader.config.EnableResume {
-		if err := c.loadProgress(); err == nil {
-			// 已有进度，从上次位置继续
-		}
+		_ = c.loadProgress()
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", c.URL, nil)
+	req, err := http.NewRequestWithContext(ctx, MethodGet, c.URL, nil)
 	if err != nil {
-		return fmt.Errorf("创建请求失败: %w", err)
+		return fmt.Errorf("%w: %v", ErrCreateRequest, err)
 	}
 
 	// 设置 Range 头
@@ -46,12 +50,12 @@ func (c *Chunk) Download(ctx context.Context) error {
 
 	resp, err := c.Downloader.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("执行请求失败: %w", err)
+		return fmt.Errorf("%w: %v", ErrDoRequest, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusPartialContent && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("服务器返回错误状态码: %d", resp.StatusCode)
+	if resp.StatusCode != StatusPartialContent && resp.StatusCode != StatusOK {
+		return fmt.Errorf("%w: %d", ErrInvalidStatusCode, resp.StatusCode)
 	}
 
 	// 打开临时文件
@@ -62,9 +66,9 @@ func (c *Chunk) Download(ctx context.Context) error {
 		flags |= os.O_TRUNC
 	}
 
-	file, err := os.OpenFile(c.TempPath, flags, 0644)
+	file, err := os.OpenFile(c.TempPath, flags, DefaultFilePerm)
 	if err != nil {
-		return fmt.Errorf("打开临时文件失败: %w", err)
+		return fmt.Errorf("%w: %v", ErrOpenFile, err)
 	}
 	defer file.Close()
 
@@ -81,9 +85,9 @@ func (c *Chunk) Download(ctx context.Context) error {
 	if err != nil {
 		// 保存进度以便断点续传
 		if c.Downloader.config.EnableResume {
-			c.saveProgress()
+			_ = c.saveProgress()
 		}
-		return fmt.Errorf("写入数据失败: %w", err)
+		return fmt.Errorf("%w: %v", ErrWriteFile, err)
 	}
 
 	c.completed = true
@@ -91,7 +95,7 @@ func (c *Chunk) Download(ctx context.Context) error {
 
 	// 清理进度文件
 	if c.Downloader.config.EnableResume {
-		c.removeProgress()
+		_ = c.removeProgress()
 	}
 
 	return nil
@@ -120,7 +124,7 @@ func (c *Chunk) loadProgress() error {
 	if info.Size() != progress {
 		// 进度不匹配，重新开始
 		c.downloaded = 0
-		return fmt.Errorf("进度不匹配")
+		return ErrProgressMismatch
 	}
 
 	c.downloaded = progress
@@ -131,7 +135,7 @@ func (c *Chunk) loadProgress() error {
 func (c *Chunk) saveProgress() error {
 	progressPath := c.TempPath + ".progress"
 	data := fmt.Sprintf("%d", c.downloaded)
-	return os.WriteFile(progressPath, []byte(data), 0644)
+	return os.WriteFile(progressPath, []byte(data), DefaultFilePerm)
 }
 
 // removeProgress 删除进度文件
@@ -165,17 +169,20 @@ type statsReader struct {
 
 func (r *statsReader) Read(p []byte) (n int, err error) {
 	n, err = r.Reader.Read(p)
-	if n > 0 {
-		r.bytesRead += int64(n)
-		r.chunk.mu.Lock()
-		r.chunk.downloaded += int64(n)
-		r.chunk.mu.Unlock()
-
-		// 更新全局统计
-		atomic.AddInt64(&r.downloader.stats.DownloadedBytes, int64(n))
-
-		// 更新带宽监控
-		r.downloader.bandwidthMonitor.RecordBytes(int64(n))
+	if n <= 0 {
+		return n, err
 	}
+
+	r.bytesRead += int64(n)
+	r.chunk.mu.Lock()
+	r.chunk.downloaded += int64(n)
+	r.chunk.mu.Unlock()
+
+	// 更新全局统计
+	atomic.AddInt64(&r.downloader.stats.DownloadedBytes, int64(n))
+
+	// 更新带宽监控
+	r.downloader.bandwidthMonitor.RecordBytes(int64(n))
+
 	return n, err
 }

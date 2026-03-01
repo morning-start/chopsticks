@@ -2,6 +2,7 @@ package download
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -31,13 +32,18 @@ func (s DownloadStrategy) String() string {
 	}
 }
 
-// FileInfo 文件信息
+// FileInfo 文件信息 - 按字段大小从大到小排列优化内存布局
+// time.Time: 24字节, string: 16字节, int64: 8字节, bool: 1字节
 type FileInfo struct {
-	LastModified   time.Time
-	URL            string
-	ContentType    string
-	ETag           string
-	Size           int64
+	// 24字节字段
+	LastModified time.Time
+	// 16字节字段
+	URL         string
+	ContentType string
+	ETag        string
+	// 8字节字段
+	Size int64
+	// 1字节字段
 	AcceptRanges   bool
 	SupportsResume bool
 }
@@ -54,25 +60,21 @@ type AdaptiveDownloader struct {
 
 // Config 下载器配置
 type Config struct {
-	// 分片大小 (默认 10MB)
-	ChunkSize int64
-	// 最大分片数 (默认 16)
-	MaxChunks int
-	// 最小分片大小 (默认 1MB)
-	MinChunkSize int64
-	// 单线程下载阈值 (默认 5MB)
+	// 8字节字段 (int64)
+	ChunkSize             int64
+	MinChunkSize          int64
 	SingleThreadThreshold int64
-	// 多连接下载阈值 (默认 50MB)
-	MultiConnThreshold int64
-	// 最大并发连接数 (默认 8)
-	MaxConcurrentConns int
-	// 连接超时
+	MultiConnThreshold    int64
+	// 8字节字段 (time.Duration)
 	ConnectTimeout time.Duration
-	// 读取超时
-	ReadTimeout time.Duration
-	// 是否启用断点续传
+	ReadTimeout    time.Duration
+	// 4字节字段 (int)
+	MaxChunks int
+	// 4字节字段 (int32)
+	MaxConcurrentConns int32
+	// 1字节字段
 	EnableResume bool
-	// 临时文件后缀
+	// 16字节字段 (string)
 	TempFileSuffix string
 }
 
@@ -92,18 +94,73 @@ func DefaultConfig() *Config {
 	}
 }
 
-// DownloadStats 下载统计
+// DownloadStats 下载统计 - 按字段大小从大到小排列优化内存布局
+// time.Time: 24字节, int64: 8字节, int32: 4字节
 type DownloadStats struct {
+	// 24字节字段
+	StartTime time.Time
+	// 8字节字段
 	TotalBytes      int64
 	DownloadedBytes int64
-	StartTime       time.Time
 	CurrentSpeed    int64 // bytes per second
 	AvgSpeed        int64 // bytes per second
+	// 4字节字段
 	ActiveChunks    int32
 	CompletedChunks int32
 	FailedChunks    int32
-	mu              sync.RWMutex
+	// 互斥锁
+	mu sync.RWMutex
 }
+
+// 预定义错误变量
+var (
+	ErrNilConfig          = errors.New("config is nil")
+	ErrNilFileInfo        = errors.New("file info is nil")
+	ErrNilContext         = errors.New("context is nil")
+	ErrUnknownStrategy    = errors.New("unknown download strategy")
+	ErrInvalidStatusCode  = errors.New("server returned invalid status code")
+	ErrChunkNotCompleted  = errors.New("chunk not completed")
+	ErrProgressMismatch   = errors.New("progress mismatch")
+	ErrFileSizeMismatch   = errors.New("file size mismatch")
+	ErrDownloadFailed     = errors.New("download failed")
+	ErrMergeFailed        = errors.New("merge chunks failed")
+	ErrCreateRequest      = errors.New("failed to create HTTP request")
+	ErrDoRequest          = errors.New("failed to execute HTTP request")
+	ErrCreateDirectory    = errors.New("failed to create directory")
+	ErrCreateFile         = errors.New("failed to create file")
+	ErrOpenFile           = errors.New("failed to open file")
+	ErrWriteFile          = errors.New("failed to write file")
+	ErrRenameFile         = errors.New("failed to rename file")
+	ErrProbeFile          = errors.New("failed to probe file info")
+)
+
+// 常量定义
+const (
+	// HTTP 方法
+	MethodGet  = "GET"
+	MethodHead = "HEAD"
+
+	// HTTP 状态码检查
+	StatusOK              = http.StatusOK
+	StatusPartialContent  = http.StatusPartialContent
+
+	// 默认超时时间
+	DefaultTimeout = 5 * time.Minute
+
+	// 进度报告间隔
+	ProgressReportInterval = 100 * time.Millisecond
+
+	// 文件权限
+	DefaultDirPerm  = 0755
+	DefaultFilePerm = 0644
+
+	// 传输层配置
+	DefaultIdleConnTimeout = 90 * time.Second
+	DefaultMaxIdleConns    = 100
+
+	// 进度报告间隔 (ticker)
+	ProgressTickerInterval = 500 * time.Millisecond
+)
 
 // NewAdaptiveDownloader 创建自适应下载器
 func NewAdaptiveDownloader(config *Config) *AdaptiveDownloader {
@@ -112,9 +169,9 @@ func NewAdaptiveDownloader(config *Config) *AdaptiveDownloader {
 	}
 
 	transport := &http.Transport{
-		MaxIdleConns:        config.MaxConcurrentConns * 2,
-		MaxIdleConnsPerHost: config.MaxConcurrentConns,
-		IdleConnTimeout:     90 * time.Second,
+		MaxIdleConns:        int(config.MaxConcurrentConns) * 2,
+		MaxIdleConnsPerHost: int(config.MaxConcurrentConns),
+		IdleConnTimeout:     DefaultIdleConnTimeout,
 	}
 
 	client := &http.Client{
@@ -134,19 +191,19 @@ func NewAdaptiveDownloader(config *Config) *AdaptiveDownloader {
 
 // probeFile 探测文件信息
 func (d *AdaptiveDownloader) probeFile(ctx context.Context, url string) (*FileInfo, error) {
-	req, err := http.NewRequestWithContext(ctx, "HEAD", url, nil)
+	req, err := http.NewRequestWithContext(ctx, MethodHead, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("创建 HEAD 请求失败: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrCreateRequest, err)
 	}
 
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("执行 HEAD 请求失败: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrDoRequest, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("服务器返回错误状态码: %d", resp.StatusCode)
+	if resp.StatusCode != StatusOK {
+		return nil, fmt.Errorf("%w: %d", ErrInvalidStatusCode, resp.StatusCode)
 	}
 
 	info := &FileInfo{
@@ -237,7 +294,7 @@ func (d *AdaptiveDownloader) Download(ctx context.Context, url, destPath string,
 	// 探测文件信息
 	info, err := d.probeFile(ctx, url)
 	if err != nil {
-		return fmt.Errorf("探测文件信息失败: %w", err)
+		return fmt.Errorf("%w: %v", ErrProbeFile, err)
 	}
 
 	// 选择下载策略
@@ -251,7 +308,7 @@ func (d *AdaptiveDownloader) Download(ctx context.Context, url, destPath string,
 	case StrategyChunked:
 		return d.chunkedParallelDownload(ctx, info, destPath, progress)
 	default:
-		return fmt.Errorf("未知的下载策略: %v", strategy)
+		return fmt.Errorf("%w: %v", ErrUnknownStrategy, strategy)
 	}
 }
 
@@ -263,19 +320,19 @@ func (d *AdaptiveDownloader) singleThreadDownload(ctx context.Context, info *Fil
 	d.stats.StartTime = time.Now()
 	d.stats.TotalBytes = info.Size
 
-	req, err := http.NewRequestWithContext(ctx, "GET", info.URL, nil)
+	req, err := http.NewRequestWithContext(ctx, MethodGet, info.URL, nil)
 	if err != nil {
-		return fmt.Errorf("创建请求失败: %w", err)
+		return fmt.Errorf("%w: %v", ErrCreateRequest, err)
 	}
 
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("执行请求失败: %w", err)
+		return fmt.Errorf("%w: %v", ErrDoRequest, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("服务器返回错误状态码: %d", resp.StatusCode)
+	if resp.StatusCode != StatusOK {
+		return fmt.Errorf("%w: %d", ErrInvalidStatusCode, resp.StatusCode)
 	}
 
 	return d.writeToFile(resp, destPath, progress)
@@ -331,7 +388,7 @@ func (d *AdaptiveDownloader) chunkedParallelDownload(ctx context.Context, info *
 			defer func() { <-sem }()
 
 			if err := c.Download(ctx); err != nil {
-				errChan <- fmt.Errorf("分片 %d 下载失败: %w", c.Index, err)
+				errChan <- fmt.Errorf("chunk %d download failed: %w", c.Index, err)
 			}
 		}(chunk)
 	}
@@ -353,7 +410,7 @@ func (d *AdaptiveDownloader) chunkedParallelDownload(ctx context.Context, info *
 
 // reportProgress 报告下载进度
 func (d *AdaptiveDownloader) reportProgress(stop chan struct{}, callback ProgressCallback) {
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ticker := time.NewTicker(ProgressTickerInterval)
 	defer ticker.Stop()
 
 	for {
@@ -361,12 +418,13 @@ func (d *AdaptiveDownloader) reportProgress(stop chan struct{}, callback Progres
 		case <-stop:
 			return
 		case <-ticker.C:
-			if callback != nil {
-				downloaded := atomic.LoadInt64(&d.stats.DownloadedBytes)
-				total := d.stats.TotalBytes
-				speed := d.bandwidthMonitor.GetCurrentSpeed()
-				callback(downloaded, total, float64(speed))
+			if callback == nil {
+				continue
 			}
+			downloaded := atomic.LoadInt64(&d.stats.DownloadedBytes)
+			total := d.stats.TotalBytes
+			speed := d.bandwidthMonitor.GetCurrentSpeed()
+			callback(downloaded, total, float64(speed))
 		}
 	}
 }
