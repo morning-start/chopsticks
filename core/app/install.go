@@ -19,6 +19,36 @@ import (
 	"chopsticks/pkg/errors"
 )
 
+const (
+	// DefaultArch 默认架构
+	DefaultArch = "amd64"
+	// DefaultVersion 默认版本
+	DefaultVersion = "latest"
+	// DefaultBucket 默认软件源
+	DefaultBucket = "main"
+
+	// DefaultFilePerm 默认文件权限
+	DefaultFilePerm = 0644
+)
+
+// InstallOptions 安装选项 - 字段按大小从大到小排列
+type InstallOptions struct {
+	InstallDir string // 16 bytes (string header)
+	Arch       string // 16 bytes (string header)
+	Force      bool   // 1 byte
+	_          [7]byte // padding for alignment
+}
+
+// UninstallOptions 卸载选项
+type UninstallOptions struct {
+	Purge bool // 1 byte
+}
+
+// RefreshOptions 刷新选项
+type RefreshOptions struct {
+	Force bool // 1 byte
+}
+
 type Installer interface {
 	Install(ctx context.Context, app *manifest.App, opts InstallOptions) error
 	Uninstall(ctx context.Context, name string, opts UninstallOptions) error
@@ -26,26 +56,13 @@ type Installer interface {
 	Switch(ctx context.Context, name, version string) error
 }
 
-type InstallOptions struct {
-	Arch       string
-	Force      bool
-	InstallDir string
-}
-
-type UninstallOptions struct {
-	Purge bool
-}
-
-type RefreshOptions struct {
-	Force bool
-}
-
+// installer 安装器 - 字段按大小从大到小排列
 type installer struct {
-	storage     store.Storage
-	config      interface{}
-	jsEngine    *engine.JSEngine
-	downloadDir string
-	installBase string
+	jsEngine    *engine.JSEngine  // 8 bytes
+	storage     store.Storage     // 16 bytes (interface)
+	config      interface{}       // 16 bytes (interface)
+	downloadDir string            // 16 bytes (string header)
+	installBase string            // 16 bytes (string header)
 }
 
 var _ Installer = (*installer)(nil)
@@ -67,29 +84,29 @@ func (i *installer) Install(ctx context.Context, app *manifest.App, opts Install
 
 	appName := app.Script.Name
 
-	// 冲突检测
+	// Conflict detection
 	detector := conflict.NewDetector(i.storage, i.installBase)
 	conflictResult, err := detector.Detect(ctx, app)
 	if err != nil {
-		// 冲突检测失败，记录警告但不阻止安装
-		fmt.Fprintf(os.Stderr, "警告: 冲突检测失败: %v\n", err)
+		// Conflict detection failed, log warning but don't block installation
+		fmt.Fprintf(os.Stderr, "Warning: conflict detection failed: %v\n", err)
 	} else if conflictResult != nil && len(conflictResult.Conflicts) > 0 {
-		// 格式化并显示冲突报告
+		// Format and display conflict report
 		formatter := conflict.NewFormatter(true)
 		fmt.Println(formatter.Format(conflictResult))
 
-		// 如果有严重冲突且未使用 force，阻止安装
+		// If serious conflicts exist and force is not used, block installation
 		if conflict.ShouldBlockInstall(conflictResult, opts.Force) {
-			return errors.Newf(errors.KindConflict, "检测到严重冲突，请解决后再安装或使用 --force 强制安装")
+			return errors.Newf(errors.KindConflict, "serious conflicts detected, please resolve before installing or use --force to force install")
 		}
 
-		// 如果有警告级别冲突且未使用 force，询问用户
+		// If warning level conflicts exist and force is not used, ask user
 		if conflictResult.HasWarning && !opts.Force {
-			fmt.Print("是否继续安装? [y/N]: ")
+			fmt.Print("Continue installation? [y/N]: ")
 			var response string
 			fmt.Scanln(&response)
-			if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
-				return errors.Newf(errors.KindCancelled, "用户取消安装")
+			if !isYesResponse(response) {
+				return errors.Newf(errors.KindCancelled, "user cancelled installation")
 			}
 		}
 	}
@@ -104,22 +121,22 @@ func (i *installer) Install(ctx context.Context, app *manifest.App, opts Install
 		installDir = filepath.Join(i.installBase, appName)
 	}
 
-	if err := os.MkdirAll(installDir, 0755); err != nil {
+	if err := os.MkdirAll(installDir, DefaultDirPerm); err != nil {
 		return errors.Wrapf(err, "create install directory %s", installDir)
 	}
 
-	if err := os.MkdirAll(i.downloadDir, 0755); err != nil {
+	if err := os.MkdirAll(i.downloadDir, DefaultDirPerm); err != nil {
 		return errors.Wrapf(err, "create download directory %s", i.downloadDir)
 	}
 
-	version := "latest"
+	version := DefaultVersion
 	if app.Meta != nil && app.Meta.Version != "" {
 		version = app.Meta.Version
 	}
 
 	arch := opts.Arch
 	if arch == "" {
-		arch = "amd64"
+		arch = DefaultArch
 	}
 
 	downloadInfo, err := i.getDownloadInfo(app, version, arch)
@@ -140,7 +157,7 @@ func (i *installer) Install(ctx context.Context, app *manifest.App, opts Install
 	}
 
 	extractDir := filepath.Join(installDir, version)
-	if err := os.MkdirAll(extractDir, 0755); err != nil {
+	if err := os.MkdirAll(extractDir, DefaultDirPerm); err != nil {
 		return errors.Wrapf(err, "create version directory %s", extractDir)
 	}
 
@@ -177,6 +194,12 @@ func (i *installer) Install(ctx context.Context, app *manifest.App, opts Install
 
 	fmt.Printf("✓ %s (%s) installed successfully\n", appName, version)
 	return nil
+}
+
+// isYesResponse checks if the response is a yes answer
+func isYesResponse(response string) bool {
+	lower := strings.ToLower(strings.TrimSpace(response))
+	return lower == "y" || lower == "yes"
 }
 
 func (i *installer) getDownloadInfo(app *manifest.App, version, arch string) (*manifest.DownloadInfo, error) {
@@ -265,23 +288,23 @@ func (i *installer) extractPackage(archivePath, destDir string) error {
 
 func (i *installer) buildInstallEnv(name, version, installDir string) map[string]string {
 	return map[string]string{
-		"name":        name,
-		"version":     version,
-		"installDir":  installDir,
-		"cookDir":     installDir,
-		"arch":        "amd64",
-		"bucket":      "main",
+		"name":       name,
+		"version":    version,
+		"installDir": installDir,
+		"cookDir":    installDir,
+		"arch":       DefaultArch,
+		"bucket":     DefaultBucket,
 	}
 }
 
-// buildHookEnv 构建钩子函数的环境变量，包含 downloadPath
+// buildHookEnv builds hook environment variables, including downloadPath
 func (i *installer) buildHookEnv(name, version, installDir, downloadPath string) map[string]string {
 	env := i.buildInstallEnv(name, version, installDir)
 	env["downloadPath"] = downloadPath
 	return env
 }
 
-// runScript 执行应用脚本中的生命周期钩子方法
+// runScript executes lifecycle hook methods in the app script
 func (i *installer) runScript(ctx context.Context, app *manifest.App, hookName string, env map[string]string) error {
 	return i.executeScript(ctx, app, hookName, env)
 }
@@ -318,12 +341,12 @@ func (i *installer) executeScript(_ context.Context, app *manifest.App, hookName
 	return nil
 }
 
-// runInstallScript 执行应用脚本的 onInstall 方法
+// runInstallScript executes the onInstall method of the app script
 func (i *installer) runInstallScript(ctx context.Context, app *manifest.App, installDir string, env map[string]string) error {
-	// 添加 installDir 到环境变量
+	// Add installDir to environment variables
 	env["InstallDir"] = installDir
 
-	// 调用 onInstall 钩子
+	// Call onInstall hook
 	return i.runScript(ctx, app, "onInstall", env)
 }
 
@@ -342,7 +365,7 @@ func (i *installer) Uninstall(ctx context.Context, name string, opts UninstallOp
 			"version":    installed.Version,
 			"installDir": installed.InstallDir,
 			"cookDir":    installed.InstallDir,
-			"arch":       "amd64",
+			"arch":       DefaultArch,
 			"bucket":     installed.Bucket,
 		}); err != nil {
 			fmt.Fprintf(os.Stderr, "preUninstall hook failed: %v\n", err)
@@ -371,7 +394,7 @@ func (i *installer) Uninstall(ctx context.Context, name string, opts UninstallOp
 			"version":    installed.Version,
 			"installDir": installed.InstallDir,
 			"cookDir":    installed.InstallDir,
-			"arch":       "amd64",
+			"arch":       DefaultArch,
 			"bucket":     installed.Bucket,
 		}); err != nil {
 			fmt.Fprintf(os.Stderr, "postUninstall hook failed: %v\n", err)
@@ -393,7 +416,7 @@ func (i *installer) loadAppManifest(ctx context.Context, installed *manifest.Ins
 func (i *installer) doLoadAppManifest(ctx context.Context, installed *manifest.InstalledApp) (*manifest.App, error) {
 	bucketName := installed.Bucket
 	if bucketName == "" {
-		bucketName = "main"
+		bucketName = DefaultBucket
 	}
 
 	bucketPath := filepath.Join(i.installBase, "..", "buckets", bucketName)
@@ -421,18 +444,18 @@ func (i *installer) doLoadAppManifest(ctx context.Context, installed *manifest.I
 	}, nil
 }
 
-// runUninstallScript 执行应用脚本的 onUninstall 方法
+// runUninstallScript executes the onUninstall method of the app script
 func (i *installer) runUninstallScript(ctx context.Context, app *manifest.App, installed *manifest.InstalledApp) error {
 	env := map[string]string{
 		"name":       installed.Name,
 		"version":    installed.Version,
 		"installDir": installed.InstallDir,
 		"cookDir":    installed.InstallDir,
-		"arch":       "amd64",
+		"arch":       DefaultArch,
 		"bucket":     installed.Bucket,
 	}
 
-	// 调用 onUninstall 钩子
+	// Call onUninstall hook
 	return i.runScript(ctx, app, "onUninstall", env)
 }
 
@@ -447,7 +470,7 @@ func (i *installer) Refresh(ctx context.Context, app *manifest.App, installed *m
 	}
 
 	err := i.Install(ctx, app, InstallOptions{
-		Arch:       "amd64",
+		Arch:       DefaultArch,
 		Force:      opts.Force,
 		InstallDir: installed.InstallDir,
 	})

@@ -2,6 +2,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"sort"
@@ -61,10 +62,10 @@ func (r *DependencyResolver) Resolve(ctx context.Context, app *manifest.App) (*D
 		Order: []string{},
 	}
 
-	// 从应用清单中获取依赖
+	// Get dependencies from app manifest
 	deps := r.extractDependencies(app)
 
-	// 构建依赖树
+	// Build dependency tree
 	root := &DependencyNode{
 		App:     app,
 		Version: app.Meta.Version,
@@ -72,12 +73,12 @@ func (r *DependencyResolver) Resolve(ctx context.Context, app *manifest.App) (*D
 	}
 	graph.Nodes[app.Script.Name] = root
 
-	// 递归解析依赖
+	// Recursively resolve dependencies
 	if err := r.resolveDependencies(ctx, root, deps, graph, make(map[string]bool)); err != nil {
 		return nil, err
 	}
 
-	// 拓扑排序
+	// Topological sort
 	if err := r.topologicalSort(graph); err != nil {
 		return nil, err
 	}
@@ -89,7 +90,7 @@ func (r *DependencyResolver) Resolve(ctx context.Context, app *manifest.App) (*D
 func (r *DependencyResolver) extractDependencies(app *manifest.App) []Dependency {
 	var deps []Dependency
 
-	// 从脚本元数据中提取依赖
+	// Extract dependencies from script metadata
 	if app.Script != nil && len(app.Script.Dependencies) > 0 {
 		for _, dep := range app.Script.Dependencies {
 			deps = append(deps, Dependency{
@@ -113,35 +114,35 @@ func (r *DependencyResolver) resolveDependencies(
 	visited map[string]bool,
 ) error {
 	for _, dep := range deps {
-		// 检查循环依赖 - 检查父链中是否已存在
+		// Check for circular dependency - check if exists in parent chain
 		if r.isInParentChain(parent, dep.Name) {
 			return errors.NewDependencyConflict(
 				dep.Name,
-				fmt.Sprintf("检测到循环依赖: %s", r.buildDependencyChain(parent, dep.Name)),
+				fmt.Sprintf("circular dependency detected: %s", r.buildDependencyChain(parent, dep.Name)),
 			)
 		}
 
-		// 检查条件是否满足
+		// Check if conditions are satisfied
 		if !r.checkConditions(dep.Conditions) {
 			if dep.Optional {
-				continue // 可选依赖，条件不满足则跳过
+				continue // Optional dependency, skip if conditions not met
 			}
 			return errors.NewDependencyConflict(
 				dep.Name,
-				fmt.Sprintf("依赖 %s 的条件不满足", dep.Name),
+				fmt.Sprintf("conditions not satisfied for dependency %s", dep.Name),
 			)
 		}
 
-		// 获取依赖应用
+		// Get dependency app
 		depApp, err := r.findApp(ctx, dep.Name)
 		if err != nil {
 			if dep.Optional {
-				continue // 可选依赖，找不到则跳过
+				continue // Optional dependency, skip if not found
 			}
-			return errors.Wrapf(err, "找不到依赖: %s", dep.Name)
+			return errors.Wrapf(err, "dependency not found: %s", dep.Name)
 		}
 
-		// 检查版本约束
+		// Check version constraint
 		if dep.Version != "" {
 			if err := r.checkVersionConstraint(depApp.Meta.Version, dep.Version); err != nil {
 				if dep.Optional {
@@ -149,12 +150,12 @@ func (r *DependencyResolver) resolveDependencies(
 				}
 				return errors.NewDependencyConflict(
 					dep.Name,
-					fmt.Sprintf("版本不匹配: 需要 %s, 实际 %s", dep.Version, depApp.Meta.Version),
+					fmt.Sprintf("version mismatch: required %s, actual %s", dep.Version, depApp.Meta.Version),
 				)
 			}
 		}
 
-		// 创建依赖节点
+		// Create dependency node
 		node := &DependencyNode{
 			App:     depApp,
 			Version: depApp.Meta.Version,
@@ -162,11 +163,11 @@ func (r *DependencyResolver) resolveDependencies(
 			Depth:   parent.Depth + 1,
 		}
 
-		// 检查是否已存在
+		// Check if already exists
 		if existing, ok := graph.Nodes[dep.Name]; ok {
-			// 如果已存在，检查版本是否兼容
+			// If exists, check if versions are compatible
 			if existing.Version != depApp.Meta.Version {
-				// 版本冲突，尝试解决
+				// Version conflict, try to resolve
 				if err := r.resolveVersionConflict(existing, node); err != nil {
 					return err
 				}
@@ -178,7 +179,7 @@ func (r *DependencyResolver) resolveDependencies(
 		graph.Nodes[dep.Name] = node
 		parent.Dependencies = append(parent.Dependencies, node)
 
-		// 递归解析子依赖
+		// Recursively resolve child dependencies
 		childDeps := r.extractDependencies(depApp)
 		visited[dep.Name] = true
 		if err := r.resolveDependencies(ctx, node, childDeps, graph, visited); err != nil {
@@ -192,10 +193,10 @@ func (r *DependencyResolver) resolveDependencies(
 
 // findApp 查找应用
 func (r *DependencyResolver) findApp(ctx context.Context, name string) (*manifest.App, error) {
-	// 先检查已安装的软件
+	// First check installed apps
 	installed, err := r.storage.GetInstalledApp(ctx, name)
 	if err == nil && installed != nil {
-		// 已安装，返回已安装版本的信息
+		// Installed, return installed version info
 		return &manifest.App{
 			Script: &manifest.AppScript{
 				Name:   installed.Name,
@@ -207,7 +208,7 @@ func (r *DependencyResolver) findApp(ctx context.Context, name string) (*manifes
 		}, nil
 	}
 
-	// 从软件源中查找
+	// Search in buckets
 	buckets, err := r.bucketMgr.ListBuckets(ctx)
 	if err != nil {
 		return nil, err
@@ -229,8 +230,8 @@ func (r *DependencyResolver) checkConditions(conditions map[string]string) bool 
 		return true
 	}
 
-	// TODO: 实现条件检查逻辑
-	// 例如: {"os": "windows"}, {"arch": "amd64"} 等
+	// TODO: Implement condition checking logic
+	// For example: {"os": "windows"}, {"arch": "amd64"}, etc.
 
 	return true
 }
@@ -241,48 +242,83 @@ func (r *DependencyResolver) checkVersionConstraint(version, constraint string) 
 		return nil
 	}
 
-	// 解析版本约束
-	// 支持: >=1.0.0, ^1.0.0, ~1.0.0, 1.0.0, >1.0.0, <1.0.0 等
+	// Parse version constraint
+	// Supports: >=1.0.0, ^1.0.0, ~1.0.0, 1.0.0, >1.0.0, <1.0.0, etc.
 
 	constraint = strings.TrimSpace(constraint)
 
-	// 精确版本匹配
+	// Exact version match
 	if !strings.ContainsAny(constraint, ">=<^~") {
 		if version == constraint {
 			return nil
 		}
-		return fmt.Errorf("版本不匹配: 需要 %s, 实际 %s", constraint, version)
+		return fmt.Errorf("version mismatch: required %s, actual %s", constraint, version)
 	}
 
-	// 简单实现：检查前缀匹配
-	// >=1.0.0 表示 1.0.0 及以上版本
+	// Use cmp.Compare for version comparison
+	// >=1.0.0 means 1.0.0 and above
 	if strings.HasPrefix(constraint, ">=") {
 		requiredVersion := strings.TrimPrefix(constraint, ">=")
-		if version >= requiredVersion {
+		if compareVersions(version, requiredVersion) >= 0 {
 			return nil
 		}
-		return fmt.Errorf("版本过低: 需要 >= %s, 实际 %s", requiredVersion, version)
+		return fmt.Errorf("version too low: required >= %s, actual %s", requiredVersion, version)
 	}
 
-	// TODO: 实现更复杂的版本约束解析
-	// 例如: semver 版本比较, ^, ~ 等
+	// >1.0.0 means above 1.0.0
+	if strings.HasPrefix(constraint, ">") {
+		requiredVersion := strings.TrimPrefix(constraint, ">")
+		if compareVersions(version, requiredVersion) > 0 {
+			return nil
+		}
+		return fmt.Errorf("version too low: required > %s, actual %s", requiredVersion, version)
+	}
+
+	// <=1.0.0 means 1.0.0 and below
+	if strings.HasPrefix(constraint, "<=") {
+		requiredVersion := strings.TrimPrefix(constraint, "<=")
+		if compareVersions(version, requiredVersion) <= 0 {
+			return nil
+		}
+		return fmt.Errorf("version too high: required <= %s, actual %s", requiredVersion, version)
+	}
+
+	// <1.0.0 means below 1.0.0
+	if strings.HasPrefix(constraint, "<") {
+		requiredVersion := strings.TrimPrefix(constraint, "<")
+		if compareVersions(version, requiredVersion) < 0 {
+			return nil
+		}
+		return fmt.Errorf("version too high: required < %s, actual %s", requiredVersion, version)
+	}
+
+	// TODO: Implement more complex version constraint parsing
+	// For example: semver comparison, ^, ~, etc.
 
 	return nil
 }
 
+// compareVersions compares two version strings using cmp.Compare
+// Returns -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2
+func compareVersions(v1, v2 string) int {
+	// Simple string comparison for basic semantic versioning
+	// For more complex semver, consider using a proper semver library
+	return cmp.Compare(v1, v2)
+}
+
 // resolveVersionConflict 解决版本冲突
 func (r *DependencyResolver) resolveVersionConflict(existing, new *DependencyNode) error {
-	// 简单策略：选择较新的版本
-	// TODO: 实现更复杂的版本冲突解决策略
+	// Simple strategy: choose newer version
+	// TODO: Implement more complex version conflict resolution strategy
 
-	// 如果现有版本是已安装的，优先保留
+	// If existing version is installed, prefer keeping it
 	if r.isAppInstalled(existing.App.Script.Name) {
 		return nil
 	}
 
-	// 否则选择版本号较大的
-	if new.Version > existing.Version {
-		// 更新为新版本
+	// Otherwise choose the higher version number using cmp.Compare
+	if compareVersions(new.Version, existing.Version) > 0 {
+		// Update to new version
 		existing.App = new.App
 		existing.Version = new.Version
 	}
@@ -298,10 +334,10 @@ func (r *DependencyResolver) isAppInstalled(name string) bool {
 
 // topologicalSort 拓扑排序
 func (r *DependencyResolver) topologicalSort(graph *DependencyGraph) error {
-	// 使用 Kahn 算法进行拓扑排序
+	// Use Kahn's algorithm for topological sorting
 	inDegree := make(map[string]int)
 
-	// 计算入度
+	// Calculate in-degrees
 	for name, node := range graph.Nodes {
 		if _, ok := inDegree[name]; !ok {
 			inDegree[name] = 0
@@ -311,7 +347,7 @@ func (r *DependencyResolver) topologicalSort(graph *DependencyGraph) error {
 		}
 	}
 
-	// 找到所有入度为 0 的节点
+	// Find all nodes with in-degree 0
 	queue := make([]string, 0)
 	for name, degree := range inDegree {
 		if degree == 0 {
@@ -319,10 +355,10 @@ func (r *DependencyResolver) topologicalSort(graph *DependencyGraph) error {
 		}
 	}
 
-	// 排序
+	// Sort
 	result := make([]string, 0, len(graph.Nodes))
 	for len(queue) > 0 {
-		// 按名称排序，确保确定性
+		// Sort by name for determinism
 		sort.Strings(queue)
 		name := queue[0]
 		queue = queue[1:]
@@ -339,12 +375,12 @@ func (r *DependencyResolver) topologicalSort(graph *DependencyGraph) error {
 		}
 	}
 
-	// 检查是否有环
+	// Check for cycles
 	if len(result) != len(graph.Nodes) {
-		return errors.Newf(errors.KindInvalidInput, "依赖图中存在循环依赖")
+		return errors.Newf(errors.KindInvalidInput, "circular dependency detected in dependency graph")
 	}
 
-	// 反转结果，得到正确的安装顺序（依赖在前）
+	// Reverse result to get correct installation order (dependencies first)
 	for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
 		result[i], result[j] = result[j], result[i]
 	}

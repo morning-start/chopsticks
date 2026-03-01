@@ -26,25 +26,25 @@ func NewUninstaller(inst *installer) Uninstaller {
 func (u *uninstaller) Uninstall(ctx context.Context, name string, opts UninstallOptions) error {
 	installed, err := u.installer.storage.GetInstalledApp(ctx, name)
 	if err != nil {
-		return fmt.Errorf("获取安装信息: %w", err)
+		return fmt.Errorf("get install info: %w", err)
 	}
 
 	installDir := installed.InstallDir
 	if opts.Purge {
 		if err := os.RemoveAll(installDir); err != nil {
-			return fmt.Errorf("删除安装目录: %w", err)
+			return fmt.Errorf("remove install directory: %w", err)
 		}
 	} else {
 		versionDir := filepath.Join(installDir, installed.Version)
 		if err := os.RemoveAll(versionDir); err != nil {
-			return fmt.Errorf("删除版本目录: %w", err)
+			return fmt.Errorf("remove version directory: %w", err)
 		}
 	}
 
 	if err := u.installer.storage.DeleteInstalledApp(ctx, name); err != nil {
-		return fmt.Errorf("删除安装记录: %w", err)
+		return fmt.Errorf("delete install record: %w", err)
 	}
 
-	fmt.Printf("✓ %s 卸载成功\n", name)
+	fmt.Printf("✓ %s uninstalled successfully\n", name)
 	return nil
 }

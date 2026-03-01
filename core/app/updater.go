@@ -32,31 +32,31 @@ func NewAppUpdater(inst *installer) AppUpdater {
 func (u *appUpdater) Update(ctx context.Context, app *manifest.App, installed *manifest.InstalledApp, opts RefreshOptions) error {
 	newVersion := app.Meta.Version
 	if newVersion == installed.Version && !opts.Force {
-		return fmt.Errorf("已经是最新版本: %s", newVersion)
+		return fmt.Errorf("already at latest version: %s", newVersion)
 	}
 
 	backupDir := filepath.Join(os.TempDir(), "chopsticks-backup", app.Script.Name+"-"+time.Now().Format("20060102-150405"))
-	if err := os.MkdirAll(backupDir, 0755); err != nil {
-		return fmt.Errorf("创建备份目录: %w", err)
+	if err := os.MkdirAll(backupDir, DefaultDirPerm); err != nil {
+		return fmt.Errorf("create backup directory: %w", err)
 	}
 
 	currentVersionDir := filepath.Join(installed.InstallDir, installed.Version)
 	if err := copyDir(currentVersionDir, backupDir); err != nil {
 		os.RemoveAll(backupDir)
-		return fmt.Errorf("备份失败: %w", err)
+		return fmt.Errorf("backup failed: %w", err)
 	}
 
-	arch := "amd64"
+	arch := DefaultArch
 	downloadInfo, err := u.getDownloadInfo(app, newVersion, arch)
 	if err != nil {
 		os.RemoveAll(backupDir)
-		return fmt.Errorf("获取下载信息: %w", err)
+		return fmt.Errorf("get download info: %w", err)
 	}
 
 	cacheFile := filepath.Join(u.installer.downloadDir, fmt.Sprintf("%s-%s-%s", app.Script.Name, newVersion, arch))
 	if err := fetch.Download(downloadInfo.URL, cacheFile); err != nil {
 		os.RemoveAll(backupDir)
-		return fmt.Errorf("下载失败: %w", err)
+		return fmt.Errorf("download failed: %w", err)
 	}
 
 	if downloadInfo.Hash != "" {
@@ -64,7 +64,7 @@ func (u *appUpdater) Update(ctx context.Context, app *manifest.App, installed *m
 		ok, err := checksum.VerifyFile(cacheFile, downloadInfo.Hash, alg)
 		if err != nil || !ok {
 			os.RemoveAll(backupDir)
-			return fmt.Errorf("校验失败: %w", err)
+			return fmt.Errorf("verify failed: %w", err)
 		}
 	}
 
@@ -72,7 +72,7 @@ func (u *appUpdater) Update(ctx context.Context, app *manifest.App, installed *m
 	if err := archive.Extract(cacheFile, extractDir); err != nil {
 		os.Rename(backupDir, currentVersionDir)
 		os.RemoveAll(backupDir)
-		return fmt.Errorf("解压失败: %w", err)
+		return fmt.Errorf("extract failed: %w", err)
 	}
 
 	os.RemoveAll(currentVersionDir)
@@ -81,10 +81,10 @@ func (u *appUpdater) Update(ctx context.Context, app *manifest.App, installed *m
 	installed.Version = newVersion
 	installed.UpdatedAt = time.Now()
 	if err := u.installer.storage.SaveInstalledApp(ctx, installed); err != nil {
-		return fmt.Errorf("保存安装记录: %w", err)
+		return fmt.Errorf("save install record: %w", err)
 	}
 
-	fmt.Printf("✓ %s 更新成功 (%s -> %s)\n", app.Script.Name, installed.Version, newVersion)
+	fmt.Printf("✓ %s updated successfully (%s -> %s)\n", app.Script.Name, installed.Version, newVersion)
 	return nil
 }
 
@@ -96,7 +96,7 @@ func (u *appUpdater) getDownloadInfo(app *manifest.App, version, arch string) (*
 			}
 		}
 	}
-	return nil, fmt.Errorf("未找到 %s/%s 的下载信息", version, arch)
+	return nil, fmt.Errorf("download info not found for %s/%s", version, arch)
 }
 
 func copyDir(src, dst string) error {
@@ -106,7 +106,7 @@ func copyDir(src, dst string) error {
 	}
 
 	if !info.IsDir() {
-		return fmt.Errorf("源路径不是目录: %s", src)
+		return fmt.Errorf("source is not a directory: %s", src)
 	}
 
 	if err := os.MkdirAll(dst, info.Mode()); err != nil {

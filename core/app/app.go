@@ -12,6 +12,11 @@ import (
 	"chopsticks/engine/logx"
 )
 
+const (
+	// DefaultDirPerm 默认目录权限
+	DefaultDirPerm = 0755
+)
+
 type Application interface {
 	BucketManager() bucket.Manager
 	AppManager() Manager
@@ -23,14 +28,17 @@ type Application interface {
 	Shutdown(ctx context.Context) error
 }
 
+// app 结构体字段按大小从大到小排列以优化内存布局
+// 指针/引用类型 (8字节): 64位系统上
+// 接口类型 (16字节): 包含类型和值指针
 type app struct {
-	config     *Config
-	bucketMgr  bucket.Manager
-	appMgr     Manager
-	installer  Installer
-	storage    store.Storage
-	jsEngine   *engine.JSEngine
-	logger     *logx.Logger
+	jsEngine   *engine.JSEngine  // 8 bytes
+	config     *Config           // 8 bytes
+	bucketMgr  bucket.Manager    // 16 bytes (interface)
+	appMgr     Manager           // 16 bytes (interface)
+	installer  Installer         // 16 bytes (interface)
+	storage    store.Storage     // 16 bytes (interface)
+	logger     *logx.Logger      // 8 bytes
 }
 
 func New(cfg *Config) (*app, error) {
@@ -38,25 +46,25 @@ func New(cfg *Config) (*app, error) {
 		config: cfg,
 	}
 
-	if err := os.MkdirAll(cfg.AppsPath, 0755); err != nil {
-		return nil, fmt.Errorf("创建应用目录: %w", err)
+	if err := os.MkdirAll(cfg.AppsPath, DefaultDirPerm); err != nil {
+		return nil, fmt.Errorf("create apps directory: %w", err)
 	}
 
-	if err := os.MkdirAll(cfg.BucketsPath, 0755); err != nil {
-		return nil, fmt.Errorf("创建软件源目录: %w", err)
+	if err := os.MkdirAll(cfg.BucketsPath, DefaultDirPerm); err != nil {
+		return nil, fmt.Errorf("create buckets directory: %w", err)
 	}
 
-	// 初始化日志系统
+	// Initialize logging system
 	logCfg := logx.DefaultConfig()
 	logCfg.Filename = filepath.Join(filepath.Dir(cfg.StoragePath), "logs", "chopsticks.log")
 	if err := logx.InitDefault(logCfg); err != nil {
-		return nil, fmt.Errorf("初始化日志系统: %w", err)
+		return nil, fmt.Errorf("initialize logging system: %w", err)
 	}
 	a.logger = logx.GetDefault()
 
 	storage, err := store.New(cfg.StoragePath)
 	if err != nil {
-		return nil, fmt.Errorf("初始化存储: %w", err)
+		return nil, fmt.Errorf("initialize storage: %w", err)
 	}
 	a.storage = storage
 

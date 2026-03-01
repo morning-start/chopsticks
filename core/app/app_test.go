@@ -188,48 +188,6 @@ func TestMatchesQuery(t *testing.T) {
 	}
 }
 
-func TestContains(t *testing.T) {
-	tests := []struct {
-		s        string
-		substr   string
-		expected bool
-	}{
-		{"hello world", "world", true},
-		{"hello world", "hello", true},
-		{"hello world", "xyz", false},
-		{"hello", "hello world", false},
-		{"", "", true},
-		{"hello", "", true},
-	}
-
-	for _, tt := range tests {
-		result := contains(tt.s, tt.substr)
-		if result != tt.expected {
-			t.Errorf("contains(%q, %q) = %v, want %v", tt.s, tt.substr, result, tt.expected)
-		}
-	}
-}
-
-func TestToLower(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"Hello World", "hello world"},
-		{"HELLO", "hello"},
-		{"hello", "hello"},
-		{"", ""},
-		{"ABC123", "abc123"},
-	}
-
-	for _, tt := range tests {
-		result := toLower(tt.input)
-		if result != tt.expected {
-			t.Errorf("toLower(%q) = %q, want %q", tt.input, result, tt.expected)
-		}
-	}
-}
-
 func TestManagerListInstalled(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")

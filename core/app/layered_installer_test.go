@@ -82,14 +82,14 @@ func TestInstallStage_String(t *testing.T) {
 		stage InstallStage
 		want  string
 	}{
-		{StagePrepare, "准备"},
-		{StageDownload, "下载"},
-		{StageVerify, "校验"},
-		{StageExtract, "解压"},
-		{StageExecuteScript, "执行脚本"},
-		{StageRegister, "注册"},
-		{StageComplete, "完成"},
-		{InstallStage(99), "未知"},
+		{StagePrepare, "Prepare"},
+		{StageDownload, "Download"},
+		{StageVerify, "Verify"},
+		{StageExtract, "Extract"},
+		{StageExecuteScript, "Execute Script"},
+		{StageRegister, "Register"},
+		{StageComplete, "Complete"},
+		{InstallStage(99), "Unknown"},
 	}
 
 	for _, tt := range tests {
@@ -107,12 +107,12 @@ func TestInstallStatus_String(t *testing.T) {
 		status InstallStatus
 		want   string
 	}{
-		{StatusPending, "等待中"},
-		{StatusRunning, "进行中"},
-		{StatusCompleted, "已完成"},
-		{StatusFailed, "失败"},
-		{StatusSkipped, "已跳过"},
-		{InstallStatus(99), "未知"},
+		{StatusPending, "Pending"},
+		{StatusRunning, "Running"},
+		{StatusCompleted, "Completed"},
+		{StatusFailed, "Failed"},
+		{StatusSkipped, "Skipped"},
+		{InstallStatus(99), "Unknown"},
 	}
 
 	for _, tt := range tests {
@@ -253,13 +253,13 @@ func TestPipelineStage_String(t *testing.T) {
 		stage PipelineStage
 		want  string
 	}{
-		{PipelineDownload, "下载"},
-		{PipelineVerify, "校验"},
-		{PipelineExtract, "解压"},
-		{PipelineExecute, "执行脚本"},
-		{PipelineRegister, "注册"},
-		{PipelineComplete, "完成"},
-		{PipelineStage(99), "未知"},
+		{PipelineDownload, "Download"},
+		{PipelineVerify, "Verify"},
+		{PipelineExtract, "Extract"},
+		{PipelineExecute, "Execute Script"},
+		{PipelineRegister, "Register"},
+		{PipelineComplete, "Complete"},
+		{PipelineStage(99), "Unknown"},
 	}
 
 	for _, tt := range tests {

@@ -24,30 +24,30 @@ const (
 func (s PipelineStage) String() string {
 	switch s {
 	case PipelineDownload:
-		return "下载"
+		return "Download"
 	case PipelineVerify:
-		return "校验"
+		return "Verify"
 	case PipelineExtract:
-		return "解压"
+		return "Extract"
 	case PipelineExecute:
-		return "执行脚本"
+		return "Execute Script"
 	case PipelineRegister:
-		return "注册"
+		return "Register"
 	case PipelineComplete:
-		return "完成"
+		return "Complete"
 	default:
-		return "未知"
+		return "Unknown"
 	}
 }
 
 // StageTask 阶段任务
 type StageTask struct {
-	App      *manifest.App
-	Stage    PipelineStage
-	Input    interface{}
-	Output   interface{}
-	Error    error
-	Index    int
+	App    *manifest.App
+	Stage  PipelineStage
+	Input  interface{}
+	Output interface{}
+	Error  error
+	Index  int
 }
 
 // PipelineInstaller 流水线安装器
@@ -109,7 +109,7 @@ func (p *PipelineInstaller) InstallWithPipeline(
 		return nil
 	}
 
-	// 创建阶段通道
+	// Create stage channels
 	stages := []PipelineStage{
 		PipelineDownload,
 		PipelineVerify,
@@ -123,7 +123,7 @@ func (p *PipelineInstaller) InstallWithPipeline(
 		channels[i] = make(chan *StageTask, p.bufferSize)
 	}
 
-	// 启动阶段处理器
+	// Start stage processors
 	var wg sync.WaitGroup
 	for i, stage := range stages {
 		wg.Add(1)
@@ -133,7 +133,7 @@ func (p *PipelineInstaller) InstallWithPipeline(
 		}(i, stage)
 	}
 
-	// 发送初始任务
+	// Send initial tasks
 	go func() {
 		for i, app := range apps {
 			channels[0] <- &StageTask{
@@ -145,7 +145,7 @@ func (p *PipelineInstaller) InstallWithPipeline(
 		close(channels[0])
 	}()
 
-	// 收集结果
+	// Collect results
 	results := make([]*StageTask, len(apps))
 	completed := 0
 	failed := 0
@@ -169,11 +169,11 @@ func (p *PipelineInstaller) InstallWithPipeline(
 		}
 	}
 
-	// 等待所有阶段完成
+	// Wait for all stages to complete
 	wg.Wait()
 
 	if failed > 0 {
-		return fmt.Errorf("安装完成: %d 成功, %d 失败", completed, failed)
+		return fmt.Errorf("installation complete: %d succeeded, %d failed", completed, failed)
 	}
 
 	return nil
@@ -189,7 +189,7 @@ func (p *PipelineInstaller) runStage(
 ) {
 	processor, ok := p.stages[stage]
 	if !ok {
-		// 如果没有处理器，直接传递
+		// If no processor, pass through
 		for task := range inputChan {
 			task.Stage = stage + 1
 			outputChan <- task
@@ -197,13 +197,13 @@ func (p *PipelineInstaller) runStage(
 		return
 	}
 
-	// 使用 dispatcher 控制并发
+	// Use dispatcher for concurrency control
 	var wg sync.WaitGroup
 	semaphore := make(chan struct{}, opts.MaxConcurrency)
 
 	for task := range inputChan {
 		if task.Error != nil {
-			// 如果前面阶段出错，直接传递
+			// If previous stage failed, pass through
 			outputChan <- task
 			continue
 		}
@@ -258,18 +258,18 @@ func DefaultPipelineOptions() PipelineOptions {
 
 // StageMetrics 阶段指标
 type StageMetrics struct {
-	Stage         PipelineStage
-	TotalTasks    int
+	Stage          PipelineStage
+	TotalTasks     int
 	CompletedTasks int
-	FailedTasks   int
-	AvgDuration   float64 // 毫秒
+	FailedTasks    int
+	AvgDuration    float64 // milliseconds
 }
 
 // PipelineMetrics 流水线指标
 type PipelineMetrics struct {
-	Stages      []StageMetrics
-	TotalTime   float64 // 毫秒
-	Throughput  float64 // 任务/秒
+	Stages     []StageMetrics
+	TotalTime  float64 // milliseconds
+	Throughput float64 // tasks/second
 }
 
 // PipelineBuilder 流水线构建器

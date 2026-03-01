@@ -14,10 +14,10 @@ import (
 )
 
 var (
-	ErrAppNotFound          = errors.ErrAppNotFound
-	ErrAppAlreadyInstalled  = errors.ErrAppAlreadyInstalled
-	ErrVersionNotFound      = errors.ErrVersionNotFound
-	ErrDependencyConflict   = errors.ErrDependencyConflict
+	ErrAppNotFound         = errors.ErrAppNotFound
+	ErrAppAlreadyInstalled = errors.ErrAppAlreadyInstalled
+	ErrVersionNotFound     = errors.ErrVersionNotFound
+	ErrDependencyConflict  = errors.ErrDependencyConflict
 )
 
 type Manager interface {
@@ -31,31 +31,36 @@ type Manager interface {
 	Search(ctx context.Context, query string, bucket string) ([]SearchResult, error)
 }
 
+// InstallSpec 安装规格
 type InstallSpec struct {
 	Bucket  string
 	Name    string
 	Version string
 }
 
+// RemoveOptions 移除选项
 type RemoveOptions struct {
 	Purge bool
 }
 
+// UpdateOptions 更新选项 - 字段已优化
 type UpdateOptions struct {
 	Force bool
 }
 
+// SearchResult 搜索结果
 type SearchResult struct {
 	Bucket string
 	App    *manifest.AppRef
 }
 
+// manager 管理器 - 字段按大小从大到小排列
 type manager struct {
-	bucketMgr  bucket.Manager
-	storage    store.Storage
-	installer  Installer
-	config     interface{}
-	installDir string
+	bucketMgr  bucket.Manager // 16 bytes (interface)
+	storage    store.Storage  // 16 bytes (interface)
+	installer  Installer      // 16 bytes (interface)
+	config     interface{}    // 16 bytes (interface)
+	installDir string         // 16 bytes (string header)
 }
 
 var _ Manager = (*manager)(nil)
@@ -71,11 +76,9 @@ func NewManager(bucketMgr bucket.Manager, storage store.Storage, installer Insta
 }
 
 func (m *manager) Install(ctx context.Context, spec InstallSpec, opts InstallOptions) error {
-	var bucketName string
-	if spec.Bucket != "" {
-		bucketName = spec.Bucket
-	} else {
-		bucketName = "main"
+	bucketName := spec.Bucket
+	if bucketName == "" {
+		bucketName = DefaultBucket
 	}
 
 	_, err := m.bucketMgr.GetBucket(ctx, bucketName)
@@ -88,34 +91,34 @@ func (m *manager) Install(ctx context.Context, spec InstallSpec, opts InstallOpt
 		return errors.Wrap(err, "get app info")
 	}
 
-	// 解析依赖
+	// Resolve dependencies
 	resolver := NewDependencyResolver(m.bucketMgr, m.storage)
 	depGraph, err := resolver.Resolve(ctx, app)
 	if err != nil {
 		return errors.Wrap(err, "resolve dependencies")
 	}
 
-	// 按顺序安装依赖
+	// Install dependencies in order
 	if len(depGraph.Order) > 1 {
-		fmt.Printf("正在安装 %s 的依赖 (%d 个)...\n", spec.Name, len(depGraph.Order)-1)
+		fmt.Printf("Installing dependencies for %s (%d packages)...\n", spec.Name, len(depGraph.Order)-1)
 		for _, depName := range depGraph.Order {
 			if depName == spec.Name {
-				continue // 跳过主应用
+				continue // Skip main app
 			}
 
-			// 检查是否已安装
+			// Check if already installed
 			if _, err := m.storage.GetInstalledApp(ctx, depName); err == nil {
-				fmt.Printf("  ✓ %s 已安装\n", depName)
+				fmt.Printf("  ✓ %s already installed\n", depName)
 				continue
 			}
 
-			// 安装依赖
+			// Install dependency
 			depNode := depGraph.Nodes[depName]
 			if depNode == nil || depNode.App == nil {
 				continue
 			}
 
-			fmt.Printf("  → 安装 %s...\n", depName)
+			fmt.Printf("  → Installing %s...\n", depName)
 			depOpts := InstallOptions{
 				Arch:       opts.Arch,
 				Force:      false,
@@ -148,7 +151,7 @@ func (m *manager) Remove(ctx context.Context, name string, opts RemoveOptions) e
 		return errors.NewAppNotInstalled(name)
 	}
 
-	// 检查是否有其他应用依赖此应用
+	// Check if other apps depend on this app
 	dependents, err := m.findDependents(ctx, name)
 	if err != nil {
 		return errors.Wrap(err, "check dependents")
@@ -157,7 +160,7 @@ func (m *manager) Remove(ctx context.Context, name string, opts RemoveOptions) e
 	if len(dependents) > 0 {
 		return errors.NewDependencyConflict(
 			name,
-			fmt.Sprintf("以下应用依赖 %s: %s", name, strings.Join(dependents, ", ")),
+			fmt.Sprintf("the following apps depend on %s: %s", name, strings.Join(dependents, ", ")),
 		)
 	}
 
@@ -168,7 +171,7 @@ func (m *manager) Remove(ctx context.Context, name string, opts RemoveOptions) e
 	return m.installer.Uninstall(ctx, name, uninstallOpts)
 }
 
-// findDependents 查找依赖指定应用的所有已安装应用
+// findDependents finds all installed apps that depend on the specified app
 func (m *manager) findDependents(ctx context.Context, appName string) ([]string, error) {
 	installedApps, err := m.storage.ListInstalledApps(ctx)
 	if err != nil {
@@ -183,19 +186,19 @@ func (m *manager) findDependents(ctx context.Context, appName string) ([]string,
 			continue
 		}
 
-		// 获取应用信息
+		// Get app info
 		app, err := m.bucketMgr.GetApp(ctx, installed.Bucket, installed.Name)
 		if err != nil {
 			continue
 		}
 
-		// 解析依赖
+		// Resolve dependencies
 		depGraph, err := resolver.Resolve(ctx, app)
 		if err != nil {
 			continue
 		}
 
-		// 检查是否依赖目标应用
+		// Check if depends on target app
 		if _, ok := depGraph.Nodes[appName]; ok {
 			dependents = append(dependents, installed.Name)
 		}
@@ -212,7 +215,7 @@ func (m *manager) Update(ctx context.Context, name string, opts UpdateOptions) e
 
 	bucketName := installed.Bucket
 	if bucketName == "" {
-		bucketName = "main"
+		bucketName = DefaultBucket
 	}
 
 	app, err := m.bucketMgr.GetApp(ctx, bucketName, name)
@@ -247,17 +250,17 @@ func (m *manager) UpdateAll(ctx context.Context, opts UpdateOptions) error {
 	results := make([]updateResult, 0, total)
 
 	for i, app := range installedApps {
-		fmt.Printf("[%d/%d] 正在更新 %s...\n", i+1, total, app.Name)
+		fmt.Printf("[%d/%d] Updating %s...\n", i+1, total, app.Name)
 		if err := m.Update(ctx, app.Name, opts); err != nil {
-			fmt.Fprintf(os.Stderr, "  ✗ 更新失败: %v\n", err)
+			fmt.Fprintf(os.Stderr, "  ✗ Update failed: %v\n", err)
 			results = append(results, updateResult{name: app.Name, success: false, err: err})
 		} else {
-			fmt.Printf("  ✓ %s 更新成功\n", app.Name)
+			fmt.Printf("  ✓ %s updated successfully\n", app.Name)
 			results = append(results, updateResult{name: app.Name, success: true})
 		}
 	}
 
-	// 汇总结果
+	// Summary
 	var successCount, failCount int
 	var failedApps []string
 
@@ -271,13 +274,13 @@ func (m *manager) UpdateAll(ctx context.Context, opts UpdateOptions) error {
 	}
 
 	fmt.Println()
-	fmt.Printf("更新完成: 成功 %d, 失败 %d\n", successCount, failCount)
+	fmt.Printf("Update complete: %d succeeded, %d failed\n", successCount, failCount)
 	if failCount > 0 {
-		fmt.Println("失败的软件包:")
+		fmt.Println("Failed packages:")
 		for _, name := range failedApps {
 			fmt.Printf("  - %s\n", name)
 		}
-		return fmt.Errorf("部分软件包更新失败")
+		return fmt.Errorf("some packages failed to update")
 	}
 
 	return nil
@@ -288,12 +291,20 @@ func (m *manager) Switch(ctx context.Context, name, version string) error {
 }
 
 func (m *manager) ListInstalled() ([]*manifest.InstalledApp, error) {
-	return m.storage.ListInstalledApps(context.Background())
+	apps, err := m.storage.ListInstalledApps(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	// Return empty slice instead of nil for consistency
+	if apps == nil {
+		return []*manifest.InstalledApp{}, nil
+	}
+	return apps, nil
 }
 
 func (m *manager) Info(ctx context.Context, bucketName, name string) (*manifest.AppInfo, error) {
 	if bucketName == "" {
-		bucketName = "main"
+		bucketName = DefaultBucket
 	}
 
 	app, err := m.bucketMgr.GetApp(ctx, bucketName, name)
@@ -305,15 +316,15 @@ func (m *manager) Info(ctx context.Context, bucketName, name string) (*manifest.
 	isInstalled := err == nil && installed != nil
 
 	info := &manifest.AppInfo{
-		Name:              app.Script.Name,
-		Description:       app.Script.Description,
-		Homepage:          app.Script.Homepage,
-		License:           app.Script.License,
-		Category:          app.Script.Category,
-		Tags:              app.Script.Tags,
-		Version:           app.Meta.Version,
-		Bucket:            app.Script.Bucket,
-		Installed:         isInstalled,
+		Name:             app.Script.Name,
+		Description:      app.Script.Description,
+		Homepage:         app.Script.Homepage,
+		License:          app.Script.License,
+		Category:         app.Script.Category,
+		Tags:             app.Script.Tags,
+		Version:          app.Meta.Version,
+		Bucket:           app.Script.Bucket,
+		Installed:        isInstalled,
 		InstalledVersion: "",
 	}
 
@@ -367,33 +378,9 @@ func (m *manager) Search(ctx context.Context, query string, bucketName string) (
 	return results, nil
 }
 
+// matchesQuery checks if app matches the search query
 func matchesQuery(app *manifest.AppRef, query string) bool {
-	lowerQuery := toLower(query)
-	return contains(toLower(app.Name), lowerQuery) ||
-		contains(toLower(app.Description), lowerQuery)
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
-}
-
-func containsHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
-
-func toLower(s string) string {
-	result := make([]byte, len(s))
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c >= 'A' && c <= 'Z' {
-			c += 'a' - 'A'
-		}
-		result[i] = c
-	}
-	return string(result)
+	lowerQuery := strings.ToLower(query)
+	return strings.Contains(strings.ToLower(app.Name), lowerQuery) ||
+		strings.Contains(strings.ToLower(app.Description), lowerQuery)
 }

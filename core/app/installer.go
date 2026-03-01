@@ -34,7 +34,7 @@ func NewAppInstaller(inst *installer) AppInstaller {
 }
 
 func (i *appInstaller) Install(ctx context.Context, app *manifest.App, opts InstallOptions) error {
-	// 创建进度管理器
+	// Create progress manager
 	pm := output.NewProgressManager()
 	defer pm.Wait()
 
@@ -43,59 +43,59 @@ func (i *appInstaller) Install(ctx context.Context, app *manifest.App, opts Inst
 		installDir = filepath.Join(i.installer.installBase, app.Script.Name)
 	}
 
-	if err := os.MkdirAll(installDir, 0755); err != nil {
-		return fmt.Errorf("创建安装目录: %w", err)
+	if err := os.MkdirAll(installDir, DefaultDirPerm); err != nil {
+		return fmt.Errorf("create install directory: %w", err)
 	}
 
 	arch := opts.Arch
 	if arch == "" {
-		arch = "amd64"
+		arch = DefaultArch
 	}
 
 	version := app.Meta.Version
 	if version == "" {
-		version = "latest"
+		version = DefaultVersion
 	}
 
-	// 定义安装阶段
-	stages := []string{"准备", "下载", "校验", "解压", "完成"}
+	// Define installation stages
+	stages := []string{"Prepare", "Download", "Verify", "Extract", "Complete"}
 	progressBar := pm.AddInstallBar(app.Script.Name, stages)
 
-	// 阶段 1: 准备
+	// Stage 1: Prepare
 	progressBar.SetStage(0)
 	downloadInfo, err := i.getDownloadInfo(app, version, arch)
 	if err != nil {
-		return fmt.Errorf("获取下载信息: %w", err)
+		return fmt.Errorf("get download info: %w", err)
 	}
 	progressBar.CompleteStage()
 
-	// 阶段 2: 下载
+	// Stage 2: Download
 	progressBar.SetStage(1)
 	cacheFile := filepath.Join(i.installer.downloadDir, fmt.Sprintf("%s-%s-%s", app.Script.Name, version, arch))
 	if err := i.DownloadWithProgress(ctx, downloadInfo.URL, cacheFile, pm); err != nil {
-		return fmt.Errorf("下载失败: %w", err)
+		return fmt.Errorf("download failed: %w", err)
 	}
 	progressBar.CompleteStage()
 
-	// 阶段 3: 校验
+	// Stage 3: Verify
 	progressBar.SetStage(2)
 	if downloadInfo.Hash != "" {
 		alg := checksum.AutoDetectAlgorithm(downloadInfo.Hash)
 		if err := i.Verify(cacheFile, downloadInfo.Hash, alg); err != nil {
-			return fmt.Errorf("校验失败: %w", err)
+			return fmt.Errorf("verify failed: %w", err)
 		}
 	}
 	progressBar.CompleteStage()
 
-	// 阶段 4: 解压
+	// Stage 4: Extract
 	progressBar.SetStage(3)
 	extractDir := filepath.Join(installDir, version)
 	if err := i.Extract(cacheFile, extractDir); err != nil {
-		return fmt.Errorf("解压失败: %w", err)
+		return fmt.Errorf("extract failed: %w", err)
 	}
 	progressBar.CompleteStage()
 
-	// 阶段 5: 完成
+	// Stage 5: Complete
 	progressBar.SetStage(4)
 	installed := &manifest.InstalledApp{
 		Name:        app.Script.Name,
@@ -106,11 +106,11 @@ func (i *appInstaller) Install(ctx context.Context, app *manifest.App, opts Inst
 	}
 
 	if err := i.installer.storage.SaveInstalledApp(ctx, installed); err != nil {
-		return fmt.Errorf("保存安装记录: %w", err)
+		return fmt.Errorf("save install record: %w", err)
 	}
 	progressBar.Complete()
 
-	fmt.Printf("✓ %s (%s) 安装成功\n", app.Script.Name, version)
+	fmt.Printf("✓ %s (%s) installed successfully\n", app.Script.Name, version)
 	return nil
 }
 
@@ -122,14 +122,14 @@ func (i *appInstaller) getDownloadInfo(app *manifest.App, version, arch string) 
 			}
 		}
 	}
-	return nil, fmt.Errorf("未找到 %s/%s 的下载信息", version, arch)
+	return nil, fmt.Errorf("download info not found for %s/%s", version, arch)
 }
 
 func (i *appInstaller) Download(url, dest string) error {
 	return fetch.Download(url, dest)
 }
 
-// DownloadWithProgress 使用进度条下载文件
+// DownloadWithProgress downloads file with progress bar
 func (i *appInstaller) DownloadWithProgress(ctx context.Context, url, dest string, pm *output.ProgressManager) error {
 	return fetch.DownloadWithProgress(ctx, url, dest, pm)
 }
@@ -140,7 +140,7 @@ func (i *appInstaller) Verify(path, hash string, alg checksum.Algorithm) error {
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("校验和不匹配")
+		return fmt.Errorf("checksum mismatch")
 	}
 	return nil
 }

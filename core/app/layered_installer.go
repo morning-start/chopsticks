@@ -9,6 +9,7 @@ import (
 	"chopsticks/core/manifest"
 	"chopsticks/pkg/async"
 	"chopsticks/pkg/errors"
+
 	"golang.org/x/sync/errgroup"
 )
 
@@ -52,21 +53,21 @@ const (
 func (s InstallStage) String() string {
 	switch s {
 	case StagePrepare:
-		return "准备"
+		return "Prepare"
 	case StageDownload:
-		return "下载"
+		return "Download"
 	case StageVerify:
-		return "校验"
+		return "Verify"
 	case StageExtract:
-		return "解压"
+		return "Extract"
 	case StageExecuteScript:
-		return "执行脚本"
+		return "Execute Script"
 	case StageRegister:
-		return "注册"
+		return "Register"
 	case StageComplete:
-		return "完成"
+		return "Complete"
 	default:
-		return "未知"
+		return "Unknown"
 	}
 }
 
@@ -84,17 +85,17 @@ const (
 func (s InstallStatus) String() string {
 	switch s {
 	case StatusPending:
-		return "等待中"
+		return "Pending"
 	case StatusRunning:
-		return "进行中"
+		return "Running"
 	case StatusCompleted:
-		return "已完成"
+		return "Completed"
 	case StatusFailed:
-		return "失败"
+		return "Failed"
 	case StatusSkipped:
-		return "已跳过"
+		return "Skipped"
 	default:
-		return "未知"
+		return "Unknown"
 	}
 }
 
@@ -135,51 +136,51 @@ func (i *LayeredParallelInstaller) Install(
 	spec LayeredInstallSpec,
 	opts LayeredInstallOptions,
 ) error {
-	// 设置进度回调
+	// Set progress callback
 	i.progressCallback = opts.ProgressCallback
 
-	// 1. 解析依赖图
+	// 1. Resolve dependency graph
 	graph, err := i.resolver.Resolve(ctx, spec.App)
 	if err != nil {
-		return fmt.Errorf("解析依赖失败: %w", err)
+		return fmt.Errorf("resolve dependencies: %w", err)
 	}
 
-	// 2. 拓扑排序分层
+	// 2. Topological sort into layers
 	layers, err := i.toLayers(graph)
 	if err != nil {
-		return fmt.Errorf("依赖分层失败: %w", err)
+		return fmt.Errorf("layer dependencies: %w", err)
 	}
 
-	// 3. 逐层并行安装依赖
+	// 3. Install dependencies layer by layer in parallel
 	totalApps := len(graph.Nodes)
 	completedApps := 0
 
 	for layerIdx, layer := range layers {
 		if opts.SkipDeps && layerIdx < len(layers)-1 {
-			// 跳过依赖安装
+			// Skip dependency installation
 			continue
 		}
 
 		i.reportProgress(ProgressUpdate{
-			Message:       fmt.Sprintf("正在安装第 %d/%d 层 (%d 个应用)", layerIdx+1, len(layers), len(layer)),
+			Message:       fmt.Sprintf("Installing layer %d/%d (%d apps)", layerIdx+1, len(layers), len(layer)),
 			Layer:         layerIdx + 1,
 			TotalLayers:   len(layers),
 			CompletedApps: completedApps,
 			TotalApps:     totalApps,
 		})
 
-		// 并行安装当前层的所有应用
+		// Install all apps in current layer in parallel
 		if err := i.installLayerParallel(ctx, layer, opts, layerIdx, len(layers), &completedApps, totalApps); err != nil {
-			return fmt.Errorf("安装第 %d 层失败: %w", layerIdx+1, err)
+			return fmt.Errorf("install layer %d: %w", layerIdx+1, err)
 		}
 	}
 
-	// 4. 安装主应用（如果在依赖图中是最后一个）
+	// 4. Install main app (if it's the last in dependency graph)
 	if !opts.SkipDeps {
 		i.reportProgress(ProgressUpdate{
 			AppName:       spec.App.Script.Name,
 			Status:        StatusRunning,
-			Message:       "安装主应用",
+			Message:       "Installing main app",
 			Layer:         len(layers),
 			TotalLayers:   len(layers),
 			CompletedApps: completedApps,
@@ -187,13 +188,13 @@ func (i *LayeredParallelInstaller) Install(
 		})
 
 		if err := i.installApp(ctx, spec, opts); err != nil {
-			return fmt.Errorf("安装主应用失败: %w", err)
+			return fmt.Errorf("install main app: %w", err)
 		}
 	}
 
 	i.reportProgress(ProgressUpdate{
 		Status:        StatusCompleted,
-		Message:       fmt.Sprintf("%s 安装完成", spec.App.Script.Name),
+		Message:       fmt.Sprintf("%s installation complete", spec.App.Script.Name),
 		CompletedApps: totalApps,
 		TotalApps:     totalApps,
 	})
@@ -207,9 +208,11 @@ func (i *LayeredParallelInstaller) toLayers(graph *DependencyGraph) ([][]*Depend
 		return nil, nil
 	}
 
-	// 计算每个节点的深度（到根节点的最大距离）
+	// Calculate depth for each node (max distance to leaf/dependency)
+	// A node with no dependencies has depth 0
+	// A node that depends on others has depth = max(dependency depths) + 1
 	depths := make(map[string]int)
-	
+
 	var calculateDepth func(node *DependencyNode, visited map[string]bool) int
 	calculateDepth = func(node *DependencyNode, visited map[string]bool) int {
 		if depth, ok := depths[node.App.Script.Name]; ok {
@@ -217,31 +220,38 @@ func (i *LayeredParallelInstaller) toLayers(graph *DependencyGraph) ([][]*Depend
 		}
 
 		if visited[node.App.Script.Name] {
-			// 循环依赖已在 Resolve 中检测，这里不应该发生
+			// Circular dependency should have been detected in Resolve
 			return 0
 		}
 
 		visited[node.App.Script.Name] = true
-		maxDepth := 0
+		maxDepDepth := -1
 
 		for _, dep := range node.Dependencies {
 			depDepth := calculateDepth(dep, visited)
-			if depDepth > maxDepth {
-				maxDepth = depDepth
+			if depDepth > maxDepDepth {
+				maxDepDepth = depDepth
 			}
 		}
 
 		delete(visited, node.App.Script.Name)
-		depths[node.App.Script.Name] = maxDepth + 1
-		return maxDepth + 1
+
+		// If no dependencies, depth is 0
+		// Otherwise, depth is max dependency depth + 1
+		depth := 0
+		if maxDepDepth >= 0 {
+			depth = maxDepDepth + 1
+		}
+		depths[node.App.Script.Name] = depth
+		return depth
 	}
 
-	// 计算所有节点的深度
+	// Calculate depths for all nodes
 	for _, node := range graph.Nodes {
 		calculateDepth(node, make(map[string]bool))
 	}
 
-	// 按深度分组
+	// Find max depth
 	maxDepth := 0
 	for _, depth := range depths {
 		if depth > maxDepth {
@@ -249,12 +259,10 @@ func (i *LayeredParallelInstaller) toLayers(graph *DependencyGraph) ([][]*Depend
 		}
 	}
 
-	// 创建层（从最深到最浅，即依赖在前）
-	layers := make([][]*DependencyNode, maxDepth)
+	// Create layers - dependencies (depth 0) go in layer 0, then depth 1, etc.
+	layers := make([][]*DependencyNode, maxDepth+1)
 	for name, depth := range depths {
-		// depth 是 1-based，转换为 0-based 索引
-		layerIdx := maxDepth - depth
-		layers[layerIdx] = append(layers[layerIdx], graph.Nodes[name])
+		layers[depth] = append(layers[depth], graph.Nodes[name])
 	}
 
 	return layers, nil
@@ -273,26 +281,26 @@ func (i *LayeredParallelInstaller) installLayerParallel(
 		return nil
 	}
 
-	// 使用 errgroup 控制并发
+	// Use errgroup for concurrency control
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(i.maxLayerParallel)
 
-	// 进度同步
+	// Progress synchronization
 	var mu sync.Mutex
 
 	for _, node := range layer {
-		node := node // 捕获循环变量
+		node := node // Capture loop variable
 		g.Go(func() error {
 			spec := LayeredInstallSpec{
 				App:     node.App,
 				Version: node.Version,
-				Arch:    "amd64",
+				Arch:    DefaultArch,
 			}
 
 			i.reportProgress(ProgressUpdate{
 				AppName:       node.App.Script.Name,
 				Status:        StatusRunning,
-				Message:       fmt.Sprintf("开始安装 %s", node.App.Script.Name),
+				Message:       fmt.Sprintf("Starting installation of %s", node.App.Script.Name),
 				Layer:         layerIdx + 1,
 				TotalLayers:   totalLayers,
 				CompletedApps: *completedApps,
@@ -303,9 +311,9 @@ func (i *LayeredParallelInstaller) installLayerParallel(
 				i.reportProgress(ProgressUpdate{
 					AppName: node.App.Script.Name,
 					Status:  StatusFailed,
-					Message: fmt.Sprintf("安装 %s 失败: %v", node.App.Script.Name, err),
+					Message: fmt.Sprintf("Installation of %s failed: %v", node.App.Script.Name, err),
 				})
-				return fmt.Errorf("安装 %s 失败: %w", node.App.Script.Name, err)
+				return fmt.Errorf("install %s: %w", node.App.Script.Name, err)
 			}
 
 			mu.Lock()
@@ -316,7 +324,7 @@ func (i *LayeredParallelInstaller) installLayerParallel(
 			i.reportProgress(ProgressUpdate{
 				AppName:       node.App.Script.Name,
 				Status:        StatusCompleted,
-				Message:       fmt.Sprintf("%s 安装完成", node.App.Script.Name),
+				Message:       fmt.Sprintf("%s installation complete", node.App.Script.Name),
 				Layer:         layerIdx + 1,
 				TotalLayers:   totalLayers,
 				CompletedApps: currentCompleted,
@@ -384,7 +392,7 @@ func (i *LayeredParallelInstaller) GetLayerInfo(graph *DependencyGraph) ([]Layer
 			Index:    idx,
 			Apps:     apps,
 			Count:    len(layer),
-			CanStart: idx == 0, // 第一层可以立即开始
+			CanStart: idx == 0, // First layer can start immediately
 		}
 	}
 
@@ -401,7 +409,7 @@ func (i *LayeredParallelInstaller) InstallBatch(
 		return nil
 	}
 
-	// 如果没有依赖关系，直接并行安装
+	// If no dependencies, install in parallel directly
 	if opts.SkipDeps {
 		g, ctx := errgroup.WithContext(ctx)
 		g.SetLimit(i.maxLayerParallel)
@@ -416,7 +424,7 @@ func (i *LayeredParallelInstaller) InstallBatch(
 		return g.Wait()
 	}
 
-	// 构建合并的依赖图
+	// Build merged dependency graph
 	mergedGraph := &DependencyGraph{
 		Nodes: make(map[string]*DependencyNode),
 		Order: []string{},
@@ -425,10 +433,10 @@ func (i *LayeredParallelInstaller) InstallBatch(
 	for _, spec := range specs {
 		graph, err := i.resolver.Resolve(ctx, spec.App)
 		if err != nil {
-			return fmt.Errorf("解析 %s 的依赖失败: %w", spec.App.Script.Name, err)
+			return fmt.Errorf("resolve dependencies for %s: %w", spec.App.Script.Name, err)
 		}
 
-		// 合并节点
+		// Merge nodes
 		for name, node := range graph.Nodes {
 			if _, exists := mergedGraph.Nodes[name]; !exists {
 				mergedGraph.Nodes[name] = node
@@ -436,12 +444,12 @@ func (i *LayeredParallelInstaller) InstallBatch(
 		}
 	}
 
-	// 重新拓扑排序
+	// Re-topological sort
 	if err := i.topologicalSort(mergedGraph); err != nil {
 		return err
 	}
 
-	// 分层安装
+	// Layered installation
 	layers, err := i.toLayers(mergedGraph)
 	if err != nil {
 		return err
@@ -452,7 +460,7 @@ func (i *LayeredParallelInstaller) InstallBatch(
 
 	for layerIdx, layer := range layers {
 		i.reportProgress(ProgressUpdate{
-			Message:       fmt.Sprintf("批量安装 - 第 %d/%d 层", layerIdx+1, len(layers)),
+			Message:       fmt.Sprintf("Batch install - Layer %d/%d", layerIdx+1, len(layers)),
 			Layer:         layerIdx + 1,
 			TotalLayers:   len(layers),
 			CompletedApps: completedApps,
@@ -504,10 +512,10 @@ func (i *LayeredParallelInstaller) topologicalSort(graph *DependencyGraph) error
 	}
 
 	if len(result) != len(graph.Nodes) {
-		return errors.Newf(errors.KindInvalidInput, "依赖图中存在循环依赖")
+		return errors.Newf(errors.KindInvalidInput, "circular dependency detected in dependency graph")
 	}
 
-	// 反转结果
+	// Reverse result
 	for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
 		result[i], result[j] = result[j], result[i]
 	}
