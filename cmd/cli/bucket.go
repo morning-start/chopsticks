@@ -9,170 +9,116 @@ import (
 	"chopsticks/core/bucket"
 	"chopsticks/pkg/output"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
-// bucketCommand 返回 bucket 命令定义。
-func bucketCommand() *cli.Command {
-	return &cli.Command{
-		Name:    "bucket",
-		Aliases: []string{"b"},
-		Usage:   "软件源管理",
-		Description: `管理软件源（Bucket）。
+var (
+	bucketInitJS     bool
+	bucketInitLua    bool
+	bucketInitDir    string
+	bucketCreateDir  string
+	bucketAddBranch  string
+	bucketRemovePurge bool
+)
+
+// bucketCmd 表示 bucket 命令
+var bucketCmd = &cobra.Command{
+	Use:     "bucket",
+	Aliases: []string{"b"},
+	Short:   "软件源管理",
+	Long: `管理软件源（Bucket）。
 
 软件源是存储软件包配置的 Git 仓库。`,
-		Subcommands: []*cli.Command{
-			bucketInitCommand(),
-			bucketCreateCommand(),
-			bucketAddCommand(),
-			bucketRemoveCommand(),
-			bucketListCommand(),
-			bucketUpdateCommand(),
-		},
-	}
 }
 
-// bucketInitCommand 返回 bucket init 子命令。
-func bucketInitCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "init",
-		Usage:     "初始化新 Bucket 目录结构",
-		ArgsUsage: "<name>",
-		Description: `初始化一个新的 Bucket 目录结构。
+// bucketInitCmd 初始化 Bucket
+var bucketInitCmd = &cobra.Command{
+	Use:   "init <name>",
+	Short: "初始化新 Bucket 目录结构",
+	Long: `初始化一个新的 Bucket 目录结构。
 
 示例:
   chopsticks bucket init my-bucket
   chopsticks bucket init my-bucket --js
   chopsticks bucket init my-bucket --lua --dir ./buckets`,
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:  "js",
-				Usage: "Use JavaScript template",
-			},
-			&cli.BoolFlag{
-				Name:  "lua",
-				Usage: "Use Lua template",
-			},
-			&cli.StringFlag{
-				Name:  "dir",
-				Usage: "指定目标目录",
-			},
-		},
-		Action: bucketInitAction,
-	}
+	Args: cobra.ExactArgs(1),
+	RunE: runBucketInit,
 }
 
-// bucketCreateCommand 返回 bucket create 子命令。
-func bucketCreateCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "create",
-		Aliases:   []string{"c"},
-		Usage:     "创建新 App 模板",
-		ArgsUsage: "<app-name>",
-		Description: `在 Bucket 中创建一个新的 App 模板。
+// bucketCreateCmd 创建 App 模板
+var bucketCreateCmd = &cobra.Command{
+	Use:     "create <app-name>",
+	Aliases: []string{"c"},
+	Short:   "创建新 App 模板",
+	Long: `在 Bucket 中创建一个新的 App 模板。
 
 示例:
   chopsticks bucket create my-app
   chopsticks bucket create my-app --dir ./bucket`,
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:  "dir",
-				Usage: "指定 Bucket 目录",
-			},
-		},
-		Action: bucketCreateAction,
-	}
+	Args: cobra.ExactArgs(1),
+	RunE: runBucketCreate,
 }
 
-// bucketAddCommand 返回 bucket add 子命令。
-func bucketAddCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "add",
-		Aliases:   []string{"a"},
-		Usage:     "添加软件源",
-		ArgsUsage: "<name> <url>",
-		Description: `添加一个新的软件源。
+// bucketAddCmd 添加软件源
+var bucketAddCmd = &cobra.Command{
+	Use:     "add <name> <url>",
+	Aliases: []string{"a"},
+	Short:   "添加软件源",
+	Long: `添加一个新的软件源。
 
 示例:
   chopsticks bucket add main https://github.com/chopsticks-bucket/main
   chopsticks bucket add extras https://github.com/chopsticks-bucket/extras --branch develop`,
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:  "branch",
-				Usage: "指定 Git 分支",
-			},
-		},
-		Action: bucketAddAction,
-	}
+	Args: cobra.ExactArgs(2),
+	RunE: runBucketAdd,
 }
 
-// bucketRemoveCommand 返回 bucket remove 子命令。
-func bucketRemoveCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "remove",
-		Aliases:   []string{"rm", "delete", "del"},
-		Usage:     "删除软件源",
-		ArgsUsage: "<name>",
-		Description: `删除一个软件源。
+// bucketRemoveCmd 删除软件源
+var bucketRemoveCmd = &cobra.Command{
+	Use:     "remove <name>",
+	Aliases: []string{"rm", "delete", "del"},
+	Short:   "删除软件源",
+	Long: `删除一个软件源。
 
 示例:
   chopsticks bucket remove main
   chopsticks bucket rm extras --purge`,
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "purge",
-				Aliases: []string{"p"},
-				Usage:   "彻底删除本地数据",
-			},
-		},
-		Action: bucketRemoveAction,
-	}
+	Args: cobra.ExactArgs(1),
+	RunE: runBucketRemove,
 }
 
-// bucketListCommand 返回 bucket list 子命令。
-func bucketListCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "list",
-		Aliases:   []string{"ls"},
-		Usage:     "列出软件源",
-		ArgsUsage: " ",
-		Description: `列出所有已添加的软件源。
+// bucketListCmd 列出软件源
+var bucketListCmd = &cobra.Command{
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "列出软件源",
+	Long: `列出所有已添加的软件源。
 
 示例:
   chopsticks bucket list
   chopsticks bucket ls`,
-		Action: bucketListAction,
-	}
+	RunE: runBucketList,
 }
 
-// bucketUpdateCommand 返回 bucket update 子命令。
-func bucketUpdateCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "update",
-		Aliases:   []string{"up"},
-		Usage:     "更新软件源",
-		ArgsUsage: "[name]",
-		Description: `更新软件源。如果不指定名称，则更新所有软件源。
+// bucketUpdateCmd 更新软件源
+var bucketUpdateCmd = &cobra.Command{
+	Use:     "update [name]",
+	Aliases: []string{"up"},
+	Short:   "更新软件源",
+	Long: `更新软件源。如果不指定名称，则更新所有软件源。
 
 示例:
   chopsticks bucket update
   chopsticks bucket update main
   chopsticks bucket up extras`,
-		Action: bucketUpdateAction,
-	}
+	Args: cobra.MaximumNArgs(1),
+	RunE: runBucketUpdate,
 }
 
-// bucketInitAction 处理 bucket init 命令。
-func bucketInitAction(c *cli.Context) error {
-	if c.NArg() < 1 {
-		output.Errorln("Error: missing bucket name")
-		output.Dimln("Usage: chopsticks bucket init <name>")
-		return cli.Exit("", 1)
-	}
-
-	name := c.Args().First()
-	useLua := c.Bool("lua")
-	targetDir := c.String("dir")
+func runBucketInit(cmd *cobra.Command, args []string) error {
+	name := args[0]
+	useLua := bucketInitLua
+	targetDir := bucketInitDir
 
 	// 默认使用 JS 模板
 	templateType := "js"
@@ -188,11 +134,9 @@ func bucketInitAction(c *cli.Context) error {
 	output.Highlight("%s", name)
 	output.Dimf(" (%s)\n", map[string]string{"js": "JavaScript", "lua": "Lua"}[templateType])
 
-	// 这里应该调用实际的模板复制逻辑
-	// 暂时使用简化的实现
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		output.ErrorCrossf("Failed to create directory: %v", err)
-		return cli.Exit("", 1)
+		return err
 	}
 
 	output.SuccessCheckf("Bucket %s initialized", name)
@@ -205,16 +149,9 @@ func bucketInitAction(c *cli.Context) error {
 	return nil
 }
 
-// bucketCreateAction 处理 bucket create 命令。
-func bucketCreateAction(c *cli.Context) error {
-	if c.NArg() < 1 {
-		output.Errorln("Error: missing app name")
-		output.Dimln("Usage: chopsticks bucket create <app-name>")
-		return cli.Exit("", 1)
-	}
-
-	name := c.Args().First()
-	bucketDir := c.String("dir")
+func runBucketCreate(cmd *cobra.Command, args []string) error {
+	name := args[0]
+	bucketDir := bucketCreateDir
 
 	targetDir := bucketDir
 	if targetDir == "" {
@@ -235,7 +172,7 @@ func bucketCreateAction(c *cli.Context) error {
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			output.ErrorCrossf("Failed to create directory: %v", err)
-			return cli.Exit("", 1)
+			return err
 		}
 		output.Dimf("  Created directory: %s\n", dir)
 	}
@@ -296,7 +233,7 @@ env:
 	manifestPath := filepath.Join(targetDir, "manifest.yaml")
 	if err := os.WriteFile(manifestPath, []byte(manifestContent), 0644); err != nil {
 		output.ErrorCrossf("Failed to create manifest file: %v", err)
-		return cli.Exit("", 1)
+		return err
 	}
 	output.Dimf("  Created file: %s\n", manifestPath)
 
@@ -318,7 +255,7 @@ env:
 	readmePath := filepath.Join(targetDir, "README.md")
 	if err := os.WriteFile(readmePath, []byte(readmeContent), 0644); err != nil {
 		output.ErrorCrossf("Failed to create README file: %v", err)
-		return cli.Exit("", 1)
+		return err
 	}
 	output.Dimf("  Created file: %s\n", readmePath)
 
@@ -361,7 +298,7 @@ function postUninstall() {
 	scriptPath := filepath.Join(targetDir, "scripts", "install.js")
 	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0644); err != nil {
 		output.ErrorCrossf("Failed to create script file: %v", err)
-		return cli.Exit("", 1)
+		return err
 	}
 	output.Dimf("  Created file: %s\n", scriptPath)
 
@@ -372,17 +309,10 @@ function postUninstall() {
 	return nil
 }
 
-// bucketAddAction 处理 bucket add 命令。
-func bucketAddAction(c *cli.Context) error {
-	if c.NArg() < 2 {
-		output.Errorln("Error: missing arguments")
-		output.Dimln("Usage: chopsticks bucket add <name> <url>")
-		return cli.Exit("", 1)
-	}
-
-	name := c.Args().Get(0)
-	url := c.Args().Get(1)
-	branch := c.String("branch")
+func runBucketAdd(cmd *cobra.Command, args []string) error {
+	name := args[0]
+	url := args[1]
+	branch := bucketAddBranch
 
 	opts := bucket.AddOptions{
 		Branch: branch,
@@ -396,12 +326,12 @@ func bucketAddAction(c *cli.Context) error {
 	}
 	fmt.Println()
 
-	ctx := getContextFromCli(c)
+	ctx := cmd.Context()
 	application := getApp()
 
 	if err := application.BucketManager().Add(ctx, name, url, opts); err != nil {
 		output.ErrorCrossf("Failed to add bucket: %v", err)
-		return cli.Exit("", 1)
+		return err
 	}
 
 	output.SuccessCheckf("Bucket %s added successfully", name)
@@ -410,16 +340,9 @@ func bucketAddAction(c *cli.Context) error {
 	return nil
 }
 
-// bucketRemoveAction 处理 bucket remove 命令。
-func bucketRemoveAction(c *cli.Context) error {
-	if c.NArg() < 1 {
-		output.Errorln("Error: missing bucket name")
-		output.Dimln("Usage: chopsticks bucket remove <name>")
-		return cli.Exit("", 1)
-	}
-
-	name := c.Args().First()
-	purge := c.Bool("purge")
+func runBucketRemove(cmd *cobra.Command, args []string) error {
+	name := args[0]
+	purge := bucketRemovePurge
 
 	output.Infof("Removing bucket: ")
 	output.Highlightln(name)
@@ -428,28 +351,26 @@ func bucketRemoveAction(c *cli.Context) error {
 	}
 	fmt.Println()
 
-	ctx := getContextFromCli(c)
+	ctx := cmd.Context()
 	application := getApp()
 
 	if err := application.BucketManager().Remove(ctx, name, purge); err != nil {
 		output.ErrorCrossf("Failed to remove bucket: %v", err)
-		return cli.Exit("", 1)
+		return err
 	}
 
 	output.SuccessCheckf("Bucket %s removed", name)
 	return nil
 }
 
-// bucketListAction 处理 bucket list 命令。
-func bucketListAction(c *cli.Context) error {
-	ctx := getContextFromCli(c)
+func runBucketList(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
 	application := getApp()
 
-	// 获取所有软件源
 	buckets, err := application.BucketManager().ListBuckets(ctx)
 	if err != nil {
 		output.ErrorCrossf("Failed to list buckets: %v", err)
-		return cli.Exit("", 1)
+		return err
 	}
 
 	output.Highlightln("Added buckets:")
@@ -459,7 +380,6 @@ func bucketListAction(c *cli.Context) error {
 		output.Dimln("  (no buckets)")
 	} else {
 		for _, name := range buckets {
-			// 获取详细信息
 			b, err := application.BucketManager().GetBucket(ctx, name)
 			if err != nil {
 				output.Warningf("  %-10s (unable to get details)\n", name)
@@ -478,35 +398,53 @@ func bucketListAction(c *cli.Context) error {
 	return nil
 }
 
-// bucketUpdateAction 处理 bucket update 命令。
-func bucketUpdateAction(c *cli.Context) error {
-	ctx := getContextFromCli(c)
+func runBucketUpdate(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
 	application := getApp()
 
-	if c.NArg() == 0 {
-		// 更新所有软件源
+	if len(args) == 0 {
 		output.Infoln("Updating all buckets...")
 		fmt.Println()
 
 		if err := application.BucketManager().UpdateAll(ctx); err != nil {
 			output.ErrorCrossf("Failed to update buckets: %v", err)
-			return cli.Exit("", 1)
+			return err
 		}
 
 		output.SuccessCheck("All buckets updated successfully")
 		return nil
 	}
 
-	// 更新指定软件源
-	name := c.Args().First()
+	name := args[0]
 	output.Infof("Updating bucket: %s...\n", name)
 	fmt.Println()
 
 	if err := application.BucketManager().Update(ctx, name); err != nil {
 		output.ErrorCrossf("Failed to update bucket: %v", err)
-		return cli.Exit("", 1)
+		return err
 	}
 
 	output.SuccessCheckf("Bucket %s updated successfully", name)
 	return nil
+}
+
+func init() {
+	bucketInitCmd.Flags().BoolVar(&bucketInitJS, "js", false, "Use JavaScript template")
+	bucketInitCmd.Flags().BoolVar(&bucketInitLua, "lua", false, "Use Lua template")
+	bucketInitCmd.Flags().StringVar(&bucketInitDir, "dir", "", "指定目标目录")
+
+	bucketCreateCmd.Flags().StringVar(&bucketCreateDir, "dir", "", "指定 Bucket 目录")
+
+	bucketAddCmd.Flags().StringVar(&bucketAddBranch, "branch", "", "指定 Git 分支")
+
+	bucketRemoveCmd.Flags().BoolVarP(&bucketRemovePurge, "purge", "p", false, "彻底删除本地数据")
+
+	bucketCmd.AddCommand(bucketInitCmd)
+	bucketCmd.AddCommand(bucketCreateCmd)
+	bucketCmd.AddCommand(bucketAddCmd)
+	bucketCmd.AddCommand(bucketRemoveCmd)
+	bucketCmd.AddCommand(bucketListCmd)
+	bucketCmd.AddCommand(bucketUpdateCmd)
+
+	rootCmd.AddCommand(bucketCmd)
 }
