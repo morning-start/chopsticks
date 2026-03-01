@@ -49,6 +49,33 @@ func SetupE2EEnvironment(t *testing.T) *E2EEnvironment {
 	}
 }
 
+// getProjectRoot 获取项目根目录
+// 通过查找 go.mod 文件确定项目根目录
+func getProjectRoot() string {
+	// 从当前文件位置向上查找 go.mod
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+
+	for {
+		// 检查当前目录是否有 go.mod
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+
+		// 向上查找父目录
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// 已经到达根目录，未找到 go.mod
+			break
+		}
+		dir = parent
+	}
+
+	// 如果找不到，返回当前工作目录
+	cwd, _ := os.Getwd()
+	return cwd
+}
+
 // buildBinary 构建 CLI 二进制文件
 func buildBinary(t *testing.T) string {
 	t.Helper()
@@ -59,10 +86,23 @@ func buildBinary(t *testing.T) string {
 		binaryName += ".exe"
 	}
 
-	// 优先使用已存在的二进制文件
-	if _, err := os.Stat(binaryName); err == nil {
-		absPath, _ := filepath.Abs(binaryName)
-		return absPath
+	projectRoot := getProjectRoot()
+
+	// 优先使用已存在的二进制文件（检查多个可能的位置）
+	possiblePaths := []string{
+		filepath.Join(projectRoot, binaryName),          // 项目根目录
+		filepath.Join(projectRoot, "bin", binaryName),   // bin 目录
+	}
+
+	for _, existingBinary := range possiblePaths {
+		if _, err := os.Stat(existingBinary); err == nil {
+			// 验证二进制文件是否可执行
+			if isExecutable(existingBinary) {
+				t.Logf("使用已存在的二进制文件: %s", existingBinary)
+				return existingBinary
+			}
+			t.Logf("找到二进制文件但无法执行，跳过: %s", existingBinary)
+		}
 	}
 
 	// 构建新的二进制文件
@@ -72,13 +112,44 @@ func buildBinary(t *testing.T) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", binaryPath, "./cmd/cli")
+	// 在项目根目录执行构建
+	// 注意：main.go 位于 cmd/ 目录下，而不是 cmd/cli/ 目录下
+	cmd := exec.CommandContext(ctx, "go", "build", "-o", binaryPath, "./cmd")
+	cmd.Dir = projectRoot // 设置工作目录为项目根目录
+
+	// 设置环境变量以确保构建的二进制文件与当前系统兼容
+	// 使用 os.Environ() 作为基础，然后添加/覆盖需要的变量
+	env := os.Environ()
+	env = append(env, "CGO_ENABLED=0")                  // 禁用 CGO 避免兼容性问题
+	env = append(env, "GOOS="+runtime.GOOS)             // 使用当前操作系统
+	env = append(env, "GOARCH="+runtime.GOARCH)         // 使用当前架构
+	cmd.Env = env
+
+	t.Logf("构建二进制文件: GOOS=%s, GOARCH=%s, CGO_ENABLED=0", runtime.GOOS, runtime.GOARCH)
+	t.Logf("构建命令: go build -o %s ./cmd", binaryPath)
+	t.Logf("工作目录: %s", projectRoot)
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("构建二进制文件失败: %v\n输出: %s", err, string(output))
 	}
 
+	t.Logf("二进制文件构建成功: %s", binaryPath)
 	return binaryPath
+}
+
+// isExecutable 检查文件是否可执行
+func isExecutable(path string) bool {
+	// Windows 上检查 .exe 文件
+	if runtime.GOOS == "windows" {
+		return filepath.Ext(path) == ".exe"
+	}
+	// Unix 系统检查执行权限
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.Mode().Perm()&0111 != 0
 }
 
 // setupTestBucket 设置测试 bucket
