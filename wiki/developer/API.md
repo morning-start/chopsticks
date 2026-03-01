@@ -1,761 +1,3160 @@
 # Chopsticks JavaScript API 参考
 
-> 应用脚本中可用的 JavaScript API 完整参考（OOP 风格）
+> 应用脚本中可用的 JavaScript API 完整参考
 
 ---
 
-## 1. 基类与生命周期
+## 目录
 
-### 1.1 App 基类
+1. [fsutil - 文件操作](#1-fsutil---文件操作)
+2. [fetch - HTTP 请求](#2-fetch---http-请求)
+3. [execx - 命令执行](#3-execx---命令执行)
+4. [archive - 压缩解压](#4-archive---压缩解压)
+5. [checksum - 校验和](#5-checksum---校验和)
+6. [chopsticksx - Chopsticks 核心](#6-chopsticksx---chopsticks-核心)
+7. [jsonx - JSON 处理](#7-jsonx---json-处理)
+8. [logx - 日志](#8-logx---日志)
+9. [pathx - 路径操作](#9-pathx---路径操作)
+10. [registry - 注册表操作](#10-registry---注册表操作)
+11. [semver - 版本控制](#11-semver---版本控制)
+12. [symlink - 符号链接](#12-symlink---符号链接)
+13. [installerx - 安装程序](#13-installerx---安装程序)
+
+---
+
+## 1. fsutil - 文件操作
+
+文件系统操作模块，提供文件的读写、目录管理等功能。
+
+### 函数列表
+
+| 函数                        | 说明                  |
+| --------------------------- | --------------------- |
+| `readFile(path, encoding?)` | 读取文件内容          |
+| `writeFile(path, content)`  | 写入文件内容          |
+| `append(path, content)`     | 追加内容到文件        |
+| `mkdir(path)`               | 创建目录              |
+| `rmdir(path)`               | 删除空目录            |
+| `remove(path)`              | 删除文件              |
+| `exists(path)`              | 检查文件/目录是否存在 |
+| `isdir(path)`               | 检查路径是否为目录    |
+| `readDir(path)`             | 读取目录内容          |
+| `copy(src, dst)`            | 复制文件              |
+| `removeAll(path)`           | 递归删除目录及其内容  |
+| `mkdirAll(path)`            | 递归创建目录          |
+| `isFile(path)`              | 检查路径是否为文件    |
+| `stat(path)`                | 获取文件/目录信息     |
+
+### readFile(path, encoding?)
+
+读取文件内容。
+
+**参数：**
+
+| 参数       | 类型   | 必填 | 说明                      |
+| ---------- | ------ | ---- | ------------------------- |
+| `path`     | string | 是   | 文件路径                  |
+| `encoding` | string | 否   | 编码格式，默认为 `"utf8"` |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `content` | string  | 文件内容（成功时） |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
 
 ```javascript
-const { App } = require('@chopsticks/core');
+const result = fsutil.readFile("config.json");
+if (result.success) {
+  logx.info("文件内容: " + result.content);
+}
 
-class MyApp extends App {
-    constructor() {
-        super({
-            name: "app",
-            description: "My Application",
-            homepage: "https://...",
-            license: "MIT",
-            bucket: "my-bucket",
-        });
-    }
+// 读取二进制文件
+const result = fsutil.readFile("data.bin", "binary");
+```
 
-    async checkVersion() { ... }
-    async getDownloadInfo(version, arch) { ... }
+### writeFile(path, content)
+
+写入文件内容。
+
+**参数：**
+
+| 参数      | 类型   | 必填 | 说明     |
+| --------- | ------ | ---- | -------- |
+| `path`    | string | 是   | 文件路径 |
+| `content` | string | 是   | 文件内容 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = fsutil.writeFile("config.json", '{"name": "test"}');
+if (result.success) {
+  logx.info("文件写入成功");
 }
 ```
 
-### 1.2 生命周期钩子
+### append(path, content)
 
-| 钩子                   | 说明   | 参数  |
-| ---------------------- | ------ | ----- |
-| `onPreDownload(ctx)`   | 下载前 | `ctx` |
-| `onPostDownload(ctx)`  | 下载后 | `ctx` |
-| `onPreExtract(ctx)`    | 解压前 | `ctx` |
-| `onPostExtract(ctx)`   | 解压后 | `ctx` |
-| `onPreInstall(ctx)`    | 安装前 | `ctx` |
-| `onPostInstall(ctx)`   | 安装后 | `ctx` |
-| `onPreUninstall(ctx)`  | 卸载前 | `ctx` |
-| `onPostUninstall(ctx)` | 卸载后 | `ctx` |
+追加内容到文件末尾。
 
-### 1.3 上下文对象
+**参数：**
+
+| 参数      | 类型   | 必填 | 说明         |
+| --------- | ------ | ---- | ------------ |
+| `path`    | string | 是   | 文件路径     |
+| `content` | string | 是   | 要追加的内容 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
 
 ```javascript
-// ctx 参数包含
-{
-    name: "git",           // 软件名
-    version: "2.43.0",     // 版本
-    arch: "amd64",        // 架构
-    cookDir: "C:\\...\\apps\\git\\2.43.0",  // 安装目录
-    bucket: "main",          // 来源软件源
-    downloadPath: "C:\\...\\cache\\git-2.43.0.7z",  // 下载文件
+fsutil.append("log.txt", "新的日志行\n");
+```
+
+### mkdir(path)
+
+创建单个目录。
+
+**参数：**
+
+| 参数   | 类型   | 必填 | 说明     |
+| ------ | ------ | ---- | -------- |
+| `path` | string | 是   | 目录路径 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+fsutil.mkdir("new_folder");
+```
+
+### rmdir(path)
+
+删除空目录。
+
+**参数：**
+
+| 参数   | 类型   | 必填 | 说明     |
+| ------ | ------ | ---- | -------- |
+| `path` | string | 是   | 目录路径 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+fsutil.rmdir("empty_folder");
+```
+
+### remove(path)
+
+删除文件。
+
+**参数：**
+
+| 参数   | 类型   | 必填 | 说明     |
+| ------ | ------ | ---- | -------- |
+| `path` | string | 是   | 文件路径 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+fsutil.remove("old_file.txt");
+```
+
+### exists(path)
+
+检查文件或目录是否存在。
+
+**参数：**
+
+| 参数   | 类型   | 必填 | 说明 |
+| ------ | ------ | ---- | ---- |
+| `path` | string | 是   | 路径 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `exists`  | boolean | 是否存在           |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = fsutil.exists("config.json");
+if (result.success && result.exists) {
+  logx.info("文件存在");
+}
+```
+
+### isdir(path)
+
+检查路径是否为目录。
+
+**参数：**
+
+| 参数   | 类型   | 必填 | 说明 |
+| ------ | ------ | ---- | ---- |
+| `path` | string | 是   | 路径 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `isdir`   | boolean | 是否为目录         |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = fsutil.isdir("my_folder");
+if (result.success && result.isdir) {
+  logx.info("这是一个目录");
+}
+```
+
+### readDir(path)
+
+读取目录内容。
+
+**参数：**
+
+| 参数   | 类型   | 必填 | 说明     |
+| ------ | ------ | ---- | -------- |
+| `path` | string | 是   | 目录路径 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `entries` | array   | 目录项列表         |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = fsutil.readDir("my_folder");
+if (result.success) {
+  for (const entry of result.entries) {
+    logx.info("条目: " + entry);
+  }
+}
+```
+
+### copy(src, dst)
+
+复制文件。
+
+**参数：**
+
+| 参数  | 类型   | 必填 | 说明         |
+| ----- | ------ | ---- | ------------ |
+| `src` | string | 是   | 源文件路径   |
+| `dst` | string | 是   | 目标文件路径 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+fsutil.copy("source.txt", "backup.txt");
+```
+
+### removeAll(path)
+
+递归删除目录及其所有内容。
+
+**参数：**
+
+| 参数   | 类型   | 必填 | 说明     |
+| ------ | ------ | ---- | -------- |
+| `path` | string | 是   | 目录路径 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+fsutil.removeAll("temp_folder");
+```
+
+### mkdirAll(path)
+
+递归创建目录（自动创建所有父目录）。
+
+**参数：**
+
+| 参数   | 类型   | 必填 | 说明     |
+| ------ | ------ | ---- | -------- |
+| `path` | string | 是   | 目录路径 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+fsutil.mkdirAll("path/to/nested/folder");
+```
+
+### isFile(path)
+
+检查路径是否为文件。
+
+**参数：**
+
+| 参数   | 类型   | 必填 | 说明 |
+| ------ | ------ | ---- | ---- |
+| `path` | string | 是   | 路径 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `isFile`  | boolean | 是否为文件         |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = fsutil.isFile("document.txt");
+if (result.success && result.isFile) {
+  logx.info("这是一个文件");
+}
+```
+
+### stat(path)
+
+获取文件或目录的详细信息。
+
+**参数：**
+
+| 参数   | 类型   | 必填 | 说明 |
+| ------ | ------ | ---- | ---- |
+| `path` | string | 是   | 路径 |
+
+**返回值：**
+
+| 字段          | 类型    | 说明               |
+| ------------- | ------- | ------------------ |
+| `success`     | boolean | 是否成功           |
+| `size`        | number  | 文件大小（字节）   |
+| `isDirectory` | boolean | 是否为目录         |
+| `isFile`      | boolean | 是否为文件         |
+| `mtime`       | string  | 最后修改时间       |
+| `error`       | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = fsutil.stat("file.txt");
+if (result.success) {
+  logx.info("大小: " + result.size + " 字节");
+  logx.info("修改时间: " + result.mtime);
 }
 ```
 
 ---
 
-## 2. 日志模块 (log)
+## 2. fetch - HTTP 请求
+
+HTTP 请求模块，提供下载、GET/POST 请求等功能。
+
+### 函数列表
+
+| 函数                                      | 说明                     |
+| ----------------------------------------- | ------------------------ |
+| `download(url, destPath, options?)`       | 下载文件到指定路径       |
+| `get(url, options?)`                      | 发送 GET 请求            |
+| `post(url, body, contentType?, options?)` | 发送 POST 请求           |
+| `request(method, url, options?)`          | 发送通用 HTTP 请求       |
+| `downloadFile(url, destPath, options?)`   | 下载文件（别名）         |
+| `parseURL(url)`                           | 解析 URL                 |
+| `buildURL(base, params)`                  | 构建带查询参数的 URL     |
+| `getJSON(url, options?)`                  | 发送 GET 请求并解析 JSON |
+| `postJSON(url, data, options?)`           | 发送 JSON POST 请求      |
+| `newClient(options?)`                     | 创建新的 HTTP 客户端     |
+| `setDefaultTimeout(timeout)`              | 设置默认超时时间         |
+
+### download(url, destPath, options?)
+
+下载文件到指定路径。
+
+**参数：**
+
+| 参数       | 类型   | 必填 | 说明         |
+| ---------- | ------ | ---- | ------------ |
+| `url`      | string | 是   | 下载地址     |
+| `destPath` | string | 是   | 目标保存路径 |
+| `options`  | object | 否   | 下载选项     |
+
+**options 选项：**
+
+| 选项      | 类型   | 说明             |
+| --------- | ------ | ---------------- |
+| `headers` | object | 请求头           |
+| `timeout` | number | 超时时间（毫秒） |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
 
 ```javascript
-log.debug("debug message"); // 调试日志
-log.info("info message"); // 信息日志
-log.warn("warning message"); // 警告日志
-log.error("error message"); // 错误日志
-```
-
----
-
-## 3. JSON 模块 (json)
-
-```javascript
-// 对象转 JSON
-const str = JSON.stringify({ name: "test", version: "1.0.0" });
-
-// JSON 转对象
-const obj = JSON.parse('{"name":"test","version":"1.0.0"}');
-
-// 简写
-const str = json.encode(obj);
-const obj = json.decode(str);
-```
-
----
-
-## 4. 路径模块 (path)
-
-```javascript
-// 连接路径
-const full = path.join("dir", "subdir", "file.txt");
-
-// 转绝对路径
-const abs = path.abs("relative/path");
-
-// 获取目录
-const dir = path.dir("/path/to/file.txt");
-
-// 获取文件名
-const base = path.base("/path/to/file.txt");
-
-// 获取扩展名
-const ext = path.ext("/path/to/file.txt");
-
-// 检查存在
-const exists = path.exists("/path/to/file");
-
-// 检查是否为目录
-const isDir = path.isDir("/path/to/dir");
-```
-
----
-
-## 5. 执行模块 (exec)
-
-```javascript
-// 执行命令
-const result = exec.exec("git", "--version");
-// result.exitCode, result.stdout, result.stderr, result.success
-
-// 执行 shell 命令
-const result = exec.shell("echo hello");
-
-// 执行 PowerShell 命令
-const result = exec.powershell("Get-Process");
-```
-
----
-
-## 6. HTTP 模块 (fetch)
-
-```javascript
-// GET 请求
-const response = fetch.get(url);
-// response.status, response.ok, response.body, response.headers
-
-// POST 请求
-const response = fetch.post(url, body, "application/json");
-
-// 下载文件
-fetch.download(url, destPath);
-
-// 带选项的请求
-const response = fetch.get(url, {
-  headers: { "User-Agent": "Chopsticks" },
-  timeout: 30000,
-});
-```
-
----
-
-## 7. 文件系统模块 (fs)
-
-```javascript
-// 读取文件
-const content = fs.readFile("path/to/file");
-const content = fs.readFile("path/to/file", "utf8");
-
-// 写入文件
-fs.writeFile("path/to/file", content);
-
-// 复制文件
-fs.copy("src", "dst");
-
-// 删除文件
-fs.remove("path/to/file");
-fs.removeAll("path/to/dir");
-
-// 创建目录
-fs.mkdir("path/to/dir");
-fs.mkdirAll("path/to/nested/dir");
-
-// 读取目录
-const entries = fs.readDir("path/to/dir");
-// entries = ["file1", "file2", "dir1"]
-
-// 检查
-fs.exists("path/to/file");
-fs.isDir("path/to/file");
-fs.isFile("path/to/file");
-
-// 获取文件信息
-const info = fs.stat("path/to/file");
-// info.size, info.isDirectory, info.isFile, info.mtime
-```
-
----
-
-## 8. 校验和模块 (checksum)
-
-```javascript
-// 计算 SHA256
-const result = checksum.sha256("path/to/file");
-// result.success, result.hash
-
-// 计算 MD5
-const result = checksum.md5("path/to/file");
-// result.success, result.hash
-
-// 验证校验和
-const result = checksum.verify("path/to/file", expectedHash, "sha256");
-// result.success, result.valid
-
-// 通用算法
-const result = checksum.hash("path/to/file", "sha256");
-// result.success, result.hash
-```
-
----
-
-## 9. 版本比较模块 (semver)
-
-```javascript
-// 比较版本
-const result = semver.compare("1.2.3", "1.2.4"); // -1, 0, 1
-
-// 大于/小于/等于
-semver.gt("2.0.0", "1.9.0"); // true
-semver.lt("1.0.0", "2.0.0"); // true
-semver.eq("1.0.0", "1.0.0"); // true
-
-// 大于等于/小于等于
-semver.gte("1.2.3", "1.0.0"); // true
-semver.lte("1.0.0", "1.2.3"); // true
-
-// 范围判断
-semver.satisfies("1.2.3", "^1.0.0"); // true
-semver.satisfies("2.0.0", "^1.0.0"); // false
-```
-
----
-
-## 10. 压缩模块 (archive)
-
-```javascript
-// 解压 ZIP
-const result = archive.extractZip("archive.zip", "dest/dir");
-// result.success
-
-// 解压 7z
-const result = archive.extract7z("archive.7z", "dest/dir7z", "dest/dir");
-// result.success
-
-// 解压 tar.gz
-const result = archive.extractTarGz("archive.tar.gz", "dest/dir");
-// result.success
-
-// 自动根据扩展名解压
-const result = archive.extract("archive.zip", "dest/dir");
-// result.success
-```
-
----
-
-## 11. 符号链接模块 (symlink)
-
-```javascript
-// 创建符号链接（文件）
-const result = symlink.create("target/file.exe", "link/name.exe");
-// result.success
-
-// 创建目录符号链接
-const result = symlink.createDir("target/dir", "link/dir");
-// result.success
-
-// 创建硬链接
-const result = symlink.createHard("target/file", "link/file");
-// result.success
-
-// 创建 Windows 目录联接
-const result = symlink.createJunction("target/dir", "link/dir");
-// result.success
-
-// 读取链接目标
-const result = symlink.readLink("link");
-// result.success, result.target
-
-// 检查是否为链接
-const result = symlink.isLink("path");
-// result.success, result.isLink
-```
-
----
-
-## 12. Windows 注册表模块 (registry)
-
-```javascript
-// 设置字符串值
-const result = registry.setValue("HKCU\\Software\\App", "Version", "1.0.0");
-// result.success
-
-// 设置 DWORD 值
-const result = registry.setDword("HKCU\\Software\\App", "Count", 42);
-// result.success
-
-// 设置二进制值
-const result = registry.setBinary(
-  "HKCU\\Software\\App",
-  "Data",
-  Buffer.from([0x01, 0x02]),
+const result = fetch.download(
+  "https://example.com/file.zip",
+  "downloads/file.zip",
+  { timeout: 60000 },
 );
-// result.success
+if (result.success) {
+  logx.info("下载完成");
+}
+```
 
-// 读取值
-const result = registry.getValue("HKCU\\Software\\App", "Version");
-// result.success, result.value
+### get(url, options?)
 
-// 删除值
-const result = registry.deleteValue("HKCU\\Software\\App", "Version");
-// result.success
+发送 GET 请求。
 
-// 创建键
-const result = registry.createKey("HKCU\\Software\\App");
-// result.success
+**参数：**
 
-// 删除键
-const result = registry.deleteKey("HKCU\\Software\\App");
-// result.success
+| 参数      | 类型   | 必填 | 说明     |
+| --------- | ------ | ---- | -------- |
+| `url`     | string | 是   | 请求地址 |
+| `options` | object | 否   | 请求选项 |
 
-// 检查键是否存在
-const result = registry.keyExists("HKCU\\Software\\App");
-// result.success, result.exists
+**返回值：**
 
-// 列出子键
+| 字段      | 类型    | 说明                   |
+| --------- | ------- | ---------------------- |
+| `success` | boolean | 是否成功               |
+| `status`  | number  | HTTP 状态码            |
+| `ok`      | boolean | 请求是否成功 (200-299) |
+| `body`    | string  | 响应体                 |
+| `headers` | object  | 响应头                 |
+| `error`   | string  | 错误信息（失败时）     |
+
+**示例：**
+
+```javascript
+const result = fetch.get("https://api.example.com/data");
+if (result.success && result.ok) {
+  logx.info("响应: " + result.body);
+}
+
+// 带请求头
+const result = fetch.get("https://api.example.com/data", {
+  headers: { "User-Agent": "Chopsticks/1.0" },
+});
+```
+
+### post(url, body, contentType?, options?)
+
+发送 POST 请求。
+
+**参数：**
+
+| 参数          | 类型   | 必填 | 说明                                                 |
+| ------------- | ------ | ---- | ---------------------------------------------------- |
+| `url`         | string | 是   | 请求地址                                             |
+| `body`        | string | 是   | 请求体                                               |
+| `contentType` | string | 否   | 内容类型，默认 `"application/x-www-form-urlencoded"` |
+| `options`     | object | 否   | 请求选项                                             |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `status`  | number  | HTTP 状态码        |
+| `ok`      | boolean | 请求是否成功       |
+| `body`    | string  | 响应体             |
+| `headers` | object  | 响应头             |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = fetch.post(
+  "https://api.example.com/submit",
+  "name=test&value=123",
+  "application/x-www-form-urlencoded",
+);
+```
+
+### request(method, url, options?)
+
+发送通用 HTTP 请求。
+
+**参数：**
+
+| 参数      | 类型   | 必填 | 说明                               |
+| --------- | ------ | ---- | ---------------------------------- |
+| `method`  | string | 是   | HTTP 方法 (GET/POST/PUT/DELETE 等) |
+| `url`     | string | 是   | 请求地址                           |
+| `options` | object | 否   | 请求选项                           |
+
+**options 选项：**
+
+| 选项      | 类型   | 说明     |
+| --------- | ------ | -------- |
+| `body`    | string | 请求体   |
+| `headers` | object | 请求头   |
+| `timeout` | number | 超时时间 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `status`  | number  | HTTP 状态码        |
+| `body`    | string  | 响应体             |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = fetch.request("PUT", "https://api.example.com/update", {
+  body: '{"status": "active"}',
+  headers: { "Content-Type": "application/json" },
+});
+```
+
+### parseURL(url)
+
+解析 URL 为组成部分。
+
+**参数：**
+
+| 参数  | 类型   | 必填 | 说明     |
+| ----- | ------ | ---- | -------- |
+| `url` | string | 是   | URL 地址 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `scheme`  | string  | 协议               |
+| `host`    | string  | 主机               |
+| `path`    | string  | 路径               |
+| `query`   | string  | 查询字符串         |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = fetch.parseURL("https://example.com/path?key=value");
+if (result.success) {
+  logx.info("主机: " + result.host);
+  logx.info("路径: " + result.path);
+}
+```
+
+### buildURL(base, params)
+
+构建带查询参数的 URL。
+
+**参数：**
+
+| 参数     | 类型   | 必填 | 说明         |
+| -------- | ------ | ---- | ------------ |
+| `base`   | string | 是   | 基础 URL     |
+| `params` | object | 是   | 查询参数对象 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `url`     | string  | 构建后的 URL       |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = fetch.buildURL("https://api.example.com/search", {
+  q: "keyword",
+  page: 1,
+});
+// 结果: https://api.example.com/search?q=keyword&page=1
+```
+
+### getJSON(url, options?)
+
+发送 GET 请求并自动解析 JSON 响应。
+
+**参数：**
+
+| 参数      | 类型   | 必填 | 说明     |
+| --------- | ------ | ---- | -------- |
+| `url`     | string | 是   | 请求地址 |
+| `options` | object | 否   | 请求选项 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `data`    | object  | 解析后的 JSON 对象 |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = fetch.getJSON(
+  "https://api.github.com/repos/git/git/releases/latest",
+);
+if (result.success) {
+  logx.info("版本: " + result.data.tag_name);
+}
+```
+
+### postJSON(url, data, options?)
+
+发送 JSON POST 请求。
+
+**参数：**
+
+| 参数      | 类型   | 必填 | 说明             |
+| --------- | ------ | ---- | ---------------- |
+| `url`     | string | 是   | 请求地址         |
+| `data`    | object | 是   | 要发送的数据对象 |
+| `options` | object | 否   | 请求选项         |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `data`    | object  | 响应 JSON 对象     |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = fetch.postJSON("https://api.example.com/users", {
+  name: "John",
+  email: "john@example.com",
+});
+```
+
+### newClient(options?)
+
+创建新的 HTTP 客户端实例。
+
+**参数：**
+
+| 参数      | 类型   | 必填 | 说明           |
+| --------- | ------ | ---- | -------------- |
+| `options` | object | 否   | 客户端默认选项 |
+
+**返回值：**
+
+| 字段      | 类型    | 说明               |
+| --------- | ------- | ------------------ |
+| `success` | boolean | 是否成功           |
+| `client`  | object  | HTTP 客户端实例    |
+| `error`   | string  | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = fetch.newClient({
+  timeout: 30000,
+  headers: { "User-Agent": "MyApp/1.0" },
+});
+if (result.success) {
+  const client = result.client;
+  const response = client.get("https://api.example.com/data");
+}
+```
+
+### setDefaultTimeout(timeout)
+
+设置默认请求超时时间。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `timeout` | number | 是 | 超时时间（毫秒） |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+fetch.setDefaultTimeout(60000); // 60秒超时
+```
+
+---
+
+## 3. execx - 命令执行
+
+命令执行模块，提供执行外部命令、Shell 脚本等功能。
+
+### 函数列表
+
+| 函数 | 说明 |
+|------|------|
+| `exec(command, args?, options?)` | 执行命令 |
+| `shell(command, options?)` | 执行 Shell 命令 |
+| `powershell(command, options?)` | 执行 PowerShell 命令 |
+
+### exec(command, args?, options?)
+
+执行外部命令。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `command` | string | 是 | 命令名称 |
+| `args` | array/string | 否 | 命令参数 |
+| `options` | object | 否 | 执行选项 |
+
+**options 选项：**
+
+| 选项 | 类型 | 说明 |
+|------|------|------|
+| `cwd` | string | 工作目录 |
+| `env` | object | 环境变量 |
+| `timeout` | number | 超时时间（毫秒） |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功执行 |
+| `exitCode` | number | 退出码 |
+| `stdout` | string | 标准输出 |
+| `stderr` | string | 标准错误 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+// 简单执行
+const result = execx.exec("git", ["--version"]);
+if (result.success) {
+    logx.info("版本: " + result.stdout);
+}
+
+// 带选项
+const result = execx.exec("npm", ["install"], {
+    cwd: "D:\\Projects\\MyApp",
+    timeout: 120000
+});
+```
+
+### shell(command, options?)
+
+执行 Shell 命令（cmd.exe）。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `command` | string | 是 | Shell 命令 |
+| `options` | object | 否 | 执行选项 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功执行 |
+| `exitCode` | number | 退出码 |
+| `stdout` | string | 标准输出 |
+| `stderr` | string | 标准错误 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = execx.shell("echo Hello World");
+if (result.success) {
+    logx.info("输出: " + result.stdout);
+}
+
+// 多行命令
+const result = execx.shell("dir /b && echo Done");
+```
+
+### powershell(command, options?)
+
+执行 PowerShell 命令。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `command` | string | 是 | PowerShell 命令 |
+| `options` | object | 否 | 执行选项 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功执行 |
+| `exitCode` | number | 退出码 |
+| `stdout` | string | 标准输出 |
+| `stderr` | string | 标准错误 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = execx.powershell("Get-Process | Select-Object -First 5");
+if (result.success) {
+    logx.info(result.stdout);
+}
+
+// 执行 PowerShell 脚本
+const result = execx.powershell("Get-ChildItem -Path C:\\ -Filter *.txt");
+```
+
+---
+
+## 4. archive - 压缩解压
+
+压缩解压模块，支持 ZIP、7z、TAR、TAR.GZ 等格式。
+
+### 函数列表
+
+| 函数 | 说明 |
+|------|------|
+| `extract(archivePath, destPath, options?)` | 自动检测类型并解压 |
+| `extractZip(zipPath, destPath, options?)` | 解压 ZIP 文件 |
+| `extract7z(archivePath, destPath, options?)` | 解压 7z 文件 |
+| `extractTar(tarPath, destPath, options?)` | 解压 TAR 文件 |
+| `extractTarGz(tarGzPath, destPath, options?)` | 解压 TAR.GZ 文件 |
+| `list(archivePath)` | 列出压缩包内容 |
+| `detectType(archivePath)` | 检测压缩包类型 |
+| `isArchive(filePath)` | 检查文件是否为压缩包 |
+
+### extract(archivePath, destPath, options?)
+
+自动检测压缩包类型并解压。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `archivePath` | string | 是 | 压缩包路径 |
+| `destPath` | string | 是 | 解压目标目录 |
+| `options` | object | 否 | 解压选项 |
+
+**options 选项：**
+
+| 选项 | 类型 | 说明 |
+|------|------|------|
+| `password` | string | 密码（用于加密压缩包） |
+| `overwrite` | boolean | 是否覆盖现有文件 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `extractedFiles` | array | 解压的文件列表 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = archive.extract("download.zip", "extracted/");
+if (result.success) {
+    logx.info("解压完成，文件数: " + result.extractedFiles.length);
+}
+```
+
+### extractZip(zipPath, destPath, options?)
+
+解压 ZIP 文件。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `zipPath` | string | 是 | ZIP 文件路径 |
+| `destPath` | string | 是 | 解压目标目录 |
+| `options` | object | 否 | 解压选项 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `extractedFiles` | array | 解压的文件列表 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = archive.extractZip("archive.zip", "output/");
+```
+
+### extract7z(archivePath, destPath, options?)
+
+解压 7z 文件。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `archivePath` | string | 是 | 7z 文件路径 |
+| `destPath` | string | 是 | 解压目标目录 |
+| `options` | object | 否 | 解压选项 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `extractedFiles` | array | 解压的文件列表 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = archive.extract7z("archive.7z", "output/");
+```
+
+### extractTar(tarPath, destPath, options?)
+
+解压 TAR 文件。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tarPath` | string | 是 | TAR 文件路径 |
+| `destPath` | string | 是 | 解压目标目录 |
+| `options` | object | 否 | 解压选项 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `extractedFiles` | array | 解压的文件列表 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = archive.extractTar("archive.tar", "output/");
+```
+
+### extractTarGz(tarGzPath, destPath, options?)
+
+解压 TAR.GZ 文件。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tarGzPath` | string | 是 | TAR.GZ 文件路径 |
+| `destPath` | string | 是 | 解压目标目录 |
+| `options` | object | 否 | 解压选项 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `extractedFiles` | array | 解压的文件列表 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = archive.extractTarGz("archive.tar.gz", "output/");
+```
+
+### list(archivePath)
+
+列出压缩包内容。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `archivePath` | string | 是 | 压缩包路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `files` | array | 文件列表（包含 name, size, isDir 等） |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = archive.list("archive.zip");
+if (result.success) {
+    for (const file of result.files) {
+        logx.info(file.name + " - " + file.size + " 字节");
+    }
+}
+```
+
+### detectType(archivePath)
+
+检测压缩包类型。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `archivePath` | string | 是 | 文件路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `type` | string | 压缩包类型 (zip/7z/tar/tar.gz/unknown) |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = archive.detectType("file.zip");
+if (result.success) {
+    logx.info("类型: " + result.type);
+}
+```
+
+### isArchive(filePath)
+
+检查文件是否为压缩包。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `filePath` | string | 是 | 文件路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `isArchive` | boolean | 是否为压缩包 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = archive.isArchive("file.zip");
+if (result.success && result.isArchive) {
+    logx.info("这是一个压缩包");
+}
+```
+
+---
+
+## 5. checksum - 校验和
+
+校验和计算模块，支持 MD5、SHA256、SHA512 等算法。
+
+### 函数列表
+
+| 函数 | 说明 |
+|------|------|
+| `md5(filePath)` | 计算 MD5 校验和 |
+| `sha256(filePath)` | 计算 SHA256 校验和 |
+| `sha512(filePath)` | 计算 SHA512 校验和 |
+| `verify(filePath, expectedHash, algorithm?)` | 验证文件校验和 |
+| `string(input, algorithm)` | 计算字符串的校验和 |
+
+### md5(filePath)
+
+计算文件的 MD5 校验和。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `filePath` | string | 是 | 文件路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `hash` | string | MD5 哈希值（32位十六进制） |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = checksum.md5("file.txt");
+if (result.success) {
+    logx.info("MD5: " + result.hash);
+}
+```
+
+### sha256(filePath)
+
+计算文件的 SHA256 校验和。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `filePath` | string | 是 | 文件路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `hash` | string | SHA256 哈希值（64位十六进制） |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = checksum.sha256("installer.exe");
+if (result.success) {
+    logx.info("SHA256: " + result.hash);
+}
+```
+
+### sha512(filePath)
+
+计算文件的 SHA512 校验和。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `filePath` | string | 是 | 文件路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `hash` | string | SHA512 哈希值（128位十六进制） |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = checksum.sha512("large_file.iso");
+if (result.success) {
+    logx.info("SHA512: " + result.hash);
+}
+```
+
+### verify(filePath, expectedHash, algorithm?)
+
+验证文件的校验和。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `filePath` | string | 是 | 文件路径 |
+| `expectedHash` | string | 是 | 期望的哈希值 |
+| `algorithm` | string | 否 | 算法 (md5/sha256/sha512)，默认 sha256 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功计算 |
+| `valid` | boolean | 校验是否通过 |
+| `actualHash` | string | 实际计算的哈希值 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = checksum.verify(
+    "installer.exe",
+    "a1b2c3d4e5f6...",
+    "sha256"
+);
+if (result.success) {
+    if (result.valid) {
+        logx.info("校验通过");
+    } else {
+        logx.error("校验失败，实际值: " + result.actualHash);
+    }
+}
+```
+
+### string(input, algorithm)
+
+计算字符串的校验和。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `input` | string | 是 | 输入字符串 |
+| `algorithm` | string | 是 | 算法 (md5/sha256/sha512) |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `hash` | string | 哈希值 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = checksum.string("Hello World", "sha256");
+if (result.success) {
+    logx.info("SHA256: " + result.hash);
+}
+```
+
+---
+
+## 6. chopsticksx - Chopsticks 核心
+
+Chopsticks 系统核心模块，提供系统目录、环境变量、快捷方式等功能。
+
+### 函数列表
+
+| 函数 | 说明 |
+|------|------|
+| `getCookDir(appName, version?)` | 获取应用安装目录 |
+| `getCurrentVersion()` | 获取 Chopsticks 当前版本 |
+| `addToPath(dirPath, scope?)` | 添加目录到 PATH |
+| `removeFromPath(dirPath, scope?)` | 从 PATH 移除目录 |
+| `setEnv(key, value, scope?)` | 设置环境变量 |
+| `getEnv(key)` | 获取环境变量 |
+| `createShim(target, name?, options?)` | 创建命令快捷方式 |
+| `removeShim(name)` | 删除命令快捷方式 |
+| `persistData(appName, paths)` | 持久化应用数据 |
+| `createShortcut(options)` | 创建快捷方式 |
+| `getCacheDir()` | 获取缓存目录 |
+| `getConfigDir()` | 获取配置目录 |
+| `deleteEnv(key, scope?)` | 删除环境变量 |
+| `getPath()` | 获取 PATH 环境变量 |
+| `getShimDir()` | 获取 Shim 目录 |
+| `getPersistDir()` | 获取持久化数据目录 |
+
+### getCookDir(appName, version?)
+
+获取应用的安装目录。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `appName` | string | 是 | 应用名称 |
+| `version` | string | 否 | 版本号，默认当前版本 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `path` | string | 安装目录路径 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = chopsticksx.getCookDir("git", "2.43.0");
+if (result.success) {
+    logx.info("安装目录: " + result.path);
+}
+```
+
+### getCurrentVersion()
+
+获取 Chopsticks 当前版本。
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `version` | string | 版本号 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = chopsticksx.getCurrentVersion();
+if (result.success) {
+    logx.info("Chopsticks 版本: " + result.version);
+}
+```
+
+### addToPath(dirPath, scope?)
+
+添加目录到 PATH 环境变量。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `dirPath` | string | 是 | 要添加的目录 |
+| `scope` | string | 否 | 作用域 (user/machine)，默认 user |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = chopsticksx.addToPath("C:\\Program Files\\MyApp\\bin", "user");
+if (result.success) {
+    logx.info("已添加到 PATH");
+}
+```
+
+### removeFromPath(dirPath, scope?)
+
+从 PATH 环境变量移除目录。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `dirPath` | string | 是 | 要移除的目录 |
+| `scope` | string | 否 | 作用域 (user/machine)，默认 user |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+chopsticksx.removeFromPath("C:\\OldApp\\bin", "user");
+```
+
+### setEnv(key, value, scope?)
+
+设置环境变量。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `key` | string | 是 | 变量名 |
+| `value` | string | 是 | 变量值 |
+| `scope` | string | 否 | 作用域 (user/machine)，默认 user |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+chopsticksx.setEnv("JAVA_HOME", "C:\\Program Files\\Java\\jdk-17", "machine");
+```
+
+### getEnv(key)
+
+获取环境变量值。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `key` | string | 是 | 变量名 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `value` | string | 变量值 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = chopsticksx.getEnv("PATH");
+if (result.success) {
+    logx.info("PATH: " + result.value);
+}
+```
+
+### createShim(target, name?, options?)
+
+创建命令快捷方式（Shim）。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `target` | string | 是 | 目标可执行文件路径 |
+| `name` | string | 否 | 快捷方式名称，默认使用目标文件名 |
+| `options` | object | 否 | 选项 |
+
+**options 选项：**
+
+| 选项 | 类型 | 说明 |
+|------|------|------|
+| `args` | array | 默认参数 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `shimPath` | string | 创建的快捷方式路径 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = chopsticksx.createShim(
+    "C:\\Program Files\\Node\\node.exe",
+    "node"
+);
+if (result.success) {
+    logx.info("Shim 创建成功: " + result.shimPath);
+}
+```
+
+### removeShim(name)
+
+删除命令快捷方式。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 是 | 快捷方式名称 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+chopsticksx.removeShim("node");
+```
+
+### persistData(appName, paths)
+
+持久化应用数据（在更新时保留）。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `appName` | string | 是 | 应用名称 |
+| `paths` | array | 是 | 要持久化的路径列表 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+chopsticksx.persistData("vscode", ["data", "config/settings.json"]);
+```
+
+### createShortcut(options)
+
+创建 Windows 快捷方式。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `options` | object | 是 | 快捷方式选项 |
+
+**options 选项：**
+
+| 选项 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `source` | string | 是 | 目标文件路径 |
+| `name` | string | 是 | 快捷方式名称 |
+| `description` | string | 否 | 描述 |
+| `icon` | string | 否 | 图标路径 |
+| `workingDir` | string | 否 | 工作目录 |
+| `arguments` | string | 否 | 启动参数 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `shortcutPath` | string | 快捷方式路径 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = chopsticksx.createShortcut({
+    source: "C:\\Program Files\\App\\app.exe",
+    name: "My Application",
+    description: "My App Description",
+    icon: "C:\\Program Files\\App\\app.ico",
+    workingDir: "C:\\Program Files\\App",
+    arguments: "--start"
+});
+```
+
+### getCacheDir()
+
+获取 Chopsticks 缓存目录。
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `path` | string | 缓存目录路径 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = chopsticksx.getCacheDir();
+if (result.success) {
+    logx.info("缓存目录: " + result.path);
+}
+```
+
+### getConfigDir()
+
+获取 Chopsticks 配置目录。
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `path` | string | 配置目录路径 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = chopsticksx.getConfigDir();
+if (result.success) {
+    logx.info("配置目录: " + result.path);
+}
+```
+
+### deleteEnv(key, scope?)
+
+删除环境变量。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `key` | string | 是 | 变量名 |
+| `scope` | string | 否 | 作用域 (user/machine)，默认 user |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+chopsticksx.deleteEnv("OLD_VAR", "user");
+```
+
+### getPath()
+
+获取 PATH 环境变量值。
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `paths` | array | PATH 中的目录列表 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = chopsticksx.getPath();
+if (result.success) {
+    for (const p of result.paths) {
+        logx.info("PATH 项: " + p);
+    }
+}
+```
+
+### getShimDir()
+
+获取 Shim 目录路径。
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `path` | string | Shim 目录路径 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = chopsticksx.getShimDir();
+if (result.success) {
+    logx.info("Shim 目录: " + result.path);
+}
+```
+
+### getPersistDir()
+
+获取持久化数据目录。
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `path` | string | 持久化目录路径 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = chopsticksx.getPersistDir();
+if (result.success) {
+    logx.info("持久化目录: " + result.path);
+}
+```
+
+---
+
+## 7. jsonx - JSON 处理
+
+JSON 处理模块，提供序列化和解析功能。
+
+### 函数列表
+
+| 函数 | 说明 |
+|------|------|
+| `stringify(value, space?)` | 将对象序列化为 JSON 字符串 |
+| `parse(text)` | 将 JSON 字符串解析为对象 |
+
+### stringify(value, space?)
+
+将 JavaScript 对象序列化为 JSON 字符串。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `value` | any | 是 | 要序列化的值 |
+| `space` | number/string | 否 | 缩进空格数或字符串 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `json` | string | JSON 字符串 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const data = { name: "test", version: "1.0.0", items: [1, 2, 3] };
+
+// 紧凑格式
+const result1 = jsonx.stringify(data);
+// 结果: {"name":"test","version":"1.0.0","items":[1,2,3]}
+
+// 格式化输出
+const result2 = jsonx.stringify(data, 2);
+// 结果:
+// {
+//   "name": "test",
+//   "version": "1.0.0",
+//   "items": [1, 2, 3]
+// }
+```
+
+### parse(text)
+
+将 JSON 字符串解析为 JavaScript 对象。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `text` | string | 是 | JSON 字符串 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `data` | any | 解析后的对象 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const jsonStr = '{"name":"test","version":"1.0.0"}';
+const result = jsonx.parse(jsonStr);
+if (result.success) {
+    logx.info("名称: " + result.data.name);
+    logx.info("版本: " + result.data.version);
+}
+
+// 解析失败处理
+const result2 = jsonx.parse("invalid json");
+if (!result2.success) {
+    logx.error("解析失败: " + result2.error);
+}
+```
+
+---
+
+## 8. logx - 日志
+
+日志模块，提供分级日志输出功能。
+
+### 函数列表
+
+| 函数 | 说明 |
+|------|------|
+| `debug(message)` | 输出调试日志 |
+| `info(message)` | 输出信息日志 |
+| `warn(message)` | 输出警告日志 |
+| `error(message)` | 输出错误日志 |
+
+### debug(message)
+
+输出调试日志（仅在调试模式显示）。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `message` | string | 是 | 日志消息 |
+
+**返回值：** 无
+
+**示例：**
+
+```javascript
+logx.debug("正在检查版本...");
+logx.debug("变量值: " + JSON.stringify(data));
+```
+
+### info(message)
+
+输出信息日志。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `message` | string | 是 | 日志消息 |
+
+**返回值：** 无
+
+**示例：**
+
+```javascript
+logx.info("开始安装应用...");
+logx.info("下载完成，正在解压...");
+```
+
+### warn(message)
+
+输出警告日志。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `message` | string | 是 | 日志消息 |
+
+**返回值：** 无
+
+**示例：**
+
+```javascript
+logx.warn("配置文件已存在，将被覆盖");
+logx.warn("检测到旧版本，建议升级");
+```
+
+### error(message)
+
+输出错误日志。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `message` | string | 是 | 日志消息 |
+
+**返回值：** 无
+
+**示例：**
+
+```javascript
+logx.error("下载失败: 网络连接错误");
+logx.error("安装失败: " + error.message);
+```
+
+---
+
+## 9. pathx - 路径操作
+
+路径操作模块，提供跨平台的路径处理功能。
+
+### 函数列表
+
+| 函数 | 说明 |
+|------|------|
+| `join(...paths)` | 连接多个路径片段 |
+| `abs(path)` | 转换为绝对路径 |
+| `base(path, ext?)` | 获取文件名 |
+| `dir(path)` | 获取目录名 |
+| `ext(path)` | 获取扩展名 |
+| `clean(path)` | 清理路径 |
+| `isAbs(path)` | 检查是否为绝对路径 |
+| `exists(path)` | 检查路径是否存在 |
+| `isDir(path)` | 检查是否为目录 |
+
+### join(...paths)
+
+连接多个路径片段。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `...paths` | string... | 是 | 路径片段 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `path` | string | 连接后的路径 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = pathx.join("C:\\Users", "name", "Documents", "file.txt");
+// 结果: C:\\Users\\name\\Documents\\file.txt
+
+const result2 = pathx.join("/home", "user", "docs");
+// 结果: /home/user/docs
+```
+
+### abs(path)
+
+将相对路径转换为绝对路径。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `path` | string | 是 | 路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `path` | string | 绝对路径 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = pathx.abs("./config.json");
+// 结果: C:\\Current\\Directory\\config.json
+```
+
+### base(path, ext?)
+
+获取路径的文件名部分。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `path` | string | 是 | 路径 |
+| `ext` | string | 否 | 要移除的扩展名 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `name` | string | 文件名 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result1 = pathx.base("/path/to/file.txt");
+// 结果: file.txt
+
+const result2 = pathx.base("/path/to/file.txt", ".txt");
+// 结果: file
+```
+
+### dir(path)
+
+获取路径的目录部分。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `path` | string | 是 | 路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `dir` | string | 目录路径 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = pathx.dir("/path/to/file.txt");
+// 结果: /path/to
+```
+
+### ext(path)
+
+获取路径的扩展名。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `path` | string | 是 | 路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `ext` | string | 扩展名（包含点） |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = pathx.ext("/path/to/file.txt");
+// 结果: .txt
+
+const result2 = pathx.ext("/path/to/archive.tar.gz");
+// 结果: .gz
+```
+
+### clean(path)
+
+清理路径，移除冗余的 `.` 和 `..`。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `path` | string | 是 | 路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `path` | string | 清理后的路径 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = pathx.clean("/path/./to/../file.txt");
+// 结果: /path/file.txt
+```
+
+### isAbs(path)
+
+检查路径是否为绝对路径。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `path` | string | 是 | 路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `isAbs` | boolean | 是否为绝对路径 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result1 = pathx.isAbs("/usr/bin");
+// result.isAbs: true
+
+const result2 = pathx.isAbs("./relative/path");
+// result.isAbs: false
+```
+
+### exists(path)
+
+检查路径是否存在。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `path` | string | 是 | 路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `exists` | boolean | 是否存在 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = pathx.exists("/path/to/check");
+if (result.success && result.exists) {
+    logx.info("路径存在");
+}
+```
+
+### isDir(path)
+
+检查路径是否为目录。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `path` | string | 是 | 路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `isDir` | boolean | 是否为目录 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = pathx.isDir("/path/to/check");
+if (result.success && result.isDir) {
+    logx.info("这是一个目录");
+}
+```
+
+---
+
+## 10. registry - 注册表操作
+
+Windows 注册表操作模块。
+
+### 函数列表
+
+| 函数 | 说明 |
+|------|------|
+| `setValue(keyPath, name, value, type?)` | 设置注册表值 |
+| `getValue(keyPath, name)` | 获取注册表值 |
+| `setDword(keyPath, name, value)` | 设置 DWORD 值 |
+| `getDword(keyPath, name)` | 获取 DWORD 值 |
+| `deleteValue(keyPath, name)` | 删除注册表值 |
+| `createKey(keyPath)` | 创建注册表键 |
+| `deleteKey(keyPath)` | 删除注册表键 |
+| `keyExists(keyPath)` | 检查键是否存在 |
+| `listKeys(keyPath)` | 列出子键 |
+| `listValues(keyPath)` | 列出值 |
+
+### setValue(keyPath, name, value, type?)
+
+设置注册表字符串值。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `keyPath` | string | 是 | 键路径，如 `HKCU\\Software\\App` |
+| `name` | string | 是 | 值名称 |
+| `value` | string | 是 | 值内容 |
+| `type` | string | 否 | 值类型，默认 `REG_SZ` |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = registry.setValue(
+    "HKCU\\Software\\MyApp",
+    "Version",
+    "1.0.0"
+);
+```
+
+### getValue(keyPath, name)
+
+获取注册表值。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `keyPath` | string | 是 | 键路径 |
+| `name` | string | 是 | 值名称 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `value` | string | 值内容 |
+| `type` | string | 值类型 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = registry.getValue("HKCU\\Software\\MyApp", "Version");
+if (result.success) {
+    logx.info("版本: " + result.value);
+}
+```
+
+### setDword(keyPath, name, value)
+
+设置 DWORD 值。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `keyPath` | string | 是 | 键路径 |
+| `name` | string | 是 | 值名称 |
+| `value` | number | 是 | DWORD 值 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+registry.setDword("HKCU\\Software\\MyApp", "Count", 42);
+```
+
+### getDword(keyPath, name)
+
+获取 DWORD 值。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `keyPath` | string | 是 | 键路径 |
+| `name` | string | 是 | 值名称 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `value` | number | DWORD 值 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = registry.getDword("HKCU\\Software\\MyApp", "Count");
+if (result.success) {
+    logx.info("计数: " + result.value);
+}
+```
+
+### deleteValue(keyPath, name)
+
+删除注册表值。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `keyPath` | string | 是 | 键路径 |
+| `name` | string | 是 | 值名称 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+registry.deleteValue("HKCU\\Software\\MyApp", "OldValue");
+```
+
+### createKey(keyPath)
+
+创建注册表键。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `keyPath` | string | 是 | 键路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+registry.createKey("HKCU\\Software\\MyApp\\Settings");
+```
+
+### deleteKey(keyPath)
+
+删除注册表键。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `keyPath` | string | 是 | 键路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+registry.deleteKey("HKCU\\Software\\MyApp\\OldSettings");
+```
+
+### keyExists(keyPath)
+
+检查注册表键是否存在。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `keyPath` | string | 是 | 键路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `exists` | boolean | 是否存在 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = registry.keyExists("HKCU\\Software\\MyApp");
+if (result.success && result.exists) {
+    logx.info("键存在");
+}
+```
+
+### listKeys(keyPath)
+
+列出指定键下的所有子键。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `keyPath` | string | 是 | 键路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `keys` | array | 子键名称列表 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
 const result = registry.listKeys("HKCU\\Software");
-// result.success, result.keys
+if (result.success) {
+    for (const key of result.keys) {
+        logx.info("子键: " + key);
+    }
+}
+```
 
-// 列出值
-const result = registry.listValues("HKCU\\Software\\App");
-// result.success, result.values
+### listValues(keyPath)
+
+列出指定键下的所有值。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `keyPath` | string | 是 | 键路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `values` | array | 值信息列表（包含 name, type, value） |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = registry.listValues("HKCU\\Software\\MyApp");
+if (result.success) {
+    for (const val of result.values) {
+        logx.info(val.name + " = " + val.value);
+    }
+}
 ```
 
 ---
 
-## 13. 安装程序模块 (installer)
+## 11. semver - 版本控制
+
+语义化版本控制模块，提供版本解析、比较等功能。
+
+### 函数列表
+
+| 函数 | 说明 |
+|------|------|
+| `parse(version)` | 解析版本字符串 |
+| `compare(v1, v2)` | 比较两个版本 |
+| `gt(v1, v2)` | 检查 v1 是否大于 v2 |
+| `lt(v1, v2)` | 检查 v1 是否小于 v2 |
+| `eq(v1, v2)` | 检查两个版本是否相等 |
+| `gte(v1, v2)` | 检查 v1 是否大于等于 v2 |
+| `lte(v1, v2)` | 检查 v1 是否小于等于 v2 |
+| `satisfies(version, range)` | 检查版本是否满足范围 |
+
+### parse(version)
+
+解析版本字符串为结构化对象。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `version` | string | 是 | 版本字符串 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `major` | number | 主版本号 |
+| `minor` | number | 次版本号 |
+| `patch` | number | 修订号 |
+| `prerelease` | string | 预发布标识 |
+| `build` | string | 构建元数据 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
 
 ```javascript
-// 运行安装程序（自动检测类型）
-const result = installer.run("installer.exe", ["/S", "/D=path"]);
-// result.success
+const result = semver.parse("1.2.3-beta.1+build.123");
+if (result.success) {
+    logx.info("主版本: " + result.major);
+    logx.info("次版本: " + result.minor);
+    logx.info("修订号: " + result.patch);
+}
+```
 
-// 指定类型
-const result = installer.runNSIS("installer.exe", ["/S"]);
-// result.success
+### compare(v1, v2)
 
-const result = installer.runMSI("msi.msi", ["/quiet", "/norestart"]);
-// result.success
+比较两个版本。
 
-const result = installer.runInno("setup.exe", [
-  "/VERYSILENT",
-  "/SUPPRESSMSGBOXES",
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `v1` | string | 是 | 版本1 |
+| `v2` | string | 是 | 版本2 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `result` | number | 比较结果：-1(v1<v2), 0(v1=v2), 1(v1>v2) |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = semver.compare("1.2.0", "1.2.3");
+if (result.success) {
+    if (result.result < 0) {
+        logx.info("1.2.0 < 1.2.3");
+    } else if (result.result > 0) {
+        logx.info("1.2.0 > 1.2.3");
+    } else {
+        logx.info("版本相等");
+    }
+}
+```
+
+### gt(v1, v2)
+
+检查 v1 是否大于 v2。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `v1` | string | 是 | 版本1 |
+| `v2` | string | 是 | 版本2 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `result` | boolean | v1 是否大于 v2 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = semver.gt("2.0.0", "1.9.9");
+if (result.success && result.result) {
+    logx.info("2.0.0 > 1.9.9");
+}
+```
+
+### lt(v1, v2)
+
+检查 v1 是否小于 v2。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `v1` | string | 是 | 版本1 |
+| `v2` | string | 是 | 版本2 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `result` | boolean | v1 是否小于 v2 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = semver.lt("1.0.0", "2.0.0");
+if (result.success && result.result) {
+    logx.info("1.0.0 < 2.0.0");
+}
+```
+
+### eq(v1, v2)
+
+检查两个版本是否相等。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `v1` | string | 是 | 版本1 |
+| `v2` | string | 是 | 版本2 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `result` | boolean | 是否相等 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = semver.eq("1.2.3", "1.2.3");
+if (result.success && result.result) {
+    logx.info("版本相等");
+}
+```
+
+### gte(v1, v2)
+
+检查 v1 是否大于等于 v2。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `v1` | string | 是 | 版本1 |
+| `v2` | string | 是 | 版本2 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `result` | boolean | v1 是否大于等于 v2 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = semver.gte("1.2.3", "1.0.0");
+if (result.success && result.result) {
+    logx.info("1.2.3 >= 1.0.0");
+}
+```
+
+### lte(v1, v2)
+
+检查 v1 是否小于等于 v2。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `v1` | string | 是 | 版本1 |
+| `v2` | string | 是 | 版本2 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `result` | boolean | v1 是否小于等于 v2 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = semver.lte("1.0.0", "1.2.3");
+if (result.success && result.result) {
+    logx.info("1.0.0 <= 1.2.3");
+}
+```
+
+### satisfies(version, range)
+
+检查版本是否满足指定范围。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `version` | string | 是 | 版本 |
+| `range` | string | 是 | 版本范围 |
+
+**范围格式：**
+
+| 格式 | 说明 | 示例 |
+|------|------|------|
+| `^x.y.z` | 兼容版本，允许次版本和修订号更新 | `^1.2.3` 匹配 `>=1.2.3 <2.0.0` |
+| `~x.y.z` | 近似版本，允许修订号更新 | `~1.2.3` 匹配 `>=1.2.3 <1.3.0` |
+| `>=x.y.z` | 大于等于 | `>=1.0.0` |
+| `<=x.y.z` | 小于等于 | `<=2.0.0` |
+| `x.y.z - a.b.c` | 范围 | `1.0.0 - 2.0.0` |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `result` | boolean | 是否满足范围 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result1 = semver.satisfies("1.2.3", "^1.0.0");
+// result1.result: true
+
+const result2 = semver.satisfies("2.0.0", "^1.0.0");
+// result2.result: false
+
+const result3 = semver.satisfies("1.2.5", ">=1.2.0 <1.3.0");
+// result3.result: true
+```
+
+---
+
+## 12. symlink - 符号链接
+
+符号链接操作模块，支持 Windows 和类 Unix 系统。
+
+### 函数列表
+
+| 函数 | 说明 |
+|------|------|
+| `create(target, linkPath)` | 创建文件符号链接 |
+| `createDir(target, linkPath)` | 创建目录符号链接 |
+| `createHard(target, linkPath)` | 创建硬链接 |
+| `createJunction(target, linkPath)` | 创建目录联接（Windows） |
+| `is(path)` | 检查是否为符号链接 |
+| `read(linkPath)` | 读取符号链接目标 |
+| `remove(linkPath)` | 删除符号链接 |
+
+### create(target, linkPath)
+
+创建文件符号链接。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `target` | string | 是 | 目标文件路径 |
+| `linkPath` | string | 是 | 链接路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = symlink.create(
+    "C:\\Program Files\\App\\app.exe",
+    "C:\\Links\\app.exe"
+);
+```
+
+### createDir(target, linkPath)
+
+创建目录符号链接。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `target` | string | 是 | 目标目录路径 |
+| `linkPath` | string | 是 | 链接路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = symlink.createDir(
+    "C:\\Program Files\\Node",
+    "C:\\Links\\node"
+);
+```
+
+### createHard(target, linkPath)
+
+创建硬链接。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `target` | string | 是 | 目标文件路径 |
+| `linkPath` | string | 是 | 链接路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = symlink.createHard("original.txt", "hardlink.txt");
+```
+
+### createJunction(target, linkPath)
+
+创建 Windows 目录联接（Junction）。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `target` | string | 是 | 目标目录路径 |
+| `linkPath` | string | 是 | 联接路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = symlink.createJunction(
+    "D:\\Data\\Documents",
+    "C:\\Users\\Name\\Documents"
+);
+```
+
+### is(path)
+
+检查路径是否为符号链接。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `path` | string | 是 | 路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `isSymlink` | boolean | 是否为符号链接 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = symlink.is("C:\\Links\\app.exe");
+if (result.success && result.isSymlink) {
+    logx.info("这是一个符号链接");
+}
+```
+
+### read(linkPath)
+
+读取符号链接指向的目标。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `linkPath` | string | 是 | 符号链接路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `target` | string | 目标路径 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = symlink.read("C:\\Links\\app.exe");
+if (result.success) {
+    logx.info("目标: " + result.target);
+}
+```
+
+### remove(linkPath)
+
+删除符号链接。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `linkPath` | string | 是 | 符号链接路径 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+symlink.remove("C:\\Links\\app.exe");
+```
+
+---
+
+## 13. installerx - 安装程序
+
+安装程序执行模块，支持多种安装包格式。
+
+### 函数列表
+
+| 函数 | 说明 |
+|------|------|
+| `run(installerPath, args?, options?)` | 自动检测类型并运行安装程序 |
+| `runNSIS(installerPath, args?, options?)` | 运行 NSIS 安装程序 |
+| `runMSI(msiPath, args?, options?)` | 运行 MSI 安装程序 |
+| `runInno(installerPath, args?, options?)` | 运行 Inno Setup 安装程序 |
+| `detectType(installerPath)` | 检测安装程序类型 |
+
+### run(installerPath, args?, options?)
+
+自动检测安装程序类型并运行。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `installerPath` | string | 是 | 安装程序路径 |
+| `args` | array | 否 | 安装参数 |
+| `options` | object | 否 | 执行选项 |
+
+**options 选项：**
+
+| 选项 | 类型 | 说明 |
+|------|------|------|
+| `wait` | boolean | 是否等待完成 |
+| `timeout` | number | 超时时间（毫秒） |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `exitCode` | number | 退出码 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = installerx.run("setup.exe", ["/S"], { wait: true });
+if (result.success) {
+    logx.info("安装完成，退出码: " + result.exitCode);
+}
+```
+
+### runNSIS(installerPath, args?, options?)
+
+运行 NSIS 安装程序。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `installerPath` | string | 是 | 安装程序路径 |
+| `args` | array | 否 | 安装参数 |
+| `options` | object | 否 | 执行选项 |
+
+**常用 NSIS 参数：**
+
+| 参数 | 说明 |
+|------|------|
+| `/S` | 静默安装 |
+| `/D=path` | 指定安装目录 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `exitCode` | number | 退出码 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = installerx.runNSIS("installer.exe", [
+    "/S",
+    "/D=C:\\Program Files\\MyApp"
 ]);
-// result.success
-
-// 等待安装完成
-const result = installer.waitForProcess(processName);
-// result.success
-
-// 检查安装程序类型
-const result = installer.detectType("installer.exe");
-// result.success, result.type = "nsis" | "msi" | "inno" | "autoit" | "unknown"
 ```
 
----
+### runMSI(msiPath, args?, options?)
 
-## 14. Chopsticks 系统模块 (chopsticks)
+运行 MSI 安装程序。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `msiPath` | string | 是 | MSI 文件路径 |
+| `args` | array | 否 | 安装参数 |
+| `options` | object | 否 | 执行选项 |
+
+**常用 MSI 参数：**
+
+| 参数 | 说明 |
+|------|------|
+| `/quiet` | 静默安装 |
+| `/norestart` | 安装后不重启 |
+| `/log file.log` | 记录日志 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `exitCode` | number | 退出码 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
 
 ```javascript
-// 获取安装目录
-const cookDir = chopsticks.getCookDir("git", "2.43.0");
-
-// 获取缓存目录
-const cacheDir = chopsticks.getCacheDir();
-
-// 获取用户配置目录
-const configDir = chopsticks.getConfigDir();
-
-// 环境变量操作
-const result = chopsticks.setEnv("VAR_NAME", "value");
-// result.success
-
-const result = chopsticks.getEnv("VAR_NAME");
-// result.success, result.value
-
-const result = chopsticks.deleteEnv("VAR_NAME");
-// result.success
-
-// PATH 管理
-const result = chopsticks.addToPath("path/to/bin");
-// result.success
-
-const result = chopsticks.removeFromPath("path/to/bin");
-// result.success
-
-const paths = chopsticks.getPath();
-
-// 创建 shim（命令快捷方式）
-// shim 会创建在 %USERPROFILE%\.chopsticks\shim\ 目录下
-// 该目录已自动添加到 PATH，用户可直接在命令行调用
-const result = chopsticks.createShim("source.exe", "alias");
-// result.success
-
-// 获取 shim 目录
-const shimDir = chopsticks.getShimDir();
-
-// 获取 persist 目录（持久化数据目录）
-// persist 目录用于存储更新时需要保留的用户配置和数据
-const persistDir = chopsticks.getPersistDir();
-
-// 创建快捷方式（Windows）
-const result = chopsticks.createShortcut({
-  source: "app.exe",
-  name: "My App",
-  description: "Application description",
-  icon: "app.ico",
-  workingDir: "C:\\app",
-  arguments: "--start",
-});
-// result.success
-
-// 持久化数据
-const result = chopsticks.persistData("appname", ["config", "data"]);
-// result.success
+const result = installerx.runMSI("installer.msi", [
+    "/quiet",
+    "/norestart"
+]);
 ```
 
----
+### runInno(installerPath, args?, options?)
 
-## 15. 完整示例
+运行 Inno Setup 安装程序。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `installerPath` | string | 是 | 安装程序路径 |
+| `args` | array | 否 | 安装参数 |
+| `options` | object | 否 | 执行选项 |
+
+**常用 Inno Setup 参数：**
+
+| 参数 | 说明 |
+|------|------|
+| `/VERYSILENT` | 完全静默安装 |
+| `/SILENT` | 静默安装（显示进度） |
+| `/SUPPRESSMSGBOXES` | 抑制消息框 |
+| `/NORESTART` | 不重启 |
+| `/DIR="path"` | 指定安装目录 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `exitCode` | number | 退出码 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
 
 ```javascript
-const { App } = require("@chopsticks/core");
-
-class GitApp extends App {
-  constructor() {
-    super({
-      name: "git",
-      description: "Distributed version control system",
-      homepage: "https://git-scm.com/",
-      license: "GPL-2.0",
-      bucket: "main",
-    });
-  }
-
-  checkVersion() {
-    try {
-      const response = fetch.get(
-        "https://api.github.com/repos/git-for-windows/git/releases/latest",
-      );
-      if (!response.success) {
-        log.warn("Failed to fetch version");
-        return "2.43.0"; // fallback
-      }
-      const data = JSON.parse(response.body);
-      return data.tag_name.replace(/^v/, "");
-    } catch (error) {
-      log.warn("Failed to fetch version: " + error.message);
-      return "2.43.0"; // fallback
-    }
-  }
-
-  getDownloadInfo(version, arch) {
-    const archMap = { amd64: "64-bit", x86: "32-bit" };
-    const filename = `PortableGit-${version}-${archMap[arch] || arch}.7z.exe`;
-    return {
-      url: `https://github.com/git-for-windows/git/releases/download/v${version}.windows.1/${filename}`,
-      type: "7z",
-    };
-  }
-
-  onPostInstall(ctx) {
-    log.info("Configuring Git...");
-    const gitExe = path.join(ctx.cookDir, "bin", "git.exe");
-
-    // 设置 Git 配置
-    exec.exec(gitExe, "config", "--global", "core.autocrlf", "true");
-    exec.exec(gitExe, "config", "--global", "core.longpaths", "true");
-
-    // 添加到 PATH
-    chopsticks.addToPath(path.join(ctx.cookDir, "bin"));
-
-    // 创建快捷方式
-    chopsticks.createShortcut({
-      source: path.join(ctx.cookDir, "git-bash.exe"),
-      name: "Git Bash",
-      description: "Git Bash - Command line interface",
-      icon: path.join(
-        ctx.cookDir,
-        "mingw64",
-        "share",
-        "git",
-        "git-for-windows.ico",
-      ),
-    });
-
-    log.info("Git installed successfully!");
-  }
-}
-
-module.exports = new GitApp();
+const result = installerx.runInno("setup.exe", [
+    "/VERYSILENT",
+    "/SUPPRESSMSGBOXES",
+    "/NORESTART",
+    '/DIR="C:\\Program Files\\MyApp"'
+]);
 ```
 
----
+### detectType(installerPath)
 
-## 16. 输出模块 (output)
+检测安装程序类型。
 
-### 16.1 彩色输出
+**参数：**
 
-```javascript
-// 成功消息（绿色）
-output.success("安装成功");
-output.successf("%s 安装完成", "git");
-output.successln("✓ 操作完成");
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `installerPath` | string | 是 | 安装程序路径 |
 
-// 错误消息（红色）
-output.error("安装失败");
-output.errorf("错误: %s", err.message);
-output.errorln("✗ 操作失败");
+**返回值：**
 
-// 警告消息（黄色）
-output.warning("注意: 配置文件已存在");
-output.warningf("警告: %s", message);
-output.warningln("⚠ 请检查配置");
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `type` | string | 安装程序类型 |
+| `error` | string | 错误信息（失败时） |
 
-// 信息消息（蓝色）
-output.info("正在下载...");
-output.infof("下载进度: %d%%", 50);
-output.infoln("ℹ 提示信息");
+**可能的类型：**
 
-// 高亮消息（青色）
-output.highlight("重要: 请备份数据");
-output.highlightf("→ 下一步: %s", "配置环境变量");
-output.highlightln("→ 开始安装");
+| 类型 | 说明 |
+|------|------|
+| `nsis` | NSIS 安装程序 |
+| `msi` | Windows Installer (MSI) |
+| `inno` | Inno Setup |
+| `autoit` | AutoIt 安装程序 |
+| `unknown` | 未知类型 |
 
-// 暗淡消息（灰色）
-output.dim("详细信息...");
-output.dimf("路径: %s", path);
-output.dimln("(可选)");
-
-// 带图标的输出
-output.successCheck("安装完成"); // ✓
-output.errorCross("安装失败"); // ✗
-output.warningSign("配置警告"); // ⚠
-output.infoSign("提示信息"); // ℹ
-output.arrow("下一步"); // →
-```
-
-### 16.2 颜色控制
+**示例：**
 
 ```javascript
-// 禁用颜色输出
-output.disableColor();
-
-// 启用颜色输出
-output.enableColor();
-
-// 检查颜色是否启用
-const enabled = output.isColorEnabled();
-```
-
-### 16.3 进度显示
-
-```javascript
-// 创建进度管理器
-const pm = output.newProgressManager();
-
-// 添加下载进度条
-const bar = pm.addDownloadBar("nodejs.zip", fileSize);
-// 显示: nodejs.zip 12.5 MB / 50.0 MB [25%] 2.5 MB/s  ETA 15s
-
-// 更新进度
-bar.incrBy(bytesRead);
-
-// 添加安装进度条（多阶段）
-const stages = ["下载", "解压", "安装", "配置"];
-const installBar = pm.addInstallBar("nodejs", stages);
-// 显示: nodejs [下载] 25% 1/4
-
-// 设置当前阶段
-installBar.setStage(0); // 下载阶段
-installBar.completeStage(); // 完成当前阶段，自动进入下一阶段
-
-// 设置阶段内进度 (0-100)
-installBar.setProgress(50); // 当前阶段完成 50%
-
-// 标记完成
-installBar.complete();
-
-// 添加批量操作进度条
-const batchBar = pm.addBatchBar(totalApps);
-// 显示: [3/10] 当前应用名
-
-// 进入下一项
-batchBar.nextItem("git");
-batchBar.nextItem("nodejs");
-
-// 标记完成
-batchBar.complete();
-
-// 等待所有进度条完成
-pm.wait();
-```
-
----
-
-## 17. 错误处理
-
-```javascript
-checkVersion() {
-    const response = fetch.get(url);
-
-    if (!response.success) {
-        log.error("Error: " + response.error);
-        return "fallback-version";
-    }
-
-    try {
-        return JSON.parse(response.body).version;
-    } catch (error) {
-        log.error("Exception: " + error.message);
-        return "fallback-version";
-    }
+const result = installerx.detectType("setup.exe");
+if (result.success) {
+    logx.info("安装程序类型: " + result.type);
 }
 ```
 
 ---
 
-## 18. 设备同步 API
-
-### 18.1 执行同步
-
-```javascript
-// 执行完整同步
-const result = chopsticks.sync();
-// result.success, result.syncedDevices, result.conflicts
-
-// 指定设备同步
-const result = chopsticks.sync({
-  device: "laptop",
-  force: false,
-  dryRun: false,
-  configOnly: false,
-});
-// result.success, result.syncedDevices, result.conflicts
-```
-
-**参数说明**:
-
-| 参数         | 类型    | 默认值 | 说明                            |
-| ------------ | ------- | ------ | ------------------------------- |
-| `device`     | string  | null   | 目标设备名称，null 表示所有设备 |
-| `force`      | boolean | false  | 是否强制覆盖冲突                |
-| `dryRun`     | boolean | false  | 是否模拟运行                    |
-| `configOnly` | boolean | false  | 是否仅同步配置                  |
-
-**返回值**:
-
-```javascript
-{
-  success: true,
-  syncedDevices: ["laptop", "desktop"],
-  conflicts: [],
-  timestamp: "2026-02-28T10:30:00Z"
-}
-```
-
-### 18.2 获取同步状态
-
-```javascript
-const result = chopsticks.syncStatus();
-// result.success, result.lastSync, result.pendingChanges, result.connectedDevices
-```
-
-**返回值**:
-
-```javascript
-{
-  success: true,
-  lastSync: "2026-02-28T10:30:00Z",
-  pendingChanges: 5,
-  connectedDevices: ["laptop", "desktop", "server"],
-  syncEnabled: true
-}
-```
-
-### 18.3 解决冲突
-
-```javascript
-const result = chopsticks.resolveConflict({
-  conflictId: "conflict-001",
-  resolution: "local", // 'local', 'remote', 'merge'
-});
-// result.success
-```
-
-### 18.4 获取同步历史
-
-```javascript
-const result = chopsticks.getSyncHistory({
-  limit: 10,
-  device: "laptop",
-});
-// result.success, result.history
-```
-
----
-
-## 附录 A: API 设计说明
-
-### A.1 同步 vs 异步
-
-Chopsticks 的 JavaScript/Lua API 采用**同步设计**，原因如下：
-
-1. **本地操作为主**：大多数 API 是文件系统、注册表等本地操作，同步调用更直观
-2. **Lua 兼容性**：Lua 引擎原生不支持 Promise/异步
-3. **简化使用**：脚本编写者无需处理异步复杂性
-4. **性能足够**：本地操作耗时通常在毫秒级
-
-### A.2 网络请求
-
-虽然 `fetch` 等网络 API 是同步的，但内部使用 Go 的 HTTP 客户端，
-对于需要异步处理的场景，建议使用 Go 协程配合回调。
-
-### A.3 返回值格式
+## 附录：返回值规范
 
 所有 API 统一返回以下格式的结果对象：
 
-**JavaScript：**
+### 成功响应
 
 ```javascript
-// 成功
 {
     success: true,
-    data: <返回数据>,      // 可选
+    // 其他数据字段...
     error: null
 }
+```
 
-// 失败
+### 失败响应
+
+```javascript
 {
     success: false,
-    data: null,
-    error: "错误信息"
+    // 数据字段通常为 null
+    error: "错误描述信息"
 }
 ```
 
-**Lua：**
+### 使用模式
 
-```lua
--- 成功
-return <数据>, nil
+```javascript
+const result = someApi.someFunction();
 
--- 失败
-return nil, "错误信息"
+if (!result.success) {
+    logx.error("操作失败: " + result.error);
+    return;
+}
+
+// 处理成功结果
+logx.info("操作成功: " + result.someData);
 ```
-
-### A.4 未来规划
-
-后续版本可能引入可选的异步 API（如 `fetch.asyncGet()`），
-但同步 API 将始终保持兼容。
 
 ---
 
-_最后更新：2026-02-28_
+_最后更新：2026-03-01_
