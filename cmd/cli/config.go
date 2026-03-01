@@ -1,4 +1,3 @@
-// Package cli 提供命令行界面功能。
 package cli
 
 import (
@@ -10,32 +9,27 @@ import (
 	"chopsticks/pkg/config"
 	"chopsticks/pkg/output"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 )
 
-// configCommand 返回配置管理命令
-func configCommand() *cli.Command {
-	return &cli.Command{
-		Name:    "config",
-		Aliases: []string{"cfg"},
-		Usage:   "管理 Chopsticks 配置",
-		Subcommands: []*cli.Command{
-			configGetCommand(),
-			configSetCommand(),
-			configListCommand(),
-			configInitCommand(),
-			configPathCommand(),
-		},
-	}
+var (
+	configListDefault bool
+	configInitForce   bool
+)
+
+// configCmd 表示 config 命令
+var configCmd = &cobra.Command{
+	Use:     "config",
+	Aliases: []string{"cfg"},
+	Short:   "管理 Chopsticks 配置",
+	Long:    `管理 Chopsticks 配置，包括全局设置、软件源、代理和日志配置。`,
 }
 
-// configGetCommand 返回配置获取子命令
-func configGetCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "get",
-		Usage:     "获取配置项的值",
-		ArgsUsage: "<key>",
-		Description: `获取指定配置项的值。
+// configGetCmd 获取配置项
+var configGetCmd = &cobra.Command{
+	Use:   "get <key>",
+	Short: "获取配置项的值",
+	Long: `获取指定配置项的值。
 
 支持的配置项:
   global.apps_path      - 应用安装路径
@@ -51,36 +45,65 @@ func configGetCommand() *cli.Command {
   buckets.default       - 默认软件源
   buckets.auto_update   - 是否自动更新软件源
   proxy.enable          - 是否启用代理
-  proxy.system          - 是否使用系统代理(从环境变量读取)
+  proxy.system          - 是否使用系统代理
   proxy.http            - HTTP 代理地址
   proxy.https           - HTTPS 代理地址
   proxy.no_proxy        - 不代理的地址列表
-  log.level             - 日志级别(debug/info/warn/error)
+  log.level             - 日志级别
   log.file              - 日志文件路径
   log.max_size          - 日志文件最大大小(MB)
   log.max_backups       - 日志文件备份数量
   log.max_age           - 日志文件保留天数
   log.compress          - 是否压缩日志`,
-		Action: func(c *cli.Context) error {
-			if c.NArg() != 1 {
-				return fmt.Errorf("please specify config key, e.g., chopsticks config get global.parallel")
-			}
+	Args: cobra.ExactArgs(1),
+	RunE: runConfigGet,
+}
 
-			key := c.Args().First()
-			cfg, err := config.LoadDefault()
-			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
-			}
+// configSetCmd 设置配置项
+var configSetCmd = &cobra.Command{
+	Use:   "set <key> <value>",
+	Short: "设置配置项的值",
+	Long: `设置指定配置项的值。
 
-			value, err := getConfigValue(cfg, key)
-			if err != nil {
-				return err
-			}
+示例:
+  chopsticks config set global.parallel 5
+  chopsticks config set global.timeout 600
+  chopsticks config set buckets.default extras
+  chopsticks config set proxy.enable true
+  chopsticks config set proxy.http http://127.0.0.1:7890
+  chopsticks config set log.level debug
 
-			fmt.Println(value)
-			return nil
-		},
-	}
+布尔值使用 true/false，多个值使用逗号分隔。`,
+	Args: cobra.ExactArgs(2),
+	RunE: runConfigSet,
+}
+
+// configListCmd 列出配置
+var configListCmd = &cobra.Command{
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "列出所有配置项",
+	Long:    `列出所有配置项及其当前值。`,
+	RunE:    runConfigList,
+}
+
+// configInitCmd 初始化配置
+var configInitCmd = &cobra.Command{
+	Use:   "init",
+	Short: "初始化配置文件",
+	Long: `创建默认的配置文件。
+
+如果配置文件已存在，默认会跳过创建。使用 --force 覆盖。`,
+	RunE: runConfigInit,
+}
+
+// configPathCmd 显示配置路径
+var configPathCmd = &cobra.Command{
+	Use:     "path",
+	Aliases: []string{"dir"},
+	Short:   "显示配置文件路径",
+	Long:    `显示配置文件的路径。`,
+	RunE:    runConfigPath,
 }
 
 // configValueGetter 配置值获取函数类型
@@ -122,50 +145,6 @@ var configGetters = map[string]map[string]configValueGetter{
 		"max_age":     func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Log.MaxAge), nil },
 		"compress":    func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Log.Compress), nil },
 	},
-}
-
-// configSetCommand 返回配置设置子命令
-func configSetCommand() *cli.Command {
-	return &cli.Command{
-		Name:      "set",
-		Usage:     "设置配置项的值",
-		ArgsUsage: "<key> <value>",
-		Description: `设置指定配置项的值。
-
-示例:
-  chopsticks config set global.parallel 5
-  chopsticks config set global.timeout 600
-  chopsticks config set buckets.default extras
-  chopsticks config set proxy.enable true
-  chopsticks config set proxy.http http://127.0.0.1:7890
-  chopsticks config set log.level debug
-
-布尔值使用 true/false，多个值使用逗号分隔。`,
-		Action: func(c *cli.Context) error {
-			if c.NArg() != 2 {
-				return fmt.Errorf("please specify config key and value, e.g., chopsticks config set global.parallel 5")
-			}
-
-			key := c.Args().Get(0)
-			value := c.Args().Get(1)
-
-			cfg, err := config.LoadDefault()
-			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
-			}
-
-			if err := setConfigValue(cfg, key, value); err != nil {
-				return err
-			}
-
-			if err := config.SaveDefault(cfg); err != nil {
-				return fmt.Errorf("failed to save config: %w", err)
-			}
-
-			output.Success("Config updated: %s = %s", key, value)
-			return nil
-		},
-	}
 }
 
 // configSetters 配置设置器映射
@@ -294,133 +273,130 @@ var configSetters = map[string]map[string]configValueSetter{
 	},
 }
 
-// configListCommand 返回配置列子命令
-func configListCommand() *cli.Command {
-	return &cli.Command{
-		Name:    "list",
-		Aliases: []string{"ls"},
-		Usage:   "列出所有配置项",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "default",
-				Aliases: []string{"d"},
-				Usage:   "显示默认值而不是当前值",
-			},
-		},
-		Action: func(c *cli.Context) error {
-			var cfg *config.Config
-			var err error
-
-			if c.Bool("default") {
-				cfg = config.DefaultConfig()
-			} else {
-				cfg, err = config.LoadDefault()
-				if err != nil {
-					return fmt.Errorf("failed to load config: %w", err)
-				}
-			}
-
-			fmt.Println("Global Config:")
-			fmt.Printf("  apps_path:      %s\n", cfg.Global.AppsPath)
-			fmt.Printf("  buckets_path:   %s\n", cfg.Global.BucketsPath)
-			fmt.Printf("  cache_path:     %s\n", cfg.Global.CachePath)
-			fmt.Printf("  storage_path:   %s\n", cfg.Global.StoragePath)
-			fmt.Printf("  parallel:       %d\n", cfg.Global.Parallel)
-			fmt.Printf("  timeout:        %d\n", cfg.Global.Timeout)
-			fmt.Printf("  retry:          %d\n", cfg.Global.Retry)
-			fmt.Printf("  no_confirm:     %t\n", cfg.Global.NoConfirm)
-			fmt.Printf("  color:          %t\n", cfg.Global.Color)
-			fmt.Printf("  verbose:        %t\n", cfg.Global.Verbose)
-
-			fmt.Println("\nBucket Config:")
-			fmt.Printf("  default:        %s\n", cfg.Buckets.Default)
-			fmt.Printf("  auto_update:    %t\n", cfg.Buckets.AutoUpdate)
-			if len(cfg.Buckets.Mirrors) > 0 {
-				fmt.Println("  mirrors:")
-				for name, url := range cfg.Buckets.Mirrors {
-					fmt.Printf("    %s: %s\n", name, url)
-				}
-			}
-
-			fmt.Println("\nProxy Config:")
-			fmt.Printf("  enable:         %t\n", cfg.Proxy.Enable)
-			fmt.Printf("  system:         %t\n", cfg.Proxy.System)
-			fmt.Printf("  http:           %s\n", cfg.Proxy.HTTP)
-			fmt.Printf("  https:          %s\n", cfg.Proxy.HTTPS)
-			fmt.Printf("  no_proxy:       %s\n", cfg.Proxy.NoProxy)
-			if cfg.Proxy.Enable && cfg.Proxy.System {
-				httpProxy, httpsProxy, noProxy := cfg.Proxy.GetEffectiveProxy()
-				fmt.Println("  effective:")
-				fmt.Printf("    http:         %s\n", httpProxy)
-				fmt.Printf("    https:        %s\n", httpsProxy)
-				fmt.Printf("    no_proxy:     %s\n", noProxy)
-			}
-
-			fmt.Println("\nLog Config:")
-			fmt.Printf("  level:          %s\n", cfg.Log.Level)
-			fmt.Printf("  file:           %s\n", cfg.Log.File)
-			fmt.Printf("  max_size:       %d MB\n", cfg.Log.MaxSize)
-			fmt.Printf("  max_backups:    %d\n", cfg.Log.MaxBackups)
-			fmt.Printf("  max_age:        %d days\n", cfg.Log.MaxAge)
-			fmt.Printf("  compress:       %t\n", cfg.Log.Compress)
-
-			return nil
-		},
+func runConfigGet(cmd *cobra.Command, args []string) error {
+	key := args[0]
+	cfg, err := config.LoadDefault()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
 	}
+
+	value, err := getConfigValue(cfg, key)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(value)
+	return nil
 }
 
-// configInitCommand 返回配置初始化子命令
-func configInitCommand() *cli.Command {
-	return &cli.Command{
-		Name:  "init",
-		Usage: "初始化配置文件",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "force",
-				Aliases: []string{"f"},
-				Usage:   "强制覆盖已存在的配置文件",
-			},
-		},
-		Description: `创建默认的配置文件。
+func runConfigSet(cmd *cobra.Command, args []string) error {
+	key := args[0]
+	value := args[1]
 
-如果配置文件已存在，默认会跳过创建。使用 --force 覆盖。`,
-		Action: func(c *cli.Context) error {
-			configPath := config.GetConfigPath()
-
-			// 检查文件是否已存在
-			if _, err := os.Stat(configPath); err == nil && !c.Bool("force") {
-				return fmt.Errorf("config file already exists: %s\nuse --force to overwrite", configPath)
-			}
-
-			// 确保配置目录存在
-			if err := config.EnsureConfigDir(); err != nil {
-				return fmt.Errorf("failed to create config directory: %w", err)
-			}
-
-			// 创建默认配置
-			cfg := config.DefaultConfig()
-			if err := config.SaveDefault(cfg); err != nil {
-				return fmt.Errorf("failed to save config: %w", err)
-			}
-
-			output.Success("Config file created: %s", configPath)
-			return nil
-		},
+	cfg, err := config.LoadDefault()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
 	}
+
+	if err := setConfigValue(cfg, key, value); err != nil {
+		return err
+	}
+
+	if err := config.SaveDefault(cfg); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+
+	output.Success("Config updated: %s = %s", key, value)
+	return nil
 }
 
-// configPathCommand 返回配置路径子命令
-func configPathCommand() *cli.Command {
-	return &cli.Command{
-		Name:    "path",
-		Aliases: []string{"dir"},
-		Usage:   "显示配置文件路径",
-		Action: func(c *cli.Context) error {
-			configPath := config.GetConfigPath()
-			fmt.Println(configPath)
-			return nil
-		},
+func runConfigList(cmd *cobra.Command, args []string) error {
+	var cfg *config.Config
+	var err error
+
+	if configListDefault {
+		cfg = config.DefaultConfig()
+	} else {
+		cfg, err = config.LoadDefault()
+		if err != nil {
+			return fmt.Errorf("failed to load config: %w", err)
+		}
 	}
+
+	fmt.Println("Global Config:")
+	fmt.Printf("  apps_path:      %s\n", cfg.Global.AppsPath)
+	fmt.Printf("  buckets_path:   %s\n", cfg.Global.BucketsPath)
+	fmt.Printf("  cache_path:     %s\n", cfg.Global.CachePath)
+	fmt.Printf("  storage_path:   %s\n", cfg.Global.StoragePath)
+	fmt.Printf("  parallel:       %d\n", cfg.Global.Parallel)
+	fmt.Printf("  timeout:        %d\n", cfg.Global.Timeout)
+	fmt.Printf("  retry:          %d\n", cfg.Global.Retry)
+	fmt.Printf("  no_confirm:     %t\n", cfg.Global.NoConfirm)
+	fmt.Printf("  color:          %t\n", cfg.Global.Color)
+	fmt.Printf("  verbose:        %t\n", cfg.Global.Verbose)
+
+	fmt.Println("\nBucket Config:")
+	fmt.Printf("  default:        %s\n", cfg.Buckets.Default)
+	fmt.Printf("  auto_update:    %t\n", cfg.Buckets.AutoUpdate)
+	if len(cfg.Buckets.Mirrors) > 0 {
+		fmt.Println("  mirrors:")
+		for name, url := range cfg.Buckets.Mirrors {
+			fmt.Printf("    %s: %s\n", name, url)
+		}
+	}
+
+	fmt.Println("\nProxy Config:")
+	fmt.Printf("  enable:         %t\n", cfg.Proxy.Enable)
+	fmt.Printf("  system:         %t\n", cfg.Proxy.System)
+	fmt.Printf("  http:           %s\n", cfg.Proxy.HTTP)
+	fmt.Printf("  https:          %s\n", cfg.Proxy.HTTPS)
+	fmt.Printf("  no_proxy:       %s\n", cfg.Proxy.NoProxy)
+	if cfg.Proxy.Enable && cfg.Proxy.System {
+		httpProxy, httpsProxy, noProxy := cfg.Proxy.GetEffectiveProxy()
+		fmt.Println("  effective:")
+		fmt.Printf("    http:         %s\n", httpProxy)
+		fmt.Printf("    https:        %s\n", httpsProxy)
+		fmt.Printf("    no_proxy:     %s\n", noProxy)
+	}
+
+	fmt.Println("\nLog Config:")
+	fmt.Printf("  level:          %s\n", cfg.Log.Level)
+	fmt.Printf("  file:           %s\n", cfg.Log.File)
+	fmt.Printf("  max_size:       %d MB\n", cfg.Log.MaxSize)
+	fmt.Printf("  max_backups:    %d\n", cfg.Log.MaxBackups)
+	fmt.Printf("  max_age:        %d days\n", cfg.Log.MaxAge)
+	fmt.Printf("  compress:       %t\n", cfg.Log.Compress)
+
+	return nil
+}
+
+func runConfigInit(cmd *cobra.Command, args []string) error {
+	configPath := config.GetConfigPath()
+
+	// 检查文件是否已存在
+	if _, err := os.Stat(configPath); err == nil && !configInitForce {
+		return fmt.Errorf("config file already exists: %s\nuse --force to overwrite", configPath)
+	}
+
+	// 确保配置目录存在
+	if err := config.EnsureConfigDir(); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	// 创建默认配置
+	cfg := config.DefaultConfig()
+	if err := config.SaveDefault(cfg); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+
+	output.Success("Config file created: %s", configPath)
+	return nil
+}
+
+func runConfigPath(cmd *cobra.Command, args []string) error {
+	configPath := config.GetConfigPath()
+	fmt.Println(configPath)
+	return nil
 }
 
 // getConfigValue 获取配置项的值
@@ -465,4 +441,17 @@ func setConfigValue(cfg *config.Config, key, value string) error {
 	}
 
 	return setter(cfg, value)
+}
+
+func init() {
+	configListCmd.Flags().BoolVarP(&configListDefault, "default", "d", false, "显示默认值而不是当前值")
+	configInitCmd.Flags().BoolVarP(&configInitForce, "force", "f", false, "强制覆盖已存在的配置文件")
+
+	configCmd.AddCommand(configGetCmd)
+	configCmd.AddCommand(configSetCmd)
+	configCmd.AddCommand(configListCmd)
+	configCmd.AddCommand(configInitCmd)
+	configCmd.AddCommand(configPathCmd)
+
+	rootCmd.AddCommand(configCmd)
 }
