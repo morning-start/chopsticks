@@ -243,7 +243,7 @@ func (i *installer) verifyChecksum(filePath, expectedHash string) error {
 		hash = strings.TrimSpace(parts[1])
 	}
 
-	calc := checksum.New(checksum.SHA256)
+	var calc checksum.Calculator
 	switch alg {
 	case "md5":
 		calc = checksum.New(checksum.MD5)
