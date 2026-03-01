@@ -19,7 +19,7 @@ func TestNewManager(t *testing.T) {
 	}
 	defer storage.Close()
 
-	mgr := NewManager(storage, nil, tmpDir)
+	mgr := NewManager(storage, nil, tmpDir, nil)
 	if mgr == nil {
 		t.Fatal("NewManager() returned nil")
 	}
@@ -230,7 +230,7 @@ func TestManagerListBuckets(t *testing.T) {
 	}
 	defer storage.Close()
 
-	mgr := NewManager(storage, nil, tmpDir)
+	mgr := NewManager(storage, nil, tmpDir, nil)
 
 	ctx := context.Background()
 	buckets, err := mgr.ListBuckets(ctx)
@@ -256,7 +256,7 @@ func TestManagerGetBucketNotFound(t *testing.T) {
 	}
 	defer storage.Close()
 
-	mgr := NewManager(storage, nil, tmpDir)
+	mgr := NewManager(storage, nil, tmpDir, nil)
 
 	ctx := context.Background()
 	_, err = mgr.GetBucket(ctx, "nonexistent")
@@ -274,7 +274,7 @@ func TestManagerGetAppBucketNotFound(t *testing.T) {
 	}
 	defer storage.Close()
 
-	mgr := NewManager(storage, nil, tmpDir)
+	mgr := NewManager(storage, nil, tmpDir, nil)
 
 	ctx := context.Background()
 	_, err = mgr.GetApp(ctx, "nonexistent", "app")
@@ -292,7 +292,7 @@ func TestManagerListAppsBucketNotFound(t *testing.T) {
 	}
 	defer storage.Close()
 
-	mgr := NewManager(storage, nil, tmpDir)
+	mgr := NewManager(storage, nil, tmpDir, nil)
 
 	ctx := context.Background()
 	_, err = mgr.ListApps(ctx, "nonexistent")

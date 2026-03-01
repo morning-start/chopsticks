@@ -46,12 +46,18 @@ func New(cfg *Config) (*app, error) {
 		config: cfg,
 	}
 
-	if err := os.MkdirAll(cfg.AppsPath, DefaultDirPerm); err != nil {
-		return nil, fmt.Errorf("create apps directory: %w", err)
+	// 创建必要的目录
+	dirs := []string{
+		cfg.AppsPath,
+		cfg.BucketsPath,
+		cfg.CachePath,
+		cfg.PersistPath,
+		cfg.ShimPath,
 	}
-
-	if err := os.MkdirAll(cfg.BucketsPath, DefaultDirPerm); err != nil {
-		return nil, fmt.Errorf("create buckets directory: %w", err)
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, DefaultDirPerm); err != nil {
+			return nil, fmt.Errorf("create directory %s: %w", dir, err)
+		}
 	}
 
 	// Initialize logging system
@@ -68,7 +74,7 @@ func New(cfg *Config) (*app, error) {
 	}
 	a.storage = storage
 
-	a.bucketMgr = bucket.NewManager(storage, cfg, cfg.BucketsPath)
+	a.bucketMgr = bucket.NewManager(storage, cfg, cfg.BucketsPath, nil)
 
 	a.jsEngine = engine.NewJSEngine()
 
@@ -85,6 +91,8 @@ func DefaultConfig() *Config {
 		AppsPath:    filepath.Join(chopsticksDir, "apps"),
 		BucketsPath: filepath.Join(chopsticksDir, "buckets"),
 		CachePath:   filepath.Join(chopsticksDir, "cache"),
+		PersistPath: filepath.Join(chopsticksDir, "persist"),
+		ShimPath:    filepath.Join(chopsticksDir, "shims"),
 		StoragePath: filepath.Join(chopsticksDir, "data.db"),
 	}
 }
@@ -93,6 +101,8 @@ type Config struct {
 	AppsPath    string
 	BucketsPath string
 	CachePath   string
+	PersistPath string
+	ShimPath    string
 	StoragePath string
 }
 

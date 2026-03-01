@@ -58,12 +58,17 @@ type manager struct {
 var _ BucketManager = (*manager)(nil)
 
 // NewManager 创建软件源管理器
-func NewManager(db store.Storage, config interface{}, bucketsDir string) BucketManager {return &manager{
+// gitClient 参数可选，如果为 nil 则使用默认的 git 客户端
+func NewManager(db store.Storage, config interface{}, bucketsDir string, gitClient git.Git) BucketManager {
+	if gitClient == nil {
+		gitClient = git.New()
+	}
+	return &manager{
 		buckets:    make(map[string]*manifest.Bucket),
 		db:         db,
 		config:     config,
 		bucketsDir: bucketsDir,
-		git:        git.New(),
+		git:        gitClient,
 	}
 }
 
@@ -191,11 +196,18 @@ func (m *manager) GetApp(ctx context.Context, bucket, name string) (*manifest.Ap
 		return nil, errors.NewAppManifestNotFound(bucket, name)
 	}
 
+	// 从脚本文件中提取依赖信息
+	var deps []manifest.Dependency
+	if ref.ScriptPath != "" {
+		deps = extractDependenciesFromScript(ref.ScriptPath)
+	}
+
 	return &manifest.App{
 		Script: &manifest.AppScript{
-			Name:        ref.Name,
-			Description: ref.Description,
-			Bucket:      bucket,
+			Name:         ref.Name,
+			Description:  ref.Description,
+			Bucket:       bucket,
+			Dependencies: deps,
 		},
 		Meta: &manifest.AppMeta{
 			Version: ref.Version,

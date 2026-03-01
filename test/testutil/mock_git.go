@@ -7,7 +7,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"chopsticks/infra/git"
 )
+
+// 编译时检查 MockGit 是否实现了 git.Git 接口
+var _ git.Git = (*MockGit)(nil)
 
 // MockGit 模拟 Git 操作。
 type MockGit struct {
