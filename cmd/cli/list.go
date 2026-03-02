@@ -56,12 +56,46 @@ func runList(cmd *cobra.Command, args []string) error {
 		// 列出可用软件包
 		output.Highlightln("可用软件包:")
 		output.Dimln("----------")
-		output.Infoln("  使用 'chopsticks search <query>' 搜索特定软件包")
-		output.Highlightln("\n  常用软件包:")
-		output.Item("git", "Distributed version control system")
-		output.Item("nodejs", "JavaScript runtime")
-		output.Item("python", "Python programming language")
-		output.Item("vscode", "Visual Studio Code editor")
+		
+		ctx := cmd.Context()
+		
+		// 获取所有 bucket
+		buckets, err := application.BucketManager().ListBuckets(ctx)
+		if err != nil {
+			output.ErrorCrossf("获取软件源列表失败: %v", err)
+			return err
+		}
+		
+		if len(buckets) == 0 {
+			output.Dimln("  (暂无软件源)")
+			output.Infoln("\n使用 'chopsticks bucket add <name> <url>' 添加软件源")
+			return nil
+		}
+		
+		// 从所有 bucket 中获取应用列表
+		totalApps := 0
+		for _, bucketName := range buckets {
+			apps, err := application.BucketManager().ListApps(ctx, bucketName)
+			if err != nil {
+				continue
+			}
+			
+			if len(apps) > 0 {
+				output.Successf("\n  %s:\n", bucketName)
+				for name, app := range apps {
+					if app != nil {
+						output.Item(name, app.Description)
+						totalApps++
+					}
+				}
+			}
+		}
+		
+		if totalApps == 0 {
+			output.Dimln("  (暂无可用软件包)")
+		}
+		
+		output.Dimln("\n  使用 'chopsticks search <query>' 搜索特定软件包")
 	}
 
 	return nil
