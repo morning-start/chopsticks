@@ -1,7 +1,7 @@
 # Chopsticks 功能需求规格
 
-> 版本: v0.6.0-alpha  
-> 最后更新: 2026-02-28
+> 版本: v0.10.0-alpha  
+> 最后更新: 2026-03-01
 
 > 基于官方文档的功能需求定义
 
@@ -383,10 +383,10 @@ chopsticks.setEnv("VAR", "value");
 
 ```bash
 # 更新所有软件源（并行）
-chopsticks source update
+chopsticks bucket update
 
 # 更新指定软件源
-chopsticks source update main extras
+chopsticks bucket update main extras
 ```
 
 **实现方式**：
@@ -420,7 +420,6 @@ type GitClient interface {
 | .7z            | ✅        |
 | .tar.gz / .tgz | ✅        |
 | .tar.xz        | ✅        |
-| .rar           | ✅ (可选) |
 
 #### 5.3.2 安装程序处理
 
@@ -704,7 +703,7 @@ class App {
 
 ### 7.1 SQLite 数据库
 
-使用 SQLite 存储所有数据，替代 BoltDB。
+使用 SQLite 存储所有数据。
 
 #### 7.1.1 数据库位置
 
@@ -821,5 +820,5 @@ CREATE TABLE installed (
 
 ---
 
-_最后更新：2026-02-28_
-_版本：v0.5.0-alpha_
+_最后更新：2026-03-01_  
+_版本：v0.10.0-alpha_

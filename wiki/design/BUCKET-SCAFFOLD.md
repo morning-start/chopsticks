@@ -1,5 +1,8 @@
 # Bucket 脚手架设计文档
 
+> 版本: v0.10.0-alpha  
+> 最后更新: 2026-03-01
+
 > Bucket 脚手架工具设计方案，支持快速创建标准 Bucket 目录结构和 JavaScript 开发
 >
 > 本文档为开发者文档，详细描述脚手架工具的设计与实现
@@ -46,10 +49,10 @@ chopsticks bucket init my-bucket --dir ./buckets
 my-bucket/
 ├── bucket.json                 # 配置
 ├── bucket.db                   # 可选：元数据缓存（SQLite）
-├── apps/                  # 目录
-│   └── example.js          # 示例应用
-├── tools.js                 # 共享工具（可选）
-└── .gitignore              # 忽略文件
+├── apps/                       # 应用目录
+│   └── example.js              # 示例应用
+├── tools.js                    # 共享工具（可选）
+└── .gitignore                  # 忽略文件
 ```
 
 ### 2.3 JavaScript JSDoc 类型提示
@@ -150,9 +153,9 @@ module.exports = new ExampleApp();
 ### 3.1 CLI 命令实现
 
 | 命令                              | 说明              | 优先级 |
-| ------------------------------ | --------------- | ------ |
+| --------------------------------- | ----------------- | ------ |
 | `chopsticks bucket init`          | 初始化 Bucket 目录 | P0     |
-| `chopsticks bucket create <name>` | 创建单个 App   | P1     |
+| `chopsticks bucket create <name>` | 创建单个 App      | P1     |
 | `chopsticks bucket validate`      | 验证 Bucket 配置   | P1     |
 
 ### 3.2 运行时包
@@ -194,12 +197,12 @@ chopsticks install git --bucket my-software
 │                     开发流程                             │
 ├─────────────────────────────────────────────────────────┤
 │  1. chopsticks bucket init my-bucket   创建 Bucket      │
-│  2. cd my-bucket                    进入目录           │
-│  3. chopsticks bucket create app    创建应用           │
-│  4. 编辑 apps/app.js          编写代码              │
-│  5. chopsticks install app       测试安装             │
-│  6. chopsticks uninstall app     测试卸载             │
-│  7. git add . && git commit     提交                 │
+│  2. cd my-bucket                       进入目录         │
+│  3. chopsticks bucket create app       创建应用         │
+│  4. 编辑 apps/app.js                   编写代码         │
+│  5. chopsticks install app             测试安装         │
+│  6. chopsticks uninstall app           测试卸载         │
+│  7. git add . && git commit            提交             │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -294,12 +297,13 @@ module.exports = new ExampleApp();
 
 ## 6. 更新记录
 
-| 日期       | 版本   | 变更                                   |
-| ---------- | ------ | -------------------------------------- |
-| 2026-02-28 | v1.2.0 | 移除 Lua 支持，仅保留 JavaScript       |
-| 2026-02-26 | v1.1.0 | 移除 TypeScript 支持，仅保留 JS 和 Lua |
-| 2026-02-25 | v1.0.0 | 初始版本                               |
+| 日期       | 版本   | 变更                             |
+| ---------- | ------ | -------------------------------- |
+| 2026-03-01 | v1.2.0 | 更新版本号至 v0.10.0-alpha       |
+| 2026-02-28 | v1.1.0 | 仅保留 JavaScript 支持           |
+| 2026-02-25 | v1.0.0 | 初始版本                         |
 
 ---
 
-_最后更新：2026-02-28_
+_最后更新：2026-03-01_  
+_版本：v0.10.0-alpha_

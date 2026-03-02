@@ -1,5 +1,8 @@
 # Chopsticks 数据库设计
 
+> 版本: v0.10.0-alpha  
+> 最后更新: 2026-03-01
+
 > 分布式数据库设计：Bucket 内文件存储 + 全局 SQLite 存储
 
 ---
@@ -16,7 +19,7 @@ Chopsticks 采用**分布式存储**策略：
 
 ### 1.1 设计原则
 
-- **分离 元数据（只关注点**：Bucket读）与安装状态（读写）分离
+- **分离关注点**：Bucket 元数据（只读）与安装状态（读写）分离
 - **本地优先**：Bucket 数据直接从本地文件系统读取，无需数据库
 - **统一索引**：全局数据库仅存储已安装软件和搜索索引缓存
 
@@ -30,12 +33,12 @@ Chopsticks 采用**分布式存储**策略：
 %USERPROFILE%\.chopsticks\buckets\
 └── {bucket_id}\
     ├── bucket.json            # 配置
-    ├── bucket.db                # 可选：元数据缓存（SQLite）
+    ├── bucket.db              # 可选：元数据缓存（SQLite）
     ├── apps\
     │   ├── git.js             # 应用脚本（包含元数据和安装逻辑）
     │   └── nodejs.js
     └── .chopsticks\
-        └── index.json        # 可选：预生成的搜索索引
+        └── index.json         # 可选：预生成的搜索索引
 ```
 
 ### 2.2 app.js - 应用脚本（包含元数据和安装逻辑）
@@ -89,41 +92,6 @@ class GitApp extends App {
 module.exports = new GitApp();
 ```
 
-### 2.3 可选：app.lua - Lua 安装脚本（备选）
-
-```lua
--- app.lua: Git for Windows 安装脚本
-
-app = {
-    name = "git",
-    version = "2.43.0",
-    category = "development",
-    tags = {"vcs", "git", "scm"}
-}
-
-function check_version()
-    return app.version
-end
-
-function get_download_info(ctx, arch)
-    local info = app.architectures[arch]
-    return {
-        url = info.download.url,
-        hash = info.download.hash,
-        type = info.download.type
-    }
-end
-
-function pre_cook(ctx)
-    -- 安装前处理
-end
-
-function post_cook(ctx)
-    -- 添加到 PATH
-    path.add(ctx, "Git/bin")
-end
-```
-
 ---
 
 ## 3. Bucket 数据库 (bucket.db)
@@ -134,7 +102,7 @@ end
 %USERPROFILE%\.chopsticks\buckets\{bucket_id}\bucket.db
 ```
 
-### 3. 2 用途
+### 3.2 用途
 
 `bucket.db` 是每个 Bucket（软件源）独立的 SQLite 数据库，用于缓存该 Bucket 下所有应用（App）的元信息。它是可选的，由系统自动生成和维护。
 
@@ -287,7 +255,6 @@ CREATE TABLE buckets (
     homepage TEXT,
     license TEXT,
     local_path TEXT,
-    -- app_count INTEGER,          -- 可选字段，当前未实现
     added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -310,11 +277,10 @@ CREATE INDEX idx_buckets_added_at ON buckets(added_at);
 | homepage    | TEXT     | 主页                  |
 | license     | TEXT     | 许可证                |
 | local_path  | TEXT     | 本地克隆路径          |
-| app_count   | INTEGER  | 应用数量（可选）      |
 | added_at    | DATETIME | 添加时间              |
 | updated_at  | DATETIME | 更新时间              |
 
-> **注意**：`repo_url` 字段在早期 Wiki 版本中名为 `url`，现已更新为更清晰的命名。`app_count` 字段当前未实现，标记为可选。
+> **注意**：`repo_url` 字段在早期 Wiki 版本中名为 `url`，现已更新为更清晰的命名。
 
 ---
 
@@ -326,12 +292,9 @@ CREATE TABLE installed (
     name TEXT NOT NULL,
     version TEXT NOT NULL,
     bucket_id TEXT NOT NULL,
-    install_dir TEXT NOT NULL,     -- 安装目录（原名 cook_dir）
+    install_dir TEXT NOT NULL,     -- 安装目录
     installed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    -- bucket_name TEXT,           -- 可选字段，当前未实现
-    -- app_path TEXT,              -- 可选字段，当前未实现
-    -- metadata TEXT,              -- 可选字段，当前未实现
     FOREIGN KEY (bucket_id) REFERENCES buckets(id) ON DELETE SET NULL
 );
 
@@ -343,20 +306,15 @@ CREATE INDEX idx_installed_version ON installed(version);
 
 **字段说明**：
 
-| 字段         | 类型     | 说明                             |
-| ------------ | -------- | -------------------------------- |
-| id           | TEXT     | 主键（name + version）           |
-| name         | TEXT     | 软件名称                         |
-| version      | TEXT     | 已安装版本                       |
-| bucket_id    | TEXT     | 来源软件源 ID                    |
-| install_dir  | TEXT     | 安装目录                         |
-| installed_at | DATETIME | 安装时间                         |
-| updated_at   | DATETIME | 更新时间                         |
-| bucket_name  | TEXT     | 来源软件源名称（可选）           |
-| app_path     | TEXT     | 应用目录路径（可选）             |
-| metadata     | TEXT     | 额外元数据（JSON，可选）         |
-
-> **注意**：`install_dir` 字段在早期 Wiki 版本中名为 `cook_dir`，现已更新为更通用的命名。`bucket_name`、`app_path`、`metadata` 字段当前未实现，标记为可选。
+| 字段         | 类型     | 说明                   |
+| ------------ | -------- | ---------------------- |
+| id           | TEXT     | 主键（name + version） |
+| name         | TEXT     | 软件名称               |
+| version      | TEXT     | 已安装版本             |
+| bucket_id    | TEXT     | 来源软件源 ID          |
+| install_dir  | TEXT     | 安装目录               |
+| installed_at | DATETIME | 安装时间               |
+| updated_at   | DATETIME | 更新时间               |
 
 ---
 
@@ -398,7 +356,7 @@ CREATE INDEX idx_search_cache_expires ON search_cache(expires_at);
 
 ### 5.2 核心表结构
 
-#### 4.2.1 install_operations - 安装操作记录
+#### 5.2.1 install_operations - 安装操作记录
 
 ```sql
 CREATE TABLE install_operations (
@@ -426,7 +384,7 @@ CREATE INDEX idx_install_ops_time ON install_operations(installed_at);
 | operation_type | TEXT     | 操作类型：install(安装) / update(更新) |
 | from_version   | TEXT     | 更新前的版本（仅 update 时有值）       |
 
-#### 4.2.2 system_operations - 系统操作追踪
+#### 5.2.2 system_operations - 系统操作追踪
 
 ```sql
 CREATE TABLE system_operations (
@@ -457,7 +415,7 @@ CREATE INDEX idx_sys_ops_type ON system_operations(operation_type);
 | value          | TEXT | 操作值（JSON）                               |
 | original_value | TEXT | 操作前的原值                                 |
 
-#### 4.2.3 path_entries - PATH 条目详情
+#### 5.2.3 path_entries - PATH 条目详情
 
 ```sql
 CREATE TABLE path_entries (
@@ -611,7 +569,7 @@ erDiagram
 
 ## 7. 数据流
 
-### 6.1 读取软件包信息流程
+### 7.1 读取软件包信息流程
 
 ```mermaid
 sequenceDiagram
@@ -636,7 +594,7 @@ sequenceDiagram
     CLI-->>User: 显示软件信息
 ```
 
-### 6.2 安装软件流程
+### 7.2 安装软件流程
 
 ```mermaid
 sequenceDiagram
@@ -669,15 +627,15 @@ sequenceDiagram
 
 ## 8. 查询示例
 
-### 7.1 从文件系统读取软件包信息
+### 8.1 从文件系统读取软件包信息
 
 ```bash
 # 读取 app.js
-cat "$SOURCES_PATH/main/apps/git.js"
+cat "$BUCKETS_PATH/main/apps/git.js"
 # 输出: JavaScript 脚本内容
 ```
 
-### 7.2 SQL 查询已安装软件
+### 8.2 SQL 查询已安装软件
 
 ```sql
 -- 获取所有已安装软件
@@ -697,7 +655,7 @@ SELECT * FROM installed WHERE bucket_id = 'main';
 SELECT * FROM installed WHERE name LIKE '%git%';
 
 -- 搜索并关联软件源信息
-SELECT i.*, b.name as bucket_name, b.url as bucket_url
+SELECT i.*, b.name as bucket_name, b.repo_url as bucket_url
 FROM installed i
 JOIN buckets b ON i.bucket_id = b.id
 WHERE i.name LIKE '%node%';
@@ -707,7 +665,7 @@ WHERE i.name LIKE '%node%';
 
 ## 9. 数据迁移
 
-### 8.1 迁移策略
+### 9.1 迁移策略
 
 ```sql
 -- 迁移记录
@@ -715,7 +673,7 @@ INSERT INTO schema_version (version, applied_at)
 VALUES (2, CURRENT_TIMESTAMP);
 ```
 
-### 8.2 版本历史
+### 9.2 版本历史
 
 | 版本 | 说明                                      | 日期       |
 | ---- | ----------------------------------------- | ---------- |
@@ -726,19 +684,19 @@ VALUES (2, CURRENT_TIMESTAMP);
 
 ## 10. 性能优化
 
-### 9.1 读取优化
+### 10.1 读取优化
 
 - **文件系统缓存**：OS 会缓存频繁访问的文件
 - **惰性加载**：仅在需要时读取 app.js
 - **内存索引**：启动时加载 app 名称列表到内存
 
-### 9.2 写入优化
+### 10.2 写入优化
 
 - **批量写入**：多个安装操作使用事务
 - **索引优化**：已在关键字段创建索引
 - **搜索缓存**：热门搜索结果缓存
 
-### 9.3 缓存策略
+### 10.3 缓存策略
 
 | 数据类型   | 缓存位置 | 过期策略          |
 | ---------- | -------- | ----------------- |
@@ -750,7 +708,7 @@ VALUES (2, CURRENT_TIMESTAMP);
 
 ## 11. 备份与恢复
 
-### 10.1 备份
+### 11.1 备份
 
 ```bash
 # 备份数据库
@@ -760,7 +718,7 @@ cp ~/.chopsticks/data.db ~/.chopsticks/backup/data.db.bak
 tar -czf ~/chopsticks-installed.tar.gz ~/.chopsticks/apps/
 ```
 
-### 10.2 恢复
+### 11.2 恢复
 
 ```bash
 # 恢复数据库
@@ -781,43 +739,5 @@ cp ~/.chopsticks/backup/data.db.bak ~/.chopsticks/data.db
 
 ---
 
-## 附录：Wiki 与实现的差异
-
-本文档描述的是实际代码实现的数据库 Schema。与早期 Wiki 版本相比有以下变更：
-
-| 表名 | 变更 | 原因 |
-|------|------|------|
-| buckets | url → repo_url | 更清晰的命名 |
-| buckets | app_count 标记为可选 | 当前未实现 |
-| installed | cook_dir → install_dir | 更通用的命名 |
-| installed | bucket_name, app_path, metadata 标记为可选 | 当前未实现 |
-
-### 字段变更详情
-
-#### buckets 表
-
-| 字段 | 早期 Wiki | 当前实现 | 状态 |
-|------|-----------|----------|------|
-| url | TEXT NOT NULL | - | 已重命名为 repo_url |
-| repo_url | - | TEXT NOT NULL | 新增字段 |
-| app_count | INTEGER DEFAULT 0 | - | 当前未实现，标记为可选 |
-
-#### installed 表
-
-| 字段 | 早期 Wiki | 当前实现 | 状态 |
-|------|-----------|----------|------|
-| cook_dir | TEXT NOT NULL | - | 已重命名为 install_dir |
-| install_dir | - | TEXT NOT NULL | 新增字段 |
-| install_path | TEXT NOT NULL | - | 已移除，使用 install_dir |
-| bucket_name | TEXT NOT NULL | - | 当前未实现，标记为可选 |
-| app_path | TEXT NOT NULL | - | 当前未实现，标记为可选 |
-| metadata | TEXT | - | 当前未实现，标记为可选 |
-
-### 后续计划
-
-未实现的字段（bucket_name, app_path, metadata, app_count）将在后续版本中根据需求评估是否添加。当前实现已满足核心功能需求。
-
----
-
-_最后更新：2026-02-28_
-_版本：v0.5.0-alpha_
+_最后更新：2026-03-01_  
+_版本：v0.10.0-alpha_

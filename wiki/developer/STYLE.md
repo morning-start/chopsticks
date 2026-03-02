@@ -38,7 +38,7 @@ chopsticks/
 │   ├── git/               # Git 操作
 │   └── installer/         # 安装程序处理
 └── engine/                  # 引擎系统（供开发者使用）
-    ├── script/            # 脚本执行器
+    ├── js/                 # JavaScript 引擎
     ├── fetch/            # HTTP 请求
     ├── fsutil/           # 文件操作
     └── ...               # 其他功能模块
@@ -107,7 +107,7 @@ var _ Manager = (*manager)(nil) // 编译时检查
 | 类型     | 规则           | 示例                          |
 | -------- | -------------- | ----------------------------- |
 | 构造函数 | `New` + 类型名 | `NewManager()`, `NewCooker()` |
-| 工厂函数 | `New` + 描述   | `NewLuaEngine()`              |
+| 工厂函数 | `New` + 描述   | `NewJSEngine()`              |
 | 方法     | 动词/动词短语  | `Add()`, `Remove()`           |
 
 ### 4.3 变量命名
@@ -186,8 +186,8 @@ return nil, fmt.Errorf("download %s failed: %w", url, err)
 
 ### 6.3 错误检查
 
-```lua
--- Good: 清晰检查
+```go
+// Good: 清晰检查
 if err != nil {
     return nil, fmt.Errorf("failed: %w", err)
 }
@@ -205,7 +205,7 @@ if err != nil {
 ### 7.1 包注释
 
 ```go
-// Package bucket 提供软件源（碗）管理功能。
+// Package bucket 提供软件源（Bucket）管理功能。
 //
 // 主要功能包括：
 //   - 添加和删除软件源
@@ -256,7 +256,6 @@ import (
 
     // 第三方库
     "github.com/pkg/errors"
-    "github.com/yuin/gopher-lua"
 
     // 项目内部包
     "chopsticks/core/store"
@@ -269,12 +268,12 @@ import (
 ```go
 // 避免冲突
 import (
-    lua "github.com/yuin/gopher-lua"  // 重命名为 lua
+    stdjson "encoding/json"  // 重命名为 stdjson
 )
 
 // 简短包名
 import (
-    l "github.com/yuin/gopher-lua"
+    js "chopsticks/engine/js"
 )
 ```
 
@@ -393,5 +392,5 @@ func TestAdd(t *testing.T) {
 
 ---
 
-_最后更新：2026-02-28_
-_版本：v0.5.0-alpha_
+_最后更新：2026-03-01_
+_版本：v0.10.0-alpha_

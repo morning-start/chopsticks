@@ -1,5 +1,8 @@
 # Chopsticks 状态管理设计
 
+> 版本: v0.10.0-alpha  
+> 最后更新: 2026-03-01
+
 > 系统状态定义与管理策略
 
 ---
@@ -31,7 +34,7 @@ Chopsticks 系统中存在多种状态，包括安装状态、软件源状态、
 type Config struct {
     AppsPath    string // 安装目录
     CachePath   string // 缓存目录
-    SourcesPath string // 软件源目录
+    BucketsPath string // 软件源目录
     StoragePath string // 数据库路径
 }
 ```
@@ -54,7 +57,7 @@ type Config struct {
 type InstalledApp struct {
     Name      string    // 应用名称 (唯一标识)
     Version   string    // 已安装版本
-    Bucket       string    // 来源软件源
+    Bucket    string    // 来源软件源
     CookDir   string    // 安装目录
     CookedAt  time.Time // 安装时间
     UpdatedAt time.Time // 更新时间
@@ -161,10 +164,10 @@ type BucketConfig struct {
 ```mermaid
 stateDiagram-v2
     [*] --> 初始
-    初始 --> 已克隆: source add
-    已克隆 --> 最新: source update
+    初始 --> 已克隆: bucket add
+    已克隆 --> 最新: bucket update
     最新 --> 过期: 远程有新提交
-    过期 --> 最新: source update
+    过期 --> 最新: bucket update
     已克隆 --> 错误: clone/update 失败
     错误 --> 已克隆: 重试
 ```
@@ -174,10 +177,10 @@ stateDiagram-v2
 ```
 %USERPROFILE%\.chopsticks\buckets\
 ├── main/              # 克隆的 main 软件源
-│   ├── .git/         # Git 仓库
+│   ├── .git/          # Git 仓库
 │   ├── bucket.json    # 软件源配置
-│   └── apps/       # 应用目录
-├── extras/           # 克隆的 extras 软件源
+│   └── apps/          # 应用目录
+├── extras/            # 克隆的 extras 软件源
 └── ...
 ```
 
@@ -259,7 +262,7 @@ chopsticks list --installed
 chopsticks info git
 
 # 检查软件源状态
-chopsticks source list
+chopsticks bucket list
 
 # 检查缓存
 chopsticks cache show
@@ -319,5 +322,5 @@ chopsticks backup import
 
 ---
 
-_最后更新：2026-02-28_
-_版本：v0.5.0-alpha_
+_最后更新：2026-03-01_  
+_版本：v0.10.0-alpha_

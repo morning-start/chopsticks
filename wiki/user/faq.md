@@ -318,11 +318,11 @@ chopsticks sync install
 
 ## 9. 相关链接
 
-- [Bucket 创建指南](bucket-guide.md)
-- [App 最佳实践](app-best-practices.md)
-- [用户指南](../wiki/USAGE.md)
-- [API 参考](../wiki/API.md)
-- [术语表](../wiki/GLOSSARY.md)
+- [用户使用指南](USAGE.md)
+- [缓存管理指南](cache-management.md)
+- [错误代码参考](error-codes.md)
+- [Bucket 创建指南](../developer/bucket-guide.md)
+- [App 最佳实践](../developer/app-best-practices.md)
 
 ---
 
@@ -337,4 +337,5 @@ chopsticks sync install
 
 ---
 
-_最后更新：2026-02-28_
+_最后更新：2026-03-01_
+_版本：v0.10.0-alpha_

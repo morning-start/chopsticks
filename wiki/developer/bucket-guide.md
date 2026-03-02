@@ -107,34 +107,34 @@ module.exports = new GitApp();
 
 ```bash
 # 添加远程软件源
-chopsticks source add my-bucket https://github.com/username/my-bucket
+chopsticks bucket add my-bucket https://github.com/username/my-bucket
 # 添加本地软件源
-chopsticks source add local-bucket /path/to/local-bucket
+chopsticks bucket add local-bucket /path/to/local-bucket
 ```
 
 ### 4.2 更新软件源
 
 ```bash
 # 更新指定软件源
-chopsticks source update my-bucket
+chopsticks bucket update my-bucket
 # 更新所有软件源
-chopsticks source update
+chopsticks bucket update
 ```
 
 ### 4.3 列出软件源
 
 ```bash
 # 列出所有软件源
-chopsticks source list
+chopsticks bucket list
 ```
 
 ### 4.4 删除软件源
 
 ```bash
 # 删除软件源
-chopsticks source remove my-bucket
+chopsticks bucket remove my-bucket
 # 删除并清理数据
-chopsticks source remove my-bucket --purge
+chopsticks bucket remove my-bucket --purge
 ```
 
 ---
@@ -145,14 +145,14 @@ chopsticks source remove my-bucket --purge
 
 ```bash
 # 指定分支添加
-chopsticks source add dev-bucket https://github.com/username/my-bucket --branch develop
+chopsticks bucket add dev-bucket https://github.com/username/my-bucket --branch develop
 ```
 
 ### 5.2 克隆深度
 
 ```bash
 # 浅克隆（加速克隆）
-chopsticks source add my-bucket https://github.com/username/my-bucket --depth 1
+chopsticks bucket add my-bucket https://github.com/username/my-bucket --depth 1
 ```
 
 ---
@@ -218,7 +218,7 @@ mkdir apps
 
 ```bash
 # 添加并测试
-chopsticks source add test /path/to/my-first-bucket
+chopsticks bucket add test /path/to/my-first-bucket
 chopsticks search <app-name>
 ```
 
@@ -227,10 +227,10 @@ chopsticks search <app-name>
 ## 8. 相关链接
 
 - [App 最佳实践](app-best-practices.md)
-- [常见问题解答](faq.md)
+- [常见问题解答](../user/faq.md)
 - [API 参考](API.md)
 
 ---
 
-_最后更新：2026-02-28_
-_版本：v0.5.0-alpha_
+_最后更新：2026-03-01_
+_版本：v0.10.0-alpha_

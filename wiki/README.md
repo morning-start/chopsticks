@@ -1,6 +1,6 @@
 # 🥢 Chopsticks
 
-[![Version](https://img.shields.io/badge/version-v0.8.0--alpha-blue)]()
+[![Version](https://img.shields.io/badge/version-v0.10.0--alpha-blue)]()
 
 > 基于 JavaScript 的 Windows 包管理器，高性能、可扩展
 
@@ -59,7 +59,7 @@ Chopsticks（筷子）是一个基于 JavaScript 的 **Windows 包管理器**，
 - 🔧 **灵活** - JavaScript 脚本定义包行为
 - 📦 **开放** - 支持自定义软件源 (bucket)
 - 🖥️ **优雅** - 命令行自动补全
-- 🔄 **双引擎** - JavaScript (Goja) 支持
+- 🔄 **JavaScript 引擎** - 基于 Goja 的高性能脚本引擎
 - 🗄️ **SQLite 存储** - 关系型数据库，支持复杂查询
 - 🚀 **高性能** - 并行处理，批量操作性能提升 5-6 倍
 - 📊 **可观测** - 实时性能监控和诊断工具

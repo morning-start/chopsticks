@@ -4,7 +4,7 @@
 
 ---
 
-## 1. Quick Start
+## 1. 快速开始
 
 本指南将帮助你在 5 分钟内完成第一个软件的安装。
 
@@ -134,24 +134,24 @@ chopsticks bucket list
 chopsticks bucket ls
 ```
 
-### 2.3 更新软件源
+### 3.3 更新软件源
 
 ```bash
 # 更新所有软件源
-chopsticks source update
+chopsticks bucket update
 
 # 更新指定软件源
-chopsticks source update main
+chopsticks bucket update main
 ```
 
-### 2.4 删除软件源
+### 3.4 删除软件源
 
 ```bash
 # 删除软件源
-chopsticks source remove extras
+chopsticks bucket remove extras
 
 # 删除并清理本地数据
-chopsticks source remove extras --purge
+chopsticks bucket remove extras --purge
 ```
 
 ---
@@ -270,8 +270,7 @@ Chopsticks 支持多种命令格式，您可以自由选择：
 | `update`    | `up`, `upgrade` | 更新软件   |
 | `search`    | `s`, `find`     | 搜索软件   |
 | `list`      | `ls`            | 列出软件   |
-| `bucket`    | -               | 软件源管理 |
-| `sync`      | -               | 设备同步   |
+| `bucket`    | `b`             | 软件源管理 |
 
 ---
 
@@ -469,7 +468,6 @@ retry: 3
 ├── buckets/           # 软件源（Bucket）目录
 │   ├── main/          # 默认软件源
 │   │   ├── git.js       # Git下载脚本
-│   │   ├── lua.js       # Lua下载脚本
 │   │   └── ...
 │   └── extras/        # 其他软件源
 ├── apps/              # 已安装的软件目录
@@ -489,11 +487,10 @@ retry: 3
 │   └── app2/          # 应用2的持久化数据
 ├── shim/              # 可执行文件快捷方式目录
 │   ├── git.exe        # Git 命令快捷方式
-│   ├── node.exe       # Node.js 命令快捷方式
 │   └── ...
 ├── logs/              # 日志文件
 │   └── chp_yyyy_mm_dd.log # 主日志文件
-├── data.db            # 全局数据库（SQLite，包含已安装软件和软件源配置）
+├── data.db            # 全局数据库（SQLite）
 └── config.yaml        # 用户配置文件
 ```
 
@@ -684,65 +681,5 @@ chopsticks cache size --verbose
 
 ---
 
-_最后更新：2026-02-28_
-_版本：v0.6.0-alpha_---
-
-## 12. 缓存管理
-
-Chopsticks 使用多级缓存机制来提升性能。详细说明请查看 [缓存管理指南](cache-management.md)。
-
-### 12.1 常用命令
-
-```bash
-# 查看缓存大小
-chopsticks cache size
-
-# 清理缓存
-chopsticks cache clean
-
-# 查看详细缓存信息
-chopsticks cache size --verbose
-```
-
-### 12.2 缓存类型
-
-| 缓存类型   | 位置               | 说明                 |
-| ---------- | ------------------ | -------------------- |
-| 下载缓存   | `cache/downloads/` | 存储下载的软件包     |
-| 元数据缓存 | `cache/metadata/`  | 存储软件源索引       |
-| 临时文件   | `cache/temp/`      | 安装过程中的临时数据 |
-
----
-
-_最后更新：2026-02-28_
-_版本：v0.6.0-alpha_---
-
-## 12. 缓存管理
-
-Chopsticks 使用多级缓存机制来提升性能。详细说明请查看 [缓存管理指南](cache-management.md)。
-
-### 12.1 常用命令
-
-```bash
-# 查看缓存大小
-chopsticks cache size
-
-# 清理缓存
-chopsticks cache clean
-
-# 查看详细缓存信息
-chopsticks cache size --verbose
-```
-
-### 12.2 缓存类型
-
-| 缓存类型   | 位置               | 说明                 |
-| ---------- | ------------------ | -------------------- |
-| 下载缓存   | `cache/downloads/` | 存储下载的软件包     |
-| 元数据缓存 | `cache/metadata/`  | 存储软件源索引       |
-| 临时文件   | `cache/temp/`      | 安装过程中的临时数据 |
-
----
-
-_最后更新：2026-02-28_
-_版本：v0.6.0-alpha_
+_最后更新：2026-03-01_
+_版本：v0.10.0-alpha_

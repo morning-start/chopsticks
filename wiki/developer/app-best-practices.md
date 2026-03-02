@@ -393,16 +393,17 @@ chopsticks install myapp --debug
 
 ## 10. 完整示例
 
-查看 [API 参考文档](../wiki/API.md) 中的完整示例。
+查看 [API 参考文档](API.md) 中的完整示例。
 
 ---
 
 ## 11. 相关链接
 
 - [软件源创建指南](bucket-guide.md)
-- [常见问题解答](faq.md)
-- [API 参考](../wiki/API.md)
+- [常见问题解答](../user/faq.md)
+- [API 参考](API.md)
 
 ---
 
-_最后更新：2026-02-26_
+_最后更新：2026-03-01_
+_版本：v0.10.0-alpha_

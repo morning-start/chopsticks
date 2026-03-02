@@ -637,7 +637,7 @@ VALUES ('git', '2.44.0', 'update', '2.43.0');
 
 ```bash
 # 添加本地软件源
-chopsticks source add my-bucket /path/to/my-bucket
+chopsticks bucket add my-bucket /path/to/my-bucket
 
 # 安装测试
 chopsticks install my-bucket/git --verbose
@@ -836,10 +836,10 @@ if (status.pendingChanges > 0) {
 
 ```bash
 # 用户添加你的软件源
-chopsticks source add my-bucket https://github.com/username/my-bucket
+chopsticks bucket add my-bucket https://github.com/username/my-bucket
 ```
 
 ---
 
-_最后更新：2026-02-28_
-_版本：v0.6.0-alpha_
+_最后更新：2026-03-01_
+_版本：v0.10.0-alpha_
