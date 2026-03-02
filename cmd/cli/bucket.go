@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"chopsticks/cmd/cli/template"
 	"chopsticks/core/bucket"
 	"chopsticks/pkg/output"
 
@@ -140,9 +141,8 @@ func runBucketInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// 复制模板文件
-	templateDir := filepath.Join("cmd", "cli", "template", "bucket-"+templateType)
-	if err := copyTemplateDir(templateDir, targetDir); err != nil {
+	// 复制模板文件（从嵌入的文件系统）
+	if err := template.CopyTemplateDir(templateType, targetDir); err != nil {
 		output.ErrorCrossf("Failed to copy template files: %v", err)
 		return err
 	}
@@ -207,19 +207,11 @@ func runBucketCreate(cmd *cobra.Command, args []string) error {
 	output.Infof("Creating App: ")
 	output.Highlightln(name)
 
-	// 获取模板文件路径（相对于可执行文件或工作目录）
-	templatePath := getTemplatePath("bucket-js", "apps", "_example_.js")
-	templateContent, err := os.ReadFile(templatePath)
+	// 从嵌入的文件系统读取模板
+	templateContent, err := template.ReadTemplateFileByName("bucket-js", "apps/_example_.js")
 	if err != nil {
-		// 尝试从当前工作目录查找
-		exePath, _ := os.Executable()
-		exeDir := filepath.Dir(exePath)
-		templatePath = filepath.Join(exeDir, "..", "..", "cmd", "cli", "template", "bucket-js", "apps", "_example_.js")
-		templateContent, err = os.ReadFile(templatePath)
-		if err != nil {
-			output.ErrorCrossf("Failed to read template file: %v", err)
-			return err
-		}
+		output.ErrorCrossf("Failed to read template file: %v", err)
+		return err
 	}
 
 	// 替换模板内容
@@ -275,23 +267,6 @@ func toClassName(s string) string {
 		}
 	}
 	return result
-}
-
-// getTemplatePath 获取模板文件路径
-// 首先尝试从工作目录查找，然后尝试从可执行文件目录查找
-func getTemplatePath(parts ...string) string {
-	// 尝试从当前工作目录查找（开发环境）
-	workDir, _ := os.Getwd()
-	path := filepath.Join(append([]string{workDir, "cmd", "cli", "template"}, parts...)...)
-	if _, err := os.Stat(path); err == nil {
-		return path
-	}
-
-	// 尝试从可执行文件目录查找（生产环境）
-	exePath, _ := os.Executable()
-	exeDir := filepath.Dir(exePath)
-	path = filepath.Join(append([]string{exeDir, "..", "..", "cmd", "cli", "template"}, parts...)...)
-	return path
 }
 
 func runBucketAdd(cmd *cobra.Command, args []string) error {
