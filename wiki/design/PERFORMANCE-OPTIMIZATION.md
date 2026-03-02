@@ -13,12 +13,12 @@
 
 ### 1.1 技术栈特性对比
 
-| 技术组件 | 执行模型 | 性能特点 | 适用场景 |
-|----------|----------|----------|----------|
-| **Go 语言** | 原生协程 (Goroutine) | 编译型、高并发、低延迟 | I/O 操作、并行计算 |
-| **Goja (JS)** | 单线程解释器 | 解释型、灵活、较慢 | 脚本定制、业务逻辑 |
-| **SQLite** | 文件级锁 | 轻量、本地存储 | 元数据持久化 |
-| **HTTP 下载** | 网络 I/O | 带宽受限、延迟高 | 文件获取 |
+| 技术组件      | 执行模型             | 性能特点               | 适用场景           |
+| ------------- | -------------------- | ---------------------- | ------------------ |
+| **Go 语言**   | 原生协程 (Goroutine) | 编译型、高并发、低延迟 | I/O 操作、并行计算 |
+| **Goja (JS)** | 单线程解释器         | 解释型、灵活、较慢     | 脚本定制、业务逻辑 |
+| **SQLite**    | 文件级锁             | 轻量、本地存储         | 元数据持久化       |
+| **HTTP 下载** | 网络 I/O             | 带宽受限、延迟高       | 文件获取           |
 
 ### 1.2 优化前性能瓶颈
 
@@ -44,14 +44,14 @@
 
 ### 1.3 优化后性能提升
 
-| 场景 | 优化前 | 优化后 | 提升倍数 |
-|------|--------|--------|----------|
-| 批量安装 10 个独立应用 | 60s | 10s | **6x** |
-| 安装带 5 层依赖的应用 | 45s | 15s | **3x** |
-| 搜索 10 个 bucket | 2s | 0.3s | **6.7x** |
-| 下载 100MB 文件 | 50s | 10s | **5x** |
-| 批量更新 20 个应用 | 60s | 12s | **5x** |
-| 执行 10 个 JS 脚本 | 25s | 8s | **3x** |
+| 场景                   | 优化前 | 优化后 | 提升倍数 |
+| ---------------------- | ------ | ------ | -------- |
+| 批量安装 10 个独立应用 | 60s    | 10s    | **6x**   |
+| 安装带 5 层依赖的应用  | 45s    | 15s    | **3x**   |
+| 搜索 10 个 bucket      | 2s     | 0.3s   | **6.7x** |
+| 下载 100MB 文件        | 50s    | 10s    | **5x**   |
+| 批量更新 20 个应用     | 60s    | 12s    | **5x**   |
+| 执行 10 个 JS 脚本     | 25s    | 8s     | **3x**   |
 
 ---
 
@@ -95,15 +95,15 @@
 
 ### 2.2 任务分类与调度策略
 
-| 操作 | 任务类型 | Go 策略 | JS 策略 | 预期并发数 |
-|------|----------|---------|---------|------------|
-| 多应用安装 | Mixed | 每个应用一个 goroutine | 每个应用独立 VM | 4-8 |
-| 依赖解析 | CPU | 限制并发 | 不涉及 | 2-4 |
-| 文件下载 | I/O | 高并发 + 分片 | 不涉及 | 8-16 |
-| JS 脚本执行 | JS | goroutine 包装 | VM 池执行 | 4-6 |
-| Bucket 搜索 | I/O | 并行搜索 | 不涉及 | 10+ |
-| 解压归档 | Mixed | 后台 goroutine | 不涉及 | 4 |
-| 校验和计算 | CPU | 限制并发 | 不涉及 | 4 |
+| 操作        | 任务类型 | Go 策略                | JS 策略         | 预期并发数 |
+| ----------- | -------- | ---------------------- | --------------- | ---------- |
+| 多应用安装  | Mixed    | 每个应用一个 goroutine | 每个应用独立 VM | 4-8        |
+| 依赖解析    | CPU      | 限制并发               | 不涉及          | 2-4        |
+| 文件下载    | I/O      | 高并发 + 分片          | 不涉及          | 8-16       |
+| JS 脚本执行 | JS       | goroutine 包装         | VM 池执行       | 4-6        |
+| Bucket 搜索 | I/O      | 并行搜索               | 不涉及          | 10+        |
+| 解压归档    | Mixed    | 后台 goroutine         | 不涉及          | 4          |
+| 校验和计算  | CPU      | 限制并发               | 不涉及          | 4          |
 
 ---
 
@@ -162,6 +162,7 @@
 #### 3.2.1 JS 引擎池 (engine/js_pool/)
 
 **关键优化点**:
+
 - 引擎复用减少 **80%** 初始化时间
 - 脚本编译缓存（100MB）
 - 动态扩缩容
@@ -180,6 +181,7 @@ type JSEnginePool struct {
 #### 3.2.2 智能下载器 (pkg/download/)
 
 **特性**:
+
 - 多连接分片并行下载
 - 自适应带宽调整
 - 断点续传支持
@@ -197,6 +199,7 @@ type SmartDownloader struct {
 #### 3.2.3 分层并行安装器 (core/app/)
 
 **特性**:
+
 - 依赖图拓扑排序分层
 - 层内并行、层间顺序
 - 批量安装性能提升 **5-6 倍**
@@ -213,6 +216,7 @@ type LayeredParallelInstaller struct {
 #### 3.2.4 并行搜索器 (core/bucket/)
 
 **特性**:
+
 - 并发搜索多个软件源
 - 搜索结果缓存（TTL 5分钟）
 - 搜索速度提升 **5-6 倍**
@@ -228,6 +232,7 @@ type ParallelSearcher struct {
 #### 3.2.5 流水线框架 (pkg/pipeline/)
 
 **特性**:
+
 - 多阶段流水线处理
 - 阶段内并行
 - 背压控制
@@ -264,7 +269,7 @@ type Pipeline struct {
 
 ### Phase 4: 集成与测试 (第 7-8 周) ✅
 
-- [x] CLI 集成（异步命令支持、进度显示优化、取消操作）
+- [x] CLI 集成（并发命令支持、进度显示优化、取消操作）
 - [x] 全面测试（集成测试、压力测试、性能基准）
 - [x] 文档与发布（使用文档、性能报告、升级指南）
 
@@ -281,17 +286,17 @@ performance:
   max_concurrent_installs: 4
   max_concurrent_js_engines: 4
   max_concurrent_searches: 10
-  
+
   # 下载优化
   download:
-    strategy: "adaptive"      # adaptive | single | chunked
+    strategy: "adaptive" # adaptive | single | chunked
     chunk_size: 10MB
     min_chunk_size: 1MB
     max_chunks_per_file: 8
     enable_resume: true
     resume_max_age: 24h
     connection_timeout: 30s
-    
+
   # JS 引擎池
   js_engine:
     pool_size: 4
@@ -300,20 +305,20 @@ performance:
     max_cache_size: 100MB
     max_cache_entries: 100
     vm_reset_interval: 100
-    
+
   # 安装优化
   install:
     parallel_deps: true
     max_parallel_deps: 4
     layer_by_layer: true
     enable_pipeline: true
-    
+
   # 搜索优化
   search:
     parallel_buckets: true
     cache_results: true
     cache_ttl: 5m
-    
+
   # 自适应调整
   adaptive:
     enabled: true
@@ -336,17 +341,17 @@ type PerformanceMetrics struct {
     TaskCompleteRate  float64
     TaskQueueDepth    int
     AvgTaskDuration   time.Duration
-    
+
     // 资源使用
     CPUUsage          float64
     MemoryUsage       float64
     GoroutineCount    int
-    
+
     // JS 引擎池
     JSPoolSize        int
     JSPoolUtilization float64
     JSCacheHitRate    float64
-    
+
     // 下载
     DownloadSpeed     float64
     ActiveDownloads   int
@@ -391,16 +396,16 @@ chopsticks perf js-pool
 
 ### 7.3 已实现功能
 
-| 组件 | 状态 | 文件路径 |
-|------|------|----------|
-| Parallel 包重构 | ✅ | `pkg/parallel/` |
-| JS 引擎池 | ✅ | `engine/js_pool/` |
-| 智能下载器 | ✅ | `pkg/download/` |
-| 并行搜索器 | ✅ | `core/bucket/` |
-| 分层安装器 | ✅ | `core/app/` |
-| 流水线框架 | ✅ | `pkg/pipeline/` |
-| 性能监控 | ✅ | `pkg/metrics/` |
-| CLI 异步命令 | ✅ | `cmd/chopsticks/cli/` |
+| 组件            | 状态 | 文件路径              |
+| --------------- | ---- | --------------------- |
+| Parallel 包重构 | ✅   | `pkg/parallel/`       |
+| JS 引擎池       | ✅   | `engine/js_pool/`     |
+| 智能下载器      | ✅   | `pkg/download/`       |
+| 并行搜索器      | ✅   | `core/bucket/`        |
+| 分层安装器      | ✅   | `core/app/`           |
+| 流水线框架      | ✅   | `pkg/pipeline/`       |
+| 性能监控        | ✅   | `pkg/metrics/`        |
+| CLI 并发命令    | ✅   | `cmd/chopsticks/cli/` |
 
 ---
 

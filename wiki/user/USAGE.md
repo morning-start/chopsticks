@@ -178,11 +178,11 @@ chopsticks install git --force
 # 使用别名
 chopsticks i git
 
-# 异步批量安装（并行安装多个包，性能提升 5-6 倍）
-chopsticks install git go python nodejs --async -w 4
+# 批量安装（Go 层自动并发调度，性能提升 5-6 倍）
+chopsticks install git go python nodejs
 
-# 异步安装并指定并发数
-chopsticks install app1 app2 app3 --async --workers 8
+# 批量安装并指定并发数
+chopsticks install app1 app2 app3 --workers 8
 ```
 
 ### 4.2 卸载软件
@@ -211,8 +211,8 @@ chopsticks up --all
 # 强制更新
 chopsticks update git --force
 
-# 异步批量更新（并行更新多个包）
-chopsticks update git go python --async -w 4
+# 批量更新（Go 层自动并发调度）
+chopsticks update git go python --workers 4
 ```
 
 ### 4.4 查看软件
@@ -232,8 +232,8 @@ chopsticks s vscode
 # 在指定软件源搜索
 chopsticks search vscode --bucket extras
 
-# 异步并行搜索（搜索多个软件源，性能提升 5-6 倍）
-chopsticks search editor --async -w 10
+# 并行搜索（搜索多个软件源，性能提升 5-6 倍）
+chopsticks search editor --workers 10
 ```
 
 ### 4.5 性能监控

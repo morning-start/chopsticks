@@ -171,11 +171,11 @@ chopsticks info git
 
 ### 如何设置环境变量
 
-在 App 脚本中使用 chopsticks 模块：
+在 App 脚本中使用 chopsticks 模块（所有 API 都是同步的）：
 
 ```javascript
-await chopsticks.setEnv("MY_VAR", "value");
-await chopsticks.addToPath("path/to/bin");
+chopsticks.setEnv("MY_VAR", "value");
+chopsticks.addToPath("path/to/bin");
 ```
 
 ### PATH 环境变量不生效怎么办
@@ -254,11 +254,11 @@ chopsticks cache clean git
 
 ### 如何处理安装程序
 
-对于需要运行安装程序的软件，使用 installer 模块：
+对于需要运行安装程序的软件，使用 installer 模块（同步 API）：
 
 ```javascript
-async onPostExtract(ctx) {
-    await installer.run("setup.exe", ["/S", "/D=" + ctx.cookDir]);
+onPostExtract(ctx) {
+    installer.run("setup.exe", ["/S", "/D=" + ctx.cookDir]);
 }
 ```
 
@@ -274,10 +274,10 @@ depends() {
 
 ### 如何处理多架构
 
-在 getDownloadInfo 中根据 arch 参数返回不同的下载链接：
+在 getDownloadInfo 中根据 arch 参数返回不同的下载链接（同步方法）：
 
 ```javascript
-async getDownloadInfo(version, arch) {
+getDownloadInfo(version, arch) {
     const archMap = {
         amd64: "x64",
         x86: "x86"

@@ -117,8 +117,8 @@ chopsticks s vscode
 chopsticks bucket add main https://github.com/chopsticks-bucket/main
 chopsticks bucket list
 
-# 异步批量操作
-chopsticks install git nodejs python --async
+# 批量安装（Go 层自动并发调度）
+chopsticks install git nodejs python
 
 # 性能监控
 chopsticks perf
@@ -143,12 +143,12 @@ chopsticks perf
 - 支持自定义软件源
 - 自动同步软件源更新
 
-### 异步批量操作
+### 智能并发调度
 
-使用 `--async` 标志启用异步模式，批量操作性能提升 5-6 倍：
+Go 层自动实现智能任务调度和并发控制，批量操作性能提升 5-6 倍：
 
 ```bash
-chopsticks install git nodejs python vscode --async
+chopsticks install git nodejs python vscode
 ```
 
 ### 性能监控

@@ -58,17 +58,17 @@ class GitApp extends App {
     });
   }
 
-  // 获取最新版本
-  async checkVersion() {
-    const response = await fetch.get(
+  // 获取最新版本（同步方法）
+  checkVersion() {
+    const response = fetch.get(
       "https://api.github.com/repos/git-for-windows/git/releases/latest",
     );
     const data = JSON.parse(response.body);
     return data.tag_name.replace(/^v/, "");
   }
 
-  // 获取下载信息
-  async getDownloadInfo(version, arch) {
+  // 获取下载信息（同步方法）
+  getDownloadInfo(version, arch) {
     const archMap = {
       amd64: "64-bit",
       x86: "32-bit",
@@ -82,8 +82,8 @@ class GitApp extends App {
     };
   }
 
-  // 安装后钩子
-  async postCook(ctx) {
+  // 安装后钩子（同步方法）
+  postCook(ctx) {
     // 添加到 PATH
     chopsticks.addToPath("bin");
   }
@@ -473,11 +473,11 @@ flowchart TD
 ### 5.5 智能 PATH 清理
 
 ```javascript
-// PATH 清理伪代码
+// PATH 清理伪代码（Go 层实现，对 JS 透明）
 class PathManager {
-  async removeFromPath(appId, version) {
+  removeFromPath(appId, version) {
     // 1. 获取本软件添加的所有 PATH 条目
-    const entries = await db.query(
+    const entries = db.query(
       "SELECT entry_path FROM path_entries WHERE app_id = ? AND version = ?",
       [appId, version],
     );
@@ -491,7 +491,7 @@ class PathManager {
       }
 
       // 3. 检查是否被其他软件共享
-      const isShared = await this.checkIfPathIsShared(entry.entry_path);
+      const isShared = this.checkIfPathIsShared(entry.entry_path);
 
       if (isShared) {
         log.warn(`Skipping shared PATH: ${entry.entry_path}`);
@@ -499,12 +499,12 @@ class PathManager {
       }
 
       // 4. 安全移除
-      await this.removePathEntry(entry.entry_path);
+      this.removePathEntry(entry.entry_path);
     }
   }
 
-  async checkIfPathIsShared(targetPath) {
-    const users = await db.query(
+  checkIfPathIsShared(targetPath) {
+    const users = db.query(
       `
             SELECT COUNT(DISTINCT app_id) as count
             FROM path_entries

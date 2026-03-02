@@ -73,17 +73,17 @@ class GitApp extends App {
     });
   }
 
-  async checkVersion() {
-    // 获取最新版本
-    const response = await fetch.get(
+  checkVersion() {
+    // 获取最新版本（同步方法）
+    const response = fetch.get(
       "https://api.github.com/repos/git-for-windows/git/releases/latest",
     );
     const data = JSON.parse(response.body);
     return data.tag_name.replace(/^v/, "");
   }
 
-  async getDownloadInfo(version, arch) {
-    // 返回下载信息
+  getDownloadInfo(version, arch) {
+    // 返回下载信息（同步方法）
     const archMap = {
       amd64: "64-bit",
       x86: "32-bit",

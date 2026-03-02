@@ -103,18 +103,18 @@ class ExampleApp extends App {
   }
 
   /**
-   * @returns {Promise<string>}
+   * @returns {string}
    */
-  async checkVersion() {
+  checkVersion() {
     return "1.0.0";
   }
 
   /**
    * @param {string} version
    * @param {string} arch
-   * @returns {Promise<DownloadInfo>}
+   * @returns {DownloadInfo}
    */
-  async getDownloadInfo(version, arch) {
+  getDownloadInfo(version, arch) {
     return {
       url: `https://example.com/download/${version}/app-${arch}.zip`,
       type: "zip",
@@ -123,9 +123,8 @@ class ExampleApp extends App {
 
   /**
    * @param {InstallContext} ctx
-   * @returns {Promise<void>}
    */
-  async onPostInstall(ctx) {
+  onPostInstall(ctx) {
     log.info("安装完成！");
   }
 }
@@ -234,11 +233,11 @@ class ExampleApp extends App {
 
   /**
    * 检查最新版本
-   * @returns {Promise<string>}
+   * @returns {string}
    */
-  async checkVersion() {
+  checkVersion() {
     try {
-      const response = await fetch.get("https://api.example.com/version");
+      const response = fetch.get("https://api.example.com/version");
       const data = json.parse(response.body);
       return data.version;
     } catch (error) {
@@ -251,9 +250,9 @@ class ExampleApp extends App {
    * 获取下载信息
    * @param {string} version
    * @param {string} arch
-   * @returns {Promise<{url: string, type: string, checksum?: {type: string, value: string}}>}
+   * @returns {{url: string, type: string, checksum?: {type: string, value: string}}}
    */
-  async getDownloadInfo(version, arch) {
+  getDownloadInfo(version, arch) {
     const archMap = {
       amd64: "x64",
       x86: "x86",
@@ -273,14 +272,13 @@ class ExampleApp extends App {
   /**
    * 安装后处理
    * @param {Object} ctx
-   * @returns {Promise<void>}
    */
-  async onPostInstall(ctx) {
+  onPostInstall(ctx) {
     log.info(`正在配置 ${this.metadata.name}...`);
 
-    await chopsticks.addToPath(path.join(ctx.cookDir, "bin"));
+    chopsticks.addToPath(path.join(ctx.cookDir, "bin"));
 
-    await chopsticks.createShortcut({
+    chopsticks.createShortcut({
       source: path.join(ctx.cookDir, "app.exe"),
       name: this.metadata.name,
       description: this.metadata.description,

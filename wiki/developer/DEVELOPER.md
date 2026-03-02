@@ -68,17 +68,18 @@ class App {
     this.metadata = metadata;
   }
 
-  async checkVersion() {
+  // 注意：所有方法都是同步的，Go 层自动处理并发调度
+  checkVersion() {
     throw new Error("Not implemented");
   }
 
-  async getDownloadInfo(version, arch) {
+  getDownloadInfo(version, arch) {
     throw new Error("Not implemented");
   }
 
-  async safeCall(fn) {
+  safeCall(fn) {
     try {
-      const value = await fn();
+      const value = fn();
       return { success: true, value };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -106,17 +107,17 @@ class GitApp extends App {
     });
   }
 
-  // 获取最新版本
-  async checkVersion() {
-    const response = await fetch.get(
+  // 获取最新版本（同步方法，Go 层自动处理并发）
+  checkVersion() {
+    const response = fetch.get(
       "https://api.github.com/repos/git-for-windows/git/releases/latest",
     );
     const data = JSON.parse(response.body);
     return data.tag_name.replace(/^v/, "");
   }
 
-  // 获取下载信息（最少需要 version 参数）
-  async getDownloadInfo(version, arch) {
+  // 获取下载信息（同步方法，最少需要 version 参数）
+  getDownloadInfo(version, arch) {
     const archMap = {
       amd64: "64-bit",
       x86: "32-bit",
@@ -130,33 +131,33 @@ class GitApp extends App {
     };
   }
 
-  // ============ 安装生命周期 ============
+  // ============ 安装生命周期（所有方法都是同步的） ============
 
   // 安装前 - 准备工作
-  async onPreInstall(ctx) {
+  onPreInstall(ctx) {
     log.info("Preparing to install Git " + ctx.version);
   }
 
   // 安装中 - 主要安装步骤
-  async onInstall(ctx) {
+  onInstall(ctx) {
     log.info("Installing Git...");
     // 执行自定义安装逻辑
   }
 
   // 安装后 - 自定义配置
-  async onPostInstall(ctx) {
+  onPostInstall(ctx) {
     // 系统已自动处理链接和 PATH
     // 只需添加自定义配置
     const gitExe = path.join(ctx.cookDir, "bin", "git.exe");
-    await exec.exec(gitExe, "config", "--global", "core.autocrlf", "true");
-    await exec.exec(gitExe, "config", "--global", "core.longpaths", "true");
+    exec.exec(gitExe, "config", "--global", "core.autocrlf", "true");
+    exec.exec(gitExe, "config", "--global", "core.longpaths", "true");
     log.info("Git installed and configured!");
   }
 
-  // ============ 卸载生命周期 ============
+  // ============ 卸载生命周期（所有方法都是同步的） ============
 
   // 卸载前 - 备份用户数据
-  async onPreUninstall(ctx) {
+  onPreUninstall(ctx) {
     log.info("Preparing to uninstall Git");
     // 可以备份用户配置
     const configDir = path.join(ctx.cookDir, "etc");
@@ -172,13 +173,13 @@ class GitApp extends App {
   }
 
   // 卸载中 - 主要卸载步骤
-  async onUninstall(ctx) {
+  onUninstall(ctx) {
     log.info("Uninstalling Git...");
     // 执行自定义卸载逻辑
   }
 
   // 卸载后 - 清理残留
-  async onPostUninstall(ctx) {
+  onPostUninstall(ctx) {
     log.info("Git uninstalled successfully");
     // 清理关联文件
   }
@@ -322,31 +323,31 @@ const info = fs.stat("path/to/file");
 
 ```javascript
 // 执行命令
-const result = await exec.exec("git", "--version");
+const result = exec.exec("git", "--version");
 // result.exitCode, result.stdout, result.stderr, result.success
 
 // 执行 shell
-const result = await exec.shell("echo hello");
+const result = exec.shell("echo hello");
 
 // 执行 PowerShell
-const result = await exec.powershell("Get-Process");
+const result = exec.powershell("Get-Process");
 ```
 
 ### 6.3 HTTP 请求
 
 ```javascript
 // GET 请求
-const response = await fetch.get(url);
+const response = fetch.get(url);
 // response.status, response.ok, response.body, response.headers
 
 // POST 请求
-const response = await fetch.post(url, body, "application/json");
+const response = fetch.post(url, body, "application/json");
 
 // 下载文件
-await fetch.download(url, destPath);
+fetch.download(url, destPath);
 
 // 带选项
-const response = await fetch.get(url, {
+const response = fetch.get(url, {
   headers: { "User-Agent": "Chopsticks" },
   timeout: 30000,
 });
@@ -356,24 +357,24 @@ const response = await fetch.get(url, {
 
 ```javascript
 // 自动解压
-await archive.extract("archive.zip", "dest/dir");
-await archive.extract("archive.7z", "dest/dir");
+archive.extract("archive.zip", "dest/dir");
+archive.extract("archive.7z", "dest/dir");
 
 // 指定类型
-await archive.extractZip("archive.zip", "dest/dir");
-await archive.extract7z("archive.7z", "dest/dir");
-await archive.extractTarGz("archive.tar.gz", "dest/dir");
+archive.extractZip("archive.zip", "dest/dir");
+archive.extract7z("archive.7z", "dest/dir");
+archive.extractTarGz("archive.tar.gz", "dest/dir");
 ```
 
 ### 6.5 校验和
 
 ```javascript
 // 计算哈希
-const hash = await checksum.sha256("path/to/file");
-const hash = await checksum.md5("path/to/file");
+const hash = checksum.sha256("path/to/file");
+const hash = checksum.md5("path/to/file");
 
 // 验证
-const valid = await checksum.verify("path/to/file", expectedHash, "sha256");
+const valid = checksum.verify("path/to/file", expectedHash, "sha256");
 ```
 
 ### 6.6 版本比较
@@ -391,29 +392,29 @@ semver.satisfies("1.2.3", "^1.0.0"); // true
 
 ```javascript
 // PATH 管理
-await chopsticks.addToPath("path/to/bin");
-await chopsticks.removeFromPath("path/to/bin");
+chopsticks.addToPath("path/to/bin");
+chopsticks.removeFromPath("path/to/bin");
 const paths = chopsticks.getPath();
 
 // 环境变量
-await chopsticks.setEnv("VAR_NAME", "value");
-const value = await chopsticks.getEnv("VAR_NAME");
+chopsticks.setEnv("VAR_NAME", "value");
+const value = chopsticks.getEnv("VAR_NAME");
 ```
 
 ### 6.8 符号链接
 
 ```javascript
-await symlink.create("target/file.exe", "link/name.exe");
-await symlink.createDir("target/dir", "link/dir");
-await symlink.createHard("target/file", "link/file");
-await symlink.createJunction("target/dir", "link/dir");
+symlink.create("target/file.exe", "link/name.exe");
+symlink.createDir("target/dir", "link/dir");
+symlink.createHard("target/file", "link/file");
+symlink.createJunction("target/dir", "link/dir");
 const target = symlink.readLink("link");
 ```
 
 ### 6.9 快捷方式
 
 ```javascript
-await chopsticks.createShortcut({
+chopsticks.createShortcut({
   source: "app.exe",
   name: "My App",
   description: "Description",
@@ -426,28 +427,28 @@ await chopsticks.createShortcut({
 ### 6.10 Windows 注册表
 
 ```javascript
-await registry.setValue("HKCU\\Software\\App", "Version", "1.0.0");
-await registry.setDword("HKCU\\Software\\App", "Count", 42);
-const value = await registry.getValue("HKCU\\Software\\App", "Version");
-await registry.deleteValue("HKCU\\Software\\App", "Version");
-await registry.createKey("HKCU\\Software\\App");
-await registry.deleteKey("HKCU\\Software\\App");
-const exists = await registry.keyExists("HKCU\\Software\\App");
+registry.setValue("HKCU\\Software\\App", "Version", "1.0.0");
+registry.setDword("HKCU\\Software\\App", "Count", 42);
+const value = registry.getValue("HKCU\\Software\\App", "Version");
+registry.deleteValue("HKCU\\Software\\App", "Version");
+registry.createKey("HKCU\\Software\\App");
+registry.deleteKey("HKCU\\Software\\App");
+const exists = registry.keyExists("HKCU\\Software\\App");
 ```
 
 ### 6.11 安装程序
 
 ```javascript
 // 自动检测类型运行
-await installer.run("installer.exe", ["/S", "/D=path"]);
+installer.run("installer.exe", ["/S", "/D=path"]);
 
 // 指定类型
-await installer.runNSIS("installer.exe", ["/S"]);
-await installer.runMSI("msi.msi", ["/quiet"]);
-await installer.runInno("setup.exe", ["/VERYSILENT"]);
+installer.runNSIS("installer.exe", ["/S"]);
+installer.runMSI("msi.msi", ["/quiet"]);
+installer.runInno("setup.exe", ["/VERYSILENT"]);
 
 // 检测类型
-const type = await installer.detectType("installer.exe");
+const type = installer.detectType("installer.exe");
 // type = "nsis" | "msi" | "inno" | "autoit" | "unknown"
 ```
 
@@ -464,7 +465,7 @@ const persistDir = chopsticks.getPersistDir();  // 获取 persist 目录
 // 创建 shim（命令快捷方式）
 // shim 会被创建在 %USERPROFILE%\.chopsticks\shim\ 目录下
 // 该目录已自动添加到 PATH，用户可直接在命令行调用
-await chopsticks.createShim("source.exe", "alias");
+chopsticks.createShim("source.exe", "alias");
 ```
 
 **关于 Shim：**
@@ -533,13 +534,13 @@ flowchart LR
 
 ```javascript
 class GitApp extends App {
-  async onInstall(ctx) {
-    // 开发者只需调用 API，系统自动记录
-    await chopsticks.addToPath("C:\\Program Files\\Git\\bin");
+  onInstall(ctx) {
+    // 开发者只需调用 API，系统自动记录（所有 API 都是同步的）
+    chopsticks.addToPath("C:\\Program Files\\Git\\bin");
 
-    await registry.setValue("HKCU\\Software\\Git", "Version", ctx.version);
+    registry.setValue("HKCU\\Software\\Git", "Version", ctx.version);
 
-    await chopsticks.createShortcut({
+    chopsticks.createShortcut({
       source: "git-bash.exe",
       name: "Git Bash",
     });
@@ -554,9 +555,9 @@ class GitApp extends App {
 系统采用**智能 PATH 清理策略**，确保不影响其他软件：
 
 ```javascript
-// 清理时的判断逻辑
-async function cleanPath(appId, version) {
-  const entries = await db.getPathEntries(appId, version);
+// 清理时的判断逻辑（Go 层实现，对 JS 透明）
+function cleanPath(appId, version) {
+  const entries = db.getPathEntries(appId, version);
 
   for (const entry of entries) {
     // 1. 检查 PATH 条目是否仍然存在
@@ -566,7 +567,7 @@ async function cleanPath(appId, version) {
     }
 
     // 2. 检查是否被其他软件共享
-    const sharedBy = await db.getOtherSoftwareUsingPath(entry.path);
+    const sharedBy = db.getOtherSoftwareUsingPath(entry.path);
     if (sharedBy.length > 0) {
       log.warn(
         `Skipping shared PATH: ${entry.path} (used by: ${sharedBy.join(", ")})`,
@@ -575,7 +576,7 @@ async function cleanPath(appId, version) {
     }
 
     // 3. 安全移除
-    await path.remove(entry.path);
+    path.remove(entry.path);
     log.info(`Removed PATH: ${entry.path}`);
   }
 }
@@ -650,12 +651,12 @@ chopsticks install my-bucket/git --debug
 
 ## 9. 最佳实践
 
-### 9.1 版本获取
+### 9.1 版本获取（同步方法）
 
 ```javascript
-async checkVersion() {
+checkVersion() {
     try {
-        const response = await fetch.get(
+        const response = fetch.get(
             "https://api.github.com/repos/user/repo/releases/latest"
         );
         const data = JSON.parse(response.body);
@@ -667,10 +668,10 @@ async checkVersion() {
 }
 ```
 
-### 9.2 下载信息
+### 9.2 下载信息（同步方法）
 
 ```javascript
-async getDownloadInfo(version, arch) {
+getDownloadInfo(version, arch) {
     return {
         url: `https://example.com/app-${version}-${arch}.zip`,
         type: "zip", // zip, 7z, tar.gz
@@ -679,11 +680,11 @@ async getDownloadInfo(version, arch) {
 }
 ```
 
-### 9.3 错误处理
+### 9.3 错误处理（同步方法）
 
 ```javascript
-async checkVersion() {
-    const ok = await this.safeCall(async () => {
+checkVersion() {
+    const ok = this.safeCall(() => {
         // 业务逻辑
     });
 
@@ -811,16 +812,16 @@ class MyApp extends App {
 ### 11.4 同步 API 使用
 
 ```javascript
-// 在应用中触发同步
-async onPostInstall(ctx) {
+// 在应用中触发同步（同步 API）
+onPostInstall(ctx) {
   // 同步配置到其他设备
-  await chopsticks.sync({
+  chopsticks.sync({
     configOnly: true
   });
 }
 
 // 获取同步状态
-const status = await chopsticks.syncStatus();
+const status = chopsticks.syncStatus();
 if (status.pendingChanges > 0) {
   log.info(`有 ${status.pendingChanges} 个待同步的变更`);
 }

@@ -28,11 +28,12 @@ class MyApp extends App {
         });
     }
 
-    async checkVersion() {
+    // 所有方法都是同步的，Go 层自动处理并发调度
+    checkVersion() {
         // 获取最新版本号
     }
 
-    async getDownloadInfo(version, arch) {
+    getDownloadInfo(version, arch) {
         // 返回下载 URL 和类型
     }
 }
@@ -44,38 +45,38 @@ module.exports = new MyApp();
 
 ## 3. 必需方法
 
-### 3.1 checkVersion()
+### 3.1 checkVersion()（同步方法）
 
 获取软件的最新版本号：
 
 ```javascript
-async checkVersion() {
+checkVersion() {
     // 方式 1：GitHub Releases
-    const response = await fetch.get(
+    const response = fetch.get(
         "https://api.github.com/repos/owner/repo/releases/latest"
     );
     const data = JSON.parse(response.body);
     return data.tag_name.replace(/^v/, "");
 
     // 方式 2：网页解析
-    const response = await fetch.get("https://example.com/download");
+    const response = fetch.get("https://example.com/download");
     const match = response.body.match(/version[= ](\d+\.\d+\.\d+)/);
     return match ? match[1] : null;
 
     // 方式 3：JSON API
-    const response = await fetch.get(
+    const response = fetch.get(
         "https://example.com/api/version"
     );
     return JSON.parse(response.body).version;
 }
 ```
 
-### 3.2 getDownloadInfo()
+### 3.2 getDownloadInfo()（同步方法）
 
 返回下载信息：
 
 ```javascript
-async getDownloadInfo(version, arch) {
+getDownloadInfo(version, arch) {
     const archMap = {
         amd64: "x64",
         x86: "x86"
@@ -93,40 +94,40 @@ async getDownloadInfo(version, arch) {
 
 ## 4. 生命周期钩子
 
-### 4.1 安装钩子
+### 4.1 安装钩子（所有方法都是同步的）
 
 ```javascript
-async onPreDownload(ctx) {
+onPreDownload(ctx) {
     // 下载前执行
     log.info("开始下载...");
 }
 
-async onPostDownload(ctx) {
+onPostDownload(ctx) {
     // 下载完成后执行
     log.info("下载完成");
 }
 
-async onPreExtract(ctx) {
+onPreExtract(ctx) {
     // 解压前执行
 }
 
-async onPostExtract(ctx) {
+onPostExtract(ctx) {
     // 解压后执行
     log.info("解压完成");
 }
 
-async onPreInstall(ctx) {
+onPreInstall(ctx) {
     // 安装前执行
     log.info("开始安装...");
 }
 
-async onPostInstall(ctx) {
+onPostInstall(ctx) {
     // 安装后执行
     log.info("安装完成！");
-    // 设置环境变量
-    await chopsticks.addToPath(path.join(ctx.cookDir, "bin"));
-    // 创建快捷方式
-    await chopsticks.createShortcut({
+    // 设置环境变量（同步 API）
+    chopsticks.addToPath(path.join(ctx.cookDir, "bin"));
+    // 创建快捷方式（同步 API）
+    chopsticks.createShortcut({
         source: path.join(ctx.cookDir, "app.exe"),
         name: "My App",
         description: "My Application",
@@ -134,18 +135,18 @@ async onPostInstall(ctx) {
 }
 ```
 
-### 4.2 卸载钩子
+### 4.2 卸载钩子（所有方法都是同步的）
 
 ```javascript
-async onPreUninstall(ctx) {
+onPreUninstall(ctx) {
     // 卸载前执行
     log.info("开始卸载...");
 }
 
-async onPostUninstall(ctx) {
+onPostUninstall(ctx) {
     // 卸载后执行
-    // 清理注册表
-    await registry.deleteKey("HKCU\\Software\\MyApp");
+    // 清理注册表（同步 API）
+    registry.deleteKey("HKCU\\Software\\MyApp");
 }
 ```
 
@@ -207,7 +208,7 @@ conflicts() {
 
 ## 6. 常见模式
 
-### 6.1 绿色软件模式
+### 6.1 绿色软件模式（同步方法）
 
 适用于解压即用的绿色软件：
 
@@ -217,16 +218,16 @@ class App extends App {
         super({ name: "app", description: "My App" });
     }
 
-    async getDownloadInfo(version, arch) {
+    getDownloadInfo(version, arch) {
         return {
             url: `https://example.com/app-${version}.zip`,
             type: "zip",
         };
     }
 
-    async onPostInstall(ctx) {
-        // 创建快捷方式
-        await chopsticks.createShortcut({
+    onPostInstall(ctx) {
+        // 创建快捷方式（同步 API）
+        chopsticks.createShortcut({
             source: path.join(ctx.cookDir, "app.exe"),
             name: "My App",
         });
@@ -234,7 +235,7 @@ class App extends App {
 }
 ```
 
-### 6.2 安装程序模式
+### 6.2 安装程序模式（同步方法）
 
 适用于需要运行安装程序的软件：
 
@@ -244,22 +245,22 @@ class App extends App {
         super({ name: "app", description: "My App" });
     }
 
-    async getDownloadInfo(version, arch) {
+    getDownloadInfo(version, arch) {
         return {
             url: `https://example.com/app-${version}-setup.exe`,
             type: "installer",
         };
     }
 
-    async onPostExtract(ctx) {
-        // 运行安装程序
+    onPostExtract(ctx) {
+        // 运行安装程序（同步 API）
         const installer = path.join(ctx.cookDir, "app-setup.exe");
-        await installer.run(installer, ["/S", "/D=" + ctx.cookDir]);
+        installer.run(installer, ["/S", "/D=" + ctx.cookDir]);
     }
 }
 ```
 
-### 6.3 多架构支持
+### 6.3 多架构支持（同步方法）
 
 ```javascript
 class App extends App {
@@ -267,7 +268,7 @@ class App extends App {
         super({ name: "app", description: "My App" });
     }
 
-    async getDownloadInfo(version, arch) {
+    getDownloadInfo(version, arch) {
         const archMap = {
             amd64: "x64",
             x86: "x86",
@@ -304,12 +305,12 @@ class NodeJS extends App {
 
 ## 7. 错误处理
 
-### 7.1 安全调用
+### 7.1 安全调用（同步方法）
 
 ```javascript
-async checkVersion() {
-    const result = await this.safeCall(async () => {
-        const response = await fetch.get(url);
+checkVersion() {
+    const result = this.safeCall(() => {
+        const response = fetch.get(url);
         return JSON.parse(response.body).version;
     });
 
@@ -322,17 +323,18 @@ async checkVersion() {
 }
 ```
 
-### 7.2 重试机制
+### 7.2 重试机制（同步方法）
 
 ```javascript
-async fetchWithRetry(url, retries = 3) {
+fetchWithRetry(url, retries = 3) {
     for (let i = 0; i < retries; i++) {
         try {
-            const response = await fetch.get(url);
+            const response = fetch.get(url);
             if (response.ok) return response;
         } catch (e) {
             log.warn(`重试 ${i + 1}/${retries}: ${e.message}`);
-            await new Promise(r => setTimeout(r, 1000));
+            // 同步延迟
+            for (let j = 0; j < 1000000000; j++) {} // 简单延迟
         }
     }
     throw new Error("重试失败");
@@ -346,7 +348,7 @@ async fetchWithRetry(url, retries = 3) {
 ### 8.1 日志输出
 
 ```javascript
-async onPostInstall(ctx) {
+onPostInstall(ctx) {
     log.debug("安装目录: " + ctx.cookDir);
     log.info("安装完成");
     log.warn("警告信息");
@@ -384,7 +386,7 @@ chopsticks install myapp --debug
 
 ### 9.3 注意事项
 
-- 始终使用异步操作（async/await）
+- 所有 JavaScript API 都是同步的，Go 层自动处理并发调度
 - 正确处理错误和异常
 - 清理安装过程中的临时文件
 - 遵循版本号规范（语义化版本）

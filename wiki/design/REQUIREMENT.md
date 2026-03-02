@@ -281,21 +281,21 @@ const base = path.base("/path/to/file"); // 获取文件名
 #### 3.5.4 执行模块 (exec)
 
 ```javascript
-const result = await exec.exec("git", "--version");
+const result = exec.exec("git", "--version");
 // result.exitCode, result.stdout, result.stderr, result.success
 
-const result = await exec.shell("echo hello");
-const result = await exec.powershell("Get-Process");
+const result = exec.shell("echo hello");
+const result = exec.powershell("Get-Process");
 ```
 
 #### 3.5.5 HTTP 模块 (fetch)
 
 ```javascript
-const response = await fetch.get(url);
+const response = fetch.get(url);
 // response.status, response.ok, response.body, response.headers
 
-const response = await fetch.post(url, body, contentType);
-await fetch.download(url, destPath);
+const response = fetch.post(url, body, contentType);
+fetch.download(url, destPath);
 ```
 
 #### 3.5.6 文件系统模块 (fs)
@@ -313,9 +313,9 @@ fs.copy(src, dst); // 复制
 #### 3.5.7 校验和模块 (checksum)
 
 ```javascript
-const hash = await checksum.sha256(path); // SHA256
-const hash = await checksum.md5(path); // MD5
-const valid = await checksum.verify(path, expected, "sha256");
+const hash = checksum.sha256(path); // SHA256
+const hash = checksum.md5(path); // MD5
+const valid = checksum.verify(path, expected, "sha256");
 ```
 
 #### 3.5.8 版本模块 (semver)
@@ -330,9 +330,9 @@ const is_gte = semver.gte("1.2.3", "1.0.0"); // true/false
 #### 3.5.9 压缩模块 (archive)
 
 ```javascript
-await archive.extractZip(src, dest);
-await archive.extract7z(src, dest);
-await archive.extractTarGz(src, dest);
+archive.extractZip(src, dest);
+archive.extract7z(src, dest);
+archive.extractTarGz(src, dest);
 ```
 
 #### 3.5.10 包系统模块 (chopsticks)
@@ -436,19 +436,19 @@ installer.run("setup.exe", ["/VERYSILENT", "/SUPPRESSMSGBOXES"]); // Inno Setup
 
 ```javascript
 // 创建符号链接
-await symlink.create(source, linkName); // 符号链接
-await symlink.createHard(source, linkName); // 硬链接
-await symlink.createJunction(source, linkName); // Windows 目录联接
+symlink.create(source, linkName); // 符号链接
+symlink.createHard(source, linkName); // 硬链接
+symlink.createJunction(source, linkName); // Windows 目录联接
 ```
 
 #### 5.3.4 Windows 注册表
 
 ```javascript
 // 注册表操作
-await registry.setValue("HKCU\\Software\\App", "Version", "1.0.0");
-await registry.getValue("HKCU\\Software\\App", "Version");
-await registry.deleteKey("HKCU\\Software\\App");
-await registry.createKey("HKCU\\Software\\App");
+registry.setValue("HKCU\\Software\\App", "Version", "1.0.0");
+registry.getValue("HKCU\\Software\\App", "Version");
+registry.deleteKey("HKCU\\Software\\App");
+registry.createKey("HKCU\\Software\\App");
 ```
 
 ### 5.4 自定义工作流程
@@ -549,23 +549,23 @@ flowchart LR
 #### 5.5.4 智能 PATH 清理
 
 ```javascript
-// 清理逻辑
-async function cleanPath(appId, version) {
-  const entries = await db.getPathEntries(appId, version);
+// 清理逻辑（Go 层实现，对 JS 透明）
+function cleanPath(appId, version) {
+  const entries = db.getPathEntries(appId, version);
 
   for (const entry of entries) {
     // 1. 检查 PATH 条目是否仍然存在
     if (!currentPath.includes(entry.path)) continue;
 
     // 2. 检查是否被其他软件共享
-    const sharedBy = await db.getOtherSoftwareUsingPath(entry.path);
+    const sharedBy = db.getOtherSoftwareUsingPath(entry.path);
     if (sharedBy.length > 0) {
       log.warn(`Skipping shared PATH: ${entry.path}`);
       continue;
     }
 
     // 3. 安全移除
-    await path.remove(entry.path);
+    path.remove(entry.path);
   }
 }
 ```
@@ -615,17 +615,17 @@ class GitApp extends App {
     });
   }
 
-  // 获取最新版本
-  async checkVersion() {
-    const response = await fetch.get(
+  // 获取最新版本（同步方法）
+  checkVersion() {
+    const response = fetch.get(
       "https://api.github.com/repos/git-for-windows/git/releases/latest",
     );
     const data = JSON.parse(response.body);
     return data.tag_name.replace(/^v/, "");
   }
 
-  // 获取下载信息
-  async getDownloadInfo(version, arch) {
+  // 获取下载信息（同步方法）
+  getDownloadInfo(version, arch) {
     const archMap = {
       amd64: "64-bit",
       x86: "32-bit",
