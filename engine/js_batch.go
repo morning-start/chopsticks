@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"chopsticks/pkg/async"
-
 	"github.com/dop251/goja"
 	"golang.org/x/sync/errgroup"
 )
@@ -38,10 +36,16 @@ type BatchResult struct {
 	Duration time.Duration
 }
 
+// JSTask 定义 JS 任务接口
+type JSTask interface {
+	Execute(ctx context.Context, engine *JSEngine) error
+	ID() string
+}
+
 // ExecuteBatch 批量执行 JS 任务
 func (p *JSEnginePool) ExecuteBatch(
 	ctx context.Context,
-	tasks []async.Task,
+	tasks []JSTask,
 	config BatchConfig,
 ) (*BatchResult, error) {
 	if p.IsClosed() {
@@ -72,7 +76,7 @@ func (p *JSEnginePool) ExecuteBatch(
 
 			// 获取引擎并执行任务
 			err := p.Execute(taskCtx, func(engine *JSEngine) error {
-				return task.Execute(taskCtx)
+				return task.Execute(taskCtx, engine)
 			})
 
 			if err != nil {

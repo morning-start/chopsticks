@@ -1,949 +1,511 @@
-# Chopsticks 架构设计
+# Chopsticks 架构文档
 
-> 版本: v0.10.0-alpha  
-> 最后更新: 2026-03-01
+## 1. 架构概述
 
-> 系统架构和技术设计文档
+Chopsticks 是一个 Windows 包管理器，采用分层架构设计，核心设计理念是：
 
----
+- **文件系统优先**: 软件源信息通过 `bucket.json` 存储，应用信息通过文件系统扫描获取
+- **同步优先**: 核心功能使用同步函数，调用方通过 `errgroup` 控制并发
+- **纯 Go 实现**: 零 CGO 依赖，使用 Goja (JS 引擎)、go-git (Git 客户端)、modernc/sqlite (数据库)
 
-## 目录
-
-1. [架构概览](#架构概览)
-2. [五层架构详解](#五层架构详解)
-3. [系统架构图](#系统架构图)
-4. [性能优化架构](#性能优化架构)
-5. [核心模块](#核心模块)
-6. [数据流](#数据流)
-7. [技术选型](#技术选型)
-8. [扩展机制](#扩展机制)
-9. [安全设计](#安全设计)
-
----
-
-## 架构概览
-
-Chopsticks 采用**五层分层架构设计**，遵循以下核心原则：
-
-- **关注点分离**: 每层负责单一职责，层间通过明确定义的接口交互
-- **接口驱动**: 通过接口定义模块间契约，便于测试和替换实现
-- **可测试性**: 模块间松耦合，支持单元测试和集成测试
-- **可扩展性**: 支持插件扩展和脚本化应用定义
-- **高性能**: 全链路并行处理，最大化系统资源利用率
-
-### 五层架构总览
+### 1.1 架构分层
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  Layer 1: CLI Layer (cmd/chopsticks/cli)                                        │
-│  ┌─────────┬───────────┬─────────┬─────────┬─────────┬─────────────────────────┐│
-│  │ install │ uninstall │ update  │ search  │  list   │ bucket | config | perf  ││
-│  │         │           │         │         │         │              | [--workers]││
-│  └────┬────┴─────┬─────┴────┬────┴────┬────┴────┬────┴──────────┬──────────────┘│
-└───────┴──────────┴──────────┴─────────┴─────────┴───────────────┴─────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  Layer 2: Performance Layer (pkg/)                                                │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐ │
-│  │   download   │  │   pipeline   │  │       metrics        │  │   parallel       │
-│  │AdaptiveDownloader│  │  Pipeline   │  │  MetricsCollector  │  │ParallelDownloader│
-│  │  自适应下载器   │  │  流水线框架   │  │    性能监控         │  │  并行下载器       │
-│  └──────────────┘  └──────────────┘  └──────────────────────┘  └──────────────────┘
-│  ┌──────────────┐  ┌──────────────┐                                               │
-│  │    output    │  │              │                                               │
-│  │  输出格式化   │  │              │                                               │
-│  │ Color/Progress│  │              │                                               │
-│  └──────────────┘  └──────────────┘                                               │
-└─────────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  Layer 3: Core Layer (core/)                                                      │
-│  ┌────────────────────┐  ┌────────────────────┐  ┌──────────────────────────┐   │
-│  │    app/            │  │    bucket/         │  │        store/            │   │
-│  │  ├─ Manager        │  │  ├─ Manager        │  │  ├─ Storage Interface    │   │
-│  │  ├─ Installer      │  │  ├─ Parallel Search│  │  └─ SQLite Implementation│   │
-│  │  ├─ Layered        │  │  └─ Updater        │  │                          │   │
-│  │  │   Installer     │  │                    │  │                          │   │
-│  │  ├─ Updater        │  │                    │  │                          │   │
-│  │  └─ Uninstaller    │  │                    │  │                          │   │
-│  └────────────────────┘  └────────────────────┘  └──────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  Layer 4: Engine Layer (engine/)                                                  │
-│  ┌───────────────────────────────────────────────────────────────────────────┐   │
-│  │                        JS Engine (Goja)                                    │   │
-│  │  ┌────────┬────────┬────────┬────────┬────────┬────────┬────────┬────────┐ │   │
-│  │  │ fsutil │ fetch  │ execx  │archive │checksum│ pathx  │ logx   │ jsonx  │ │   │
-│  │  │ 文件   │ 网络   │ 执行   │ 压缩   │ 校验   │ 路径   │ 日志   │ JSON   │ │   │
-│  │  └────────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┘ │   │
-│  │  ┌────────┬────────┬────────┬────────┬────────────────────────────────────┐ │   │
-│  │  │symlink │registry│ semver │chopsticksx│        installerx               │ │   │
-│  │  │ 链接   │ 注册表 │ 版本   │ 系统API  │        安装器处理                │ │   │
-│  │  └────────┴────────┴────────┴─────────┴────────────────────────────────────┘ │   │
-│  └───────────────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  Layer 5: Infra Layer (infra/)                                                    │
-│  ┌────────────────────────────┐  ┌────────────────────────────────────────────┐ │
-│  │      git/                  │  │          installer/                        │ │
-│  │   Git Client               │  │      Installer Handler                     │ │
-│  │   (go-git/v5)              │  │   (NSIS/MSI/Inno Setup)                    │ │
-│  │   - Clone                  │  │   - Run Installer                          │ │
-│  │   - Pull/Fetch             │  │   - Detect Type                            │ │
-│  │   - Branch Management      │  │   - Silent Install                         │ │
-│  └────────────────────────────┘  └────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│ Layer 1: CLI Layer (cmd/cli)                                    │
+│   - 命令行接口，用户交互入口                                     │
+├─────────────────────────────────────────────────────────────────┤
+│ Layer 2: Performance Layer (pkg/)                               │
+│   - 下载、并行处理、输出格式化、性能监控等通用功能                │
+├─────────────────────────────────────────────────────────────────┤
+│ Layer 3: Core Layer (core/)                                     │
+│   - 核心业务逻辑：应用管理、软件源管理、数据存储                  │
+├─────────────────────────────────────────────────────────────────┤
+│ Layer 4: Engine Layer (engine/)                                 │
+│   - JavaScript 脚本引擎和 API 模块                              │
+├─────────────────────────────────────────────────────────────────┤
+│ Layer 5: Infra Layer (infra/)                                   │
+│   - 基础设施：Git 客户端、安装程序处理                           │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
----
+### 1.2 核心组件
 
-## 五层架构详解
+| 组件              | 包路径        | 职责                       |
+| ----------------- | ------------- | -------------------------- |
+| **AppManager**    | `core/app`    | 应用安装、卸载、更新、查询 |
+| **BucketManager** | `core/bucket` | 软件源管理、应用搜索       |
+| **Storage**       | `core/store`  | 已安装应用数据持久化       |
+| **JSEngine**      | `engine`      | JavaScript 脚本执行        |
+| **Git**           | `infra/git`   | 软件源仓库操作             |
 
-### Layer 1: CLI Layer (cmd/chopsticks/cli)
+## 2. 核心接口
 
-CLI 层是用户与系统交互的入口，基于 `urfave/cli/v2` 框架实现。
-
-#### 命令列表
-
-| 命令         | 功能            | 实现文件        | 别名            |
-| ------------ | --------------- | --------------- | --------------- |
-| `install`    | 安装软件包      | `install.go`    | `i`             |
-| `uninstall`  | 卸载软件包      | `uninstall.go`  | `remove`, `rm`  |
-| `update`     | 更新软件包      | `update.go`     | `upgrade`, `up` |
-| `search`     | 搜索软件包      | `search.go`     | `find`, `s`     |
-| `list`       | 列出已安装/可用 | `list.go`       | `ls`            |
-| `bucket`     | 软件源管理      | `bucket.go`     | `b`             |
-| `config`     | 配置管理        | `config.go`     | -               |
-| `conflict`   | 冲突检测        | `conflict.go`   | -               |
-| `completion` | Shell 自动补全  | `completion.go` | -               |
-| `perf`       | 性能监控        | `perf.go`       | -               |
-
-#### 全局选项
-
-| 选项        | 简写 | 说明           | 默认值  |
-| ----------- | ---- | -------------- | ------- |
-| `--workers` | `-w` | 并发工作线程数 | `4`     |
-| `--config`  | `-c` | 指定配置文件   | -       |
-| `--verbose` | `-v` | 详细输出       | `false` |
-
-#### 并发控制
-
-Chopsticks 在 Go 层实现智能调度和并发控制，JavaScript API 保持同步接口：
+### 2.1 AppManager - 应用管理器
 
 ```go
-// install.go - 安装入口（内部自动处理并发）
-func installAction(c *cli.Context) error {
-    workers := c.Int("workers")
-    return installWithConcurrency(c, workers)  // 使用内部调度器
-}
-```
-
----
-
-### Layer 2: Performance Layer (pkg/)
-
-性能层提供全链路的并行处理能力，是 Chopsticks 高性能的核心。
-
-#### 2.1 SmartDispatcher 智能任务调度器
-
-```go
-// pkg/async/dispatcher.go
-type SmartDispatcher struct {
-    config       DispatcherConfig
-    ioSemaphore  chan struct{}      // I/O 任务信号量
-    cpuSemaphore chan struct{}      // CPU 任务信号量
-    jsSemaphore  chan struct{}      // JS 任务信号量
-    taskQueues   map[TaskCategory][]Task
-    stats        DispatcherStats
-}
-
-type DispatcherConfig struct {
-    MaxIOWorkers       int           // 默认 16
-    MaxCPUWorkers      int           // 默认 CPU 核心数
-    MaxJSWorkers       int           // 默认 4
-    EnableAdaptive     bool          // 启用动态调整
-    AdjustmentInterval time.Duration // 调整间隔
-}
-```
-
-**特性**:
-
-- 任务分类调度（IO/CPU/JS/Mixed）
-- 信号量控制并发，避免资源耗尽
-- 动态自适应调整（基于内存使用率）
-- 实时统计信息收集
-
-#### 2.2 download - AdaptiveDownloader 自适应下载器
-
-```go
-// pkg/download/adaptive.go
-type AdaptiveDownloader struct {
-    config           AdaptiveConfig
-    bandwidthMonitor *BandwidthMonitor
-    stats            DownloadStats
-}
-
-type AdaptiveConfig struct {
-    MinConnections    int           // 最小连接数
-    MaxConnections    int           // 最大连接数
-    ChunkSize         int64         // 分片大小
-    EnableAdaptive    bool          // 自适应调整
-    TempFileSuffix    string        // 临时文件后缀
-}
-```
-
-**特性**:
-
-- 多连接分片并行下载
-- 自适应带宽调整
-- 断点续传支持
-- 下载速度提升 3-5 倍
-
-#### 2.3 pipeline - Pipeline 流水线框架
-
-```go
-// pkg/pipeline/pipeline.go
-type Pipeline struct {
-    stages      []Stage
-    bufferSize  int
-    errorPolicy ErrorPolicy
-}
-
-type Stage interface {
-    Name() string
-    Process(ctx context.Context, input <-chan Item, output chan<- Item) error
-}
-```
-
-**处理阶段**:
-
-1. **Download** - 并行下载
-2. **Verify** - 校验和验证
-3. **Extract** - 解压归档
-4. **Execute** - 执行安装脚本
-5. **Register** - 注册到系统
-
-#### 2.4 metrics - MetricsCollector 性能监控
-
-```go
-// pkg/metrics/collector.go
-type MetricsCollector struct {
-    history        *MetricsHistory
-    sampleInterval time.Duration
-    collectors     map[string]Collector
-}
-```
-
-**监控指标**:
-
-- 任务统计：提交/完成速率、队列深度
-- 资源使用：内存、Goroutines、GC
-- JS 池：利用率、缓存命中率
-- 下载：速度、活跃连接数、错误数
-
-#### 2.5 parallel - 并行处理工具
-
-```go
-// pkg/parallel/parallel.go
-type Pool struct {
-    workers int
-    tasks   []Task
-    Errors  []error
-}
-
-type ParallelDownloader struct {
-    workers   int
-    downloads []DownloadTask
-    progress  func(completed, total int)
-}
-
-type ParallelUpdater struct {
-    workers  int
-    apps     []string
-    updateFn func(name string) error
-}
-```
-
----
-
-### Layer 3: Core Layer (core/)
-
-核心层处理应用和软件源的生命周期管理。
-
-#### 3.1 app/ - 应用管理
-
-```go
-// core/app/manager.go
-type Manager interface {
+type AppManager interface {
     Install(ctx context.Context, spec InstallSpec, opts InstallOptions) error
     Remove(ctx context.Context, name string, opts RemoveOptions) error
     Update(ctx context.Context, name string, opts UpdateOptions) error
-    List(ctx context.Context) ([]*manifest.InstalledApp, error)
-}
-
-// core/app/layered_installer.go
-type LayeredInstaller struct {
-    scheduler   *SmartDispatcher
-    resolver    *DependencyResolver
-    maxParallel int
-}
-```
-
-**组件**:
-
-- `Manager` - 应用生命周期管理接口
-- `Installer` - 安装流程协调
-- `LayeredInstaller` - 依赖感知的并行安装
-- `Updater` - 更新逻辑
-- `Uninstaller` - 卸载逻辑
-
-**分层安装器特性**:
-
-- 依赖图拓扑排序分层
-- 层内并行、层间顺序
-- 批量安装性能提升 5-6 倍
-
-#### 3.2 bucket/ - 软件源管理
-
-```go
-// core/bucket/bucket.go
-type Manager interface {
-    Add(name, url string) error
-    Remove(name string) error
-    Update(name string) error
-    List() ([]*manifest.Bucket, error)
-    Search(query string) ([]*manifest.App, error)
-}
-
-// core/bucket/parallel_search.go
-type ParallelSearcher struct {
-    manager     Manager
-    maxParallel int
-    cache       *SearchCache
-}
-```
-
-**特性**:
-
-- 并发搜索多个软件源
-- 搜索结果缓存（TTL 5分钟）
-- 搜索速度提升 5-6 倍
-
-#### 3.3 store/ - 数据持久化
-
-```go
-// core/store/storage.go
-type Storage interface {
-    // Bucket 操作
-    SaveBucket(bucket *manifest.Bucket) error
-    GetBucket(name string) (*manifest.Bucket, error)
-    ListBuckets() ([]*manifest.Bucket, error)
-    DeleteBucket(name string) error
-
-    // 应用操作
-    SaveInstalled(app *manifest.InstalledApp) error
-    GetInstalled(name string) (*manifest.InstalledApp, error)
+    UpdateAll(ctx context.Context, opts UpdateOptions) error
+    Switch(ctx context.Context, name, version string) error
     ListInstalled() ([]*manifest.InstalledApp, error)
-    DeleteInstalled(name string) error
+    Info(ctx context.Context, bucket, name string) (*manifest.AppInfo, error)
+    Search(ctx context.Context, query string, bucket string) ([]SearchResult, error)
 }
 ```
 
-**数据库 Schema**:
+### 2.2 BucketManager - 软件源管理器
+
+```go
+type BucketManager interface {
+    Add(ctx context.Context, name, url string, opts AddOptions) error
+    Remove(ctx context.Context, name string, purge bool) error
+    Update(ctx context.Context, name string) error
+    UpdateAll(ctx context.Context) error
+    GetBucket(ctx context.Context, name string) (*manifest.BucketConfig, error)
+    GetApp(ctx context.Context, bucket, name string) (*manifest.App, error)
+    ListApps(ctx context.Context, bucket string) (map[string]*manifest.AppRef, error)
+    ListBuckets(ctx context.Context) ([]string, error)
+    Search(ctx context.Context, query string, opts SearchOptions) ([]SearchResult, error)
+}
+```
+
+### 2.3 Storage - 数据存储
+
+```go
+type Storage interface {
+    // 已安装的应用
+    SaveInstalledApp(ctx context.Context, a *manifest.InstalledApp) error
+    GetInstalledApp(ctx context.Context, name string) (*manifest.InstalledApp, error)
+    DeleteInstalledApp(ctx context.Context, name string) error
+    ListInstalledApps(ctx context.Context) ([]*manifest.InstalledApp, error)
+    IsInstalled(ctx context.Context, name string) (bool, error)
+
+    // 安装操作追踪
+    SaveInstallOperation(ctx context.Context, op *InstallOperation) error
+    GetInstallOperations(ctx context.Context, installedID string) ([]*InstallOperation, error)
+    DeleteInstallOperations(ctx context.Context, installedID string) error
+
+    // 系统操作追踪
+    SaveSystemOperation(ctx context.Context, op *SystemOperation) error
+    GetSystemOperations(ctx context.Context, installedID string) ([]*SystemOperation, error)
+    DeleteSystemOperations(ctx context.Context, installedID string) error
+
+    Close() error
+}
+```
+
+### 2.4 Installer - 安装器
+
+```go
+type Installer interface {
+    Install(ctx context.Context, app *manifest.App, opts InstallOptions) error
+    Uninstall(ctx context.Context, name string, opts UninstallOptions) error
+    Refresh(ctx context.Context, app *manifest.App, installed *manifest.InstalledApp, opts RefreshOptions) error
+    Switch(ctx context.Context, name, version string) error
+}
+```
+
+## 3. 数据模型
+
+### 3.1 应用模型
+
+```go
+// App - 应用完整信息
+type App struct {
+    Script *AppScript // 脚本信息（来自 .js 文件）
+    Meta   *AppMeta   // 元数据（来自 .meta.json 文件）
+    Ref    *AppRef    // 引用信息
+}
+
+// AppScript - 应用脚本信息
+type AppScript struct {
+    Name         string       // 软件名称
+    Description  string       // 描述
+    Homepage     string       // 主页 URL
+    License      string       // 许可证
+    Category     string       // 分类
+    Tags         []string     // 标签
+    Maintainer   string       // 维护者
+    Bucket       string       // 所属软件源
+    Dependencies []Dependency // 依赖列表
+}
+
+// Dependency - 依赖定义
+type Dependency struct {
+    Name       string            // 依赖应用名称
+    Version    string            // 版本约束（如 ">=1.0.0"）
+    Optional   bool              // 是否为可选依赖
+    Conditions map[string]string // 安装条件
+}
+
+// AppMeta - 应用元数据
+type AppMeta struct {
+    Version  string                 // 当前版本
+    Versions map[string]VersionInfo // 所有版本信息
+}
+
+// VersionInfo - 版本信息
+type VersionInfo struct {
+    Version    string                  // 版本号
+    ReleasedAt time.Time               // 发布时间
+    Downloads  map[string]DownloadInfo // 各架构下载信息
+}
+
+// DownloadInfo - 下载信息
+type DownloadInfo struct {
+    URL  string // 下载地址
+    Hash string // 校验和
+    Size int64  // 文件大小
+    Type string // 压缩类型
+}
+
+// AppRef - 应用引用（索引用）
+type AppRef struct {
+    Name        string   // 名称
+    Description string   // 描述
+    Version     string   // 最新版本
+    Category    string   // 分类
+    Tags        []string // 标签
+    ScriptPath  string   // 脚本文件路径
+    MetaPath    string   // 元数据文件路径
+}
+
+// InstalledApp - 已安装应用
+type InstalledApp struct {
+    Name        string    // 名称
+    Version     string    // 版本
+    Bucket      string    // 所属软件源
+    InstallDir  string    // 安装目录
+    InstalledAt time.Time // 安装时间
+    UpdatedAt   time.Time // 更新时间
+}
+```
+
+### 3.2 软件源模型
+
+```go
+// BucketConfig - 软件源配置
+type BucketConfig struct {
+    ID          string         // 标识符
+    Name        string         // 显示名称
+    Author      string         // 作者
+    Description string         // 描述
+    Homepage    string         // 主页
+    License     string         // 许可证
+    Repository  RepositoryInfo // 仓库信息
+}
+
+// RepositoryInfo - 仓库信息
+type RepositoryInfo struct {
+    Type   string // 类型（git, svn 等）
+    URL    string // 地址
+    Branch string // 分支
+}
+
+// Bucket - 软件源完整信息
+type Bucket struct {
+    Config      BucketConfig       // 配置
+    Path        string             // 本地路径
+    Apps        map[string]*AppRef // 应用索引
+    LastUpdated time.Time          // 最后更新时间
+}
+```
+
+## 4. 数据存储
+
+### 4.1 存储架构
+
+Chopsticks 采用混合存储架构：
+
+| 数据类型   | 存储位置                        | 格式       |
+| ---------- | ------------------------------- | ---------- |
+| 已安装应用 | `data.db` (SQLite)              | 数据库表   |
+| 软件源配置 | `buckets/{id}/bucket.json`      | JSON       |
+| 应用脚本   | `buckets/{id}/apps/*.js`        | JavaScript |
+| 应用元数据 | `buckets/{id}/apps/*.meta.json` | JSON       |
+| 下载缓存   | `cache/downloads/`              | 二进制文件 |
+| 持久化数据 | `persist/{app}/`                | 任意格式   |
+
+### 4.2 数据库 Schema (data.db)
 
 ```sql
--- buckets 表
-CREATE TABLE buckets (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    url TEXT NOT NULL,
-    branch TEXT DEFAULT 'main',
-    added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    local_path TEXT
-);
-
--- installed 表
+-- installed 表 - 已安装软件
 CREATE TABLE installed (
     id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE,
     version TEXT NOT NULL,
     bucket_id TEXT NOT NULL,
-    cook_dir TEXT NOT NULL,
+    install_dir TEXT NOT NULL,
     installed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (bucket_id) REFERENCES buckets(id)
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- operations 表
-CREATE TABLE operations (
+-- install_operations 表 - 安装操作记录
+CREATE TABLE install_operations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    app_id TEXT NOT NULL,
+    installed_id TEXT NOT NULL,
     operation_type TEXT NOT NULL,
-    details TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    target_path TEXT,
+    target_value TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (installed_id) REFERENCES installed(id) ON DELETE CASCADE
+);
+
+-- system_operations 表 - 系统操作记录
+CREATE TABLE system_operations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    installed_id TEXT NOT NULL,
+    operation_type TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_path TEXT,
+    target_key TEXT,
+    target_value TEXT,
+    original_value TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (installed_id) REFERENCES installed(id) ON DELETE CASCADE
 );
 ```
 
----
+## 5. 核心流程
 
-### Layer 4: Engine Layer (engine/)
-
-引擎层负责脚本执行环境，向 JavaScript 脚本暴露系统能力。
-
-#### 4.1 JS Engine (Goja)
-
-```go
-// engine/js_engine.go
-type JSEngine struct {
-    vm   *goja.Runtime
-    pool *JSEnginePool
-}
-
-// engine/js_pool.go
-type JSEnginePool struct {
-    engines chan *JSEngine
-    maxSize int
-    minSize int
-    cache   *ScriptCache
-}
-```
-
-**特性**:
-
-- 引擎复用减少 80% 初始化时间
-- 动态扩缩容适应负载
-- 脚本缓存和预编译
-
-#### 4.2 Engine API 模块 (13个)
-
-| 模块          | 文件                               | 功能描述                |
-| ------------- | ---------------------------------- | ----------------------- |
-| `fsutil`      | `engine/fsutil/fsutil.go`          | 文件读写、目录操作      |
-| `fetch`       | `engine/fetch/fetch.go`            | HTTP 请求、文件下载     |
-| `execx`       | `engine/execx/execx.go`            | 命令执行                |
-| `archive`     | `engine/archive/archive.go`        | 压缩解压 (zip/7z/tar)   |
-| `checksum`    | `engine/checksum/checksum.go`      | 校验和验证 (SHA256/MD5) |
-| `pathx`       | `engine/pathx/pathx.go`            | 路径操作                |
-| `logx`        | `engine/logx/logx.go`              | 日志记录                |
-| `jsonx`       | `engine/jsonx/json.go`             | JSON 处理               |
-| `symlink`     | `engine/symlink/symlink.go`        | 符号链接                |
-| `registry`    | `engine/registry/registry.go`      | Windows 注册表操作      |
-| `semver`      | `engine/semver/semver.go`          | 版本比较                |
-| `chopsticksx` | `engine/chopsticksx/chopsticks.go` | 系统 API                |
-| `installerx`  | `engine/installerx/register.go`    | 安装器处理              |
-
-**模块注册**:
-
-```go
-func (e *JSEngine) initModules() {
-    e.registerModule("fs", fsutil.New())
-    e.registerModule("fetch", fetch.New())
-    e.registerModule("exec", execx.New())
-    e.registerModule("archive", archive.New())
-    e.registerModule("checksum", checksum.New())
-    e.registerModule("path", pathx.New())
-    e.registerModule("log", logx.New())
-    e.registerModule("JSON", jsonx.New())
-    e.registerModule("symlink", symlink.New())
-    e.registerModule("registry", registry.New())
-    e.registerModule("semver", semver.New())
-    e.registerModule("chopsticks", chopsticksx.New())
-    e.registerModule("installer", installerx.New())
-}
-```
-
----
-
-### Layer 5: Infra Layer (infra/)
-
-基础设施层提供底层系统服务。
-
-#### 5.1 git/ - Git 客户端
-
-```go
-// infra/git/git.go
-type Client interface {
-    Clone(url, dest string) error
-    Pull(dir string) error
-    Fetch(dir string) error
-    Checkout(dir, branch string) error
-}
-```
-
-**实现**: 基于 `go-git/v5` 纯 Go 实现，无需外部 Git 依赖。
-
-#### 5.2 installer/ - 安装程序处理
-
-```go
-// infra/installer/installer.go
-type Handler interface {
-    Run(path string, opts Options) error
-    DetectType(path string) InstallerType
-}
-
-type InstallerType string
-const (
-    NSIS  InstallerType = "nsis"
-    MSI   InstallerType = "msi"
-    Inno  InstallerType = "inno"
-    Unknown InstallerType = "unknown"
-)
-
-type Options struct {
-    InstallDir string
-    Silent     bool
-}
-```
-
-**支持类型**:
-
-- **NSIS** - Nullsoft Scriptable Install System
-- **MSI** - Windows Installer
-- **Inno Setup** - Inno Setup 安装程序
-
----
-
-## 系统架构图
-
-### Mermaid 架构图
-
-```mermaid
-graph TB
-    subgraph CLI["CLI Layer (cmd/chopsticks/cli)"]
-        CMD[Command Handler]
-        INSTALL[install<br/>--workers]
-        UNINSTALL[uninstall]
-        UPDATE[update]
-        SEARCH[search]
-        LIST[list]
-        BUCKET[bucket]
-        CONFIG[config]
-        CONFLICT[conflict]
-        PERF[perf<br/>monitor/status/report]
-    end
-
-    subgraph PERF_LAYER["Performance Layer (pkg/)"]
-        DISPATCHER[SmartDispatcher<br/>scheduler/]
-        DOWNLOADER[AdaptiveDownloader<br/>download/]
-        PIPELINE[Pipeline<br/>pipeline/]
-        METRICS[MetricsCollector<br/>metrics/]
-        PARALLEL[ParallelDownloader<br/>parallel/]
-        OUTPUT[Output Formatter<br/>output/]
-    end
-
-    subgraph CORE["Core Layer (core/)"]
-        subgraph APP["app/"]
-            APP_MGR[App Manager]
-            INSTALLER[Installer]
-            LAYERED[Layered Installer]
-            UPDATER[Updater]
-            UNINSTALLER[Uninstaller]
-        end
-        subgraph BUCKET["bucket/"]
-            BUCKET_MGR[Bucket Manager]
-            P_SEARCHER[Parallel Searcher]
-            B_UPDATER[Updater]
-        end
-        subgraph STORE["store/"]
-            STORAGE[Storage Interface]
-            SQLITE[(SQLite)]
-        end
-    end
-
-    subgraph ENGINE["Engine Layer (engine/)"]
-        JS[JS Engine<br/>goja]
-        POOL[JSEnginePool]
-        subgraph API["13 API Modules"]
-            FS[fsutil]
-            FETCH[fetch]
-            EXEC[execx]
-            ARCH[archive]
-            CHECK[checksum]
-            PATH[pathx]
-            LOG[logx]
-            JSON[jsonx]
-            SYM[symlink]
-            REG[registry]
-            SEM[semver]
-            CHOP[chopsticksx]
-            INST[installerx]
-        end
-    end
-
-    subgraph INFRA["Infra Layer (infra/)"]
-        GIT[Git Client<br/>go-git/v5]
-        INST_HANDLER[Installer Handler]
-    end
-
-    CMD --> INSTALL & UNINSTALL & UPDATE & SEARCH & LIST & BUCKET & CONFIG & CONFLICT & PERF
-
-    INSTALL & UPDATE --> DISPATCHER
-    SEARCH --> P_SEARCHER
-    PERF --> METRICS
-
-    DISPATCHER --> POOL & DOWNLOADER & PIPELINE
-    P_SEARCHER --> BUCKET_MGR
-
-    INSTALL --> APP_MGR
-    UNINSTALL --> UNINSTALLER
-    UPDATE --> UPDATER
-    BUCKET --> BUCKET_MGR
-    LIST --> STORAGE
-
-    APP_MGR --> INSTALLER & UPDATER & LAYERED
-    BUCKET_MGR --> GIT
-
-    INSTALLER & UNINSTALLER & UPDATER --> JS
-    JS --> API
-    API --> FS & FETCH & EXEC & ARCH & CHECK & PATH & LOG & JSON & SYM & REG & SEM & CHOP & INST
-
-    APP_MGR & BUCKET_MGR --> STORAGE
-    STORAGE --> SQLITE
-
-    LAYERED --> DISPATCHER
-    INST --> INST_HANDLER
-```
-
----
-
-## 性能优化架构
-
-### 并行处理系统架构
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Performance Layer (pkg/)                            │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                     SmartDispatcher (scheduler/)                    │   │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌────────────┐  │   │
-│  │  │  IO Tasks   │  │  CPU Tasks  │  │   JS Tasks  │  │ Mixed Tasks│  │   │
-│  │  │  max: 16    │  │  max: CPU   │  │   max: 4    │  │  combined  │  │   │
-│  │  │  semaphore  │  │  semaphore  │  │  semaphore  │  │  semaphore │  │   │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘  └────────────┘  │   │
-│  │                                                                     │   │
-│  │  ┌─────────────────────────────────────────────────────────────┐   │   │
-│  │  │              Adaptive Concurrency Control                   │   │   │
-│  │  │  - Memory-based adjustment                                  │   │   │
-│  │  │  - 10s adjustment interval                                  │   │   │
-│  │  └─────────────────────────────────────────────────────────────┘   │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                    AdaptiveDownloader (download/)                   │   │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌────────────┐  │   │
-│  │  │   Chunk 1   │  │   Chunk 2   │  │   Chunk 3   │  │  Chunk N   │  │   │
-│  │  │  [======>   │  │  [======>   │  │  [======>   │  │  [======>  │  │   │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘  └────────────┘  │   │
-│  │                                                                     │   │
-│  │  ┌─────────────────────────────────────────────────────────────┐   │   │
-│  │  │              Bandwidth Monitor & Adaptive Control           │   │   │
-│  │  │  - Dynamic connection adjustment                            │   │   │
-│  │  │  - Resume support                                           │   │   │
-│  │  └─────────────────────────────────────────────────────────────┘   │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                      Pipeline Framework (pipeline/)                 │   │
-│  │                                                                     │   │
-│  │   Input ──► [Download] ──► [Verify] ──► [Extract] ──► [Install]    │   │
-│  │              │               │             │            │          │   │
-│  │              ▼               ▼             ▼            ▼          │   │
-│  │           Parallel         Parallel     Parallel     Parallel      │   │
-│  │                                                                     │   │
-│  │  ┌─────────────────────────────────────────────────────────────┐   │   │
-│  │  │              Backpressure & Error Policy                    │   │   │
-│  │  └─────────────────────────────────────────────────────────────┘   │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                   Metrics Collector (metrics/)                      │   │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌────────────┐  │   │
-│  │  │   Tasks     │  │  Resources  │  │    JS Pool  │  │  Download  │  │   │
-│  │  │  submit/    │  │  memory/    │  │  util/cache │  │  speed/    │  │   │
-│  │  │  complete   │  │  goroutines │  │  hit rate   │  │  active    │  │   │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘  └────────────┘  │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### 性能优化成果
-
-| 场景                   | 优化前 | 优化后 | 提升倍数 |
-| ---------------------- | ------ | ------ | -------- |
-| 批量安装 10 个独立应用 | 60s    | 10s    | **6x**   |
-| 安装带 5 层依赖的应用  | 45s    | 15s    | **3x**   |
-| 搜索 10 个 bucket      | 2s     | 0.3s   | **6.7x** |
-| 下载 100MB 文件        | 50s    | 10s    | **5x**   |
-| 批量更新 20 个应用     | 60s    | 12s    | **5x**   |
-| 执行 10 个 JS 脚本     | 25s    | 8s     | **3x**   |
-
----
-
-## 核心模块
-
-### 应用生命周期
-
-```mermaid
-graph TD
-    A[用户命令] --> B{CLI 解析}
-    B -->|install| C[App Manager]
-    B -->|update| C
-    B -->|uninstall| C
-
-    C --> E[SmartDispatcher]
-
-    E --> G[Pipeline]
-
-    G --> H[下载阶段]
-    H --> I[校验阶段]
-    I --> J[解压阶段]
-    J --> K[安装阶段]
-
-    K --> L[JS Engine]
-    L --> M[生命周期钩子]
-
-    M --> N[onPreInstall]
-    N --> O[onInstall]
-    O --> P[onPostInstall]
-
-    P --> Q[Store 持久化]
-    Q --> R[返回结果]
-```
-
-### 生命周期钩子
-
-```mermaid
-graph LR
-    A[开始] --> B[onPreDownload]
-    B --> C[下载]
-    C --> D[onPostDownload]
-    D --> E[onPreExtract]
-    E --> F[解压]
-    F --> G[onPostExtract]
-    G --> H[onPreInstall]
-    H --> I[onInstall]
-    I --> J[onPostInstall]
-    J --> K[完成]
-```
-
----
-
-## 数据流
-
-### 安装流程
+### 5.1 应用安装流程
 
 ```mermaid
 sequenceDiagram
     participant User
     participant CLI
-    participant Dispatcher as SmartDispatcher
-    participant Pipeline as Pipeline
-    participant AppMgr as App Manager
-    participant Engine as JS Engine
-    participant Store as Storage
-    participant Downloader as AdaptiveDownloader
+    participant AppMgr as AppManager
+    participant Installer
+    participant BucketMgr as BucketManager
+    participant Storage
 
-    User->>CLI: chopsticks install git
-    CLI->>Dispatcher: Dispatch Install Task
-    Dispatcher->>AppMgr: Install(spec, opts)
+    User->>CLI: chopsticks install app
+    CLI->>AppMgr: Install(spec, opts)
 
-    AppMgr->>Engine: LoadScript(app.Path)
-    Engine-->>AppMgr: 脚本加载完成
+    AppMgr->>BucketMgr: GetApp(bucket, name)
+    BucketMgr-->>AppMgr: App
 
-    AppMgr->>Engine: CallFunction("checkVersion")
-    Engine-->>AppMgr: "2.43.0"
+    AppMgr->>AppMgr: ResolveDependencies()
 
-    AppMgr->>Engine: CallFunction("getDownloadInfo")
-    Engine-->>AppMgr: {url, checksum, type}
+    loop 安装依赖
+        AppMgr->>Installer: Install(depApp, opts)
+        Installer->>Storage: SaveInstalledApp()
+    end
 
-    AppMgr->>Pipeline: Execute Pipeline
+    AppMgr->>Installer: Install(app, opts)
+    Installer->>Installer: Download()
+    Installer->>Installer: Verify()
+    Installer->>Installer: Extract()
+    Installer->>Installer: ExecuteHooks()
+    Installer->>Storage: SaveInstalledApp()
 
-    Pipeline->>Downloader: Download(url, dest)
-    Downloader-->>Pipeline: 下载完成
-
-    Pipeline->>Pipeline: Verify Checksum
-    Pipeline->>Pipeline: Extract Archive
-
-    Pipeline->>Engine: CallFunction("onInstall", ctx)
-    Engine-->>Pipeline: 安装完成
-
-    Pipeline-->>AppMgr: Pipeline Complete
-    AppMgr->>Store: SaveInstalled(app)
-    Store-->>AppMgr: 保存完成
-
-    AppMgr-->>Dispatcher: Task Complete
-    Dispatcher-->>CLI: All Tasks Complete
-    CLI-->>User: 显示成功消息
+    AppMgr-->>CLI: 完成
+    CLI-->>User: 显示结果
 ```
 
-### 软件源更新流程
+### 5.2 软件源管理流程
 
 ```mermaid
 sequenceDiagram
     participant User
     participant CLI
-    participant Dispatcher as SmartDispatcher
-    participant BucketMgr as Bucket Manager
-    participant Git as Git Client
-    participant Store as Storage
+    participant BucketMgr as BucketManager
+    participant Git
+    participant FS as FileSystem
 
-    User->>CLI: chopsticks bucket update
-    CLI->>Dispatcher: Dispatch Update Tasks
+    User->>CLI: chopsticks bucket add name url
+    CLI->>BucketMgr: Add(name, url)
 
-    BucketMgr->>Store: ListBuckets()
-    Store-->>BucketMgr: [Bucket1, Bucket2, ...]
+    BucketMgr->>Git: Clone(url, path)
+    Git-->>BucketMgr: 完成
 
-    par 并行更新每个 Bucket
-        BucketMgr->>Git: Pull(bucket.Path)
-        Git-->>BucketMgr: 更新完成
-        BucketMgr->>BucketMgr: 扫描 apps/ 目录
-        BucketMgr->>Store: SaveBucket(bucket)
+    BucketMgr->>FS: Write bucket.json
+
+    BucketMgr-->>CLI: 完成
+    CLI-->>User: 显示结果
+```
+
+### 5.3 搜索流程
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI
+    participant AppMgr as AppManager
+    participant BucketMgr as BucketManager
+    participant FS as FileSystem
+
+    User->>CLI: chopsticks search query
+    CLI->>AppMgr: Search(query)
+
+    AppMgr->>BucketMgr: ListBuckets()
+    BucketMgr->>FS: Scan buckets/
+    FS-->>BucketMgr: bucket list
+
+    par 并行搜索
+        BucketMgr->>FS: Read bucket.json
+        BucketMgr->>FS: Scan apps/
     end
 
-    BucketMgr-->>Dispatcher: All Updates Complete
-    Dispatcher-->>CLI: 更新完成
-    CLI-->>User: 显示更新结果
+    BucketMgr-->>AppMgr: SearchResults
+    AppMgr-->>CLI: 结果
+    CLI-->>User: 显示结果
 ```
 
----
+## 6. JavaScript 引擎
 
-## 技术选型
+### 6.1 引擎架构
 
-### 编程语言
-
-| 语言       | 用途       | 版本   |
-| ---------- | ---------- | ------ |
-| Go         | 主开发语言 | 1.25.6 |
-| JavaScript | 应用脚本   | ES6+   |
-
-### 核心依赖
-
-| 库                                 | 用途             | 版本                  |
-| ---------------------------------- | ---------------- | --------------------- |
-| `github.com/dop251/goja`           | JavaScript 引擎  | v0.0.0-20260226184354 |
-| `github.com/go-git/go-git/v5`      | Git 操作         | v5.17.0               |
-| `modernc.org/sqlite`               | SQLite 数据库    | v1.46.1               |
-| `github.com/ulikunitz/xz`          | XZ 压缩支持      | v0.5.15               |
-| `golang.org/x/sys`                 | Windows 系统调用 | v0.41.0               |
-| `github.com/urfave/cli/v2`         | CLI 框架         | v2.27.7               |
-| `github.com/vbauerster/mpb/v8`     | 多进度条显示     | v8.12.0               |
-| `github.com/fatih/color`           | 终端彩色输出     | v1.18.0               |
-| `golang.org/x/sync`                | 并发任务管理     | v0.19.0               |
-| `gopkg.in/yaml.v3`                 | YAML 解析        | v3.0.1                |
-| `gopkg.in/natefinch/lumberjack.v2` | 日志轮转         | v2.2.1                |
-
-### 选型理由
-
-1. **Go 1.25.6**: 编译型语言，单文件部署，跨平台，丰富的标准库，原生协程支持高并发
-2. **Goja**: 纯 Go 实现的 JavaScript 引擎，无需 CGO，性能优秀，与 Go 无缝集成
-3. **go-git/v5**: 纯 Go 实现的 Git 客户端，无需外部 Git 依赖，支持所有常用操作
-4. **modernc.org/sqlite**: 纯 Go SQLite 驱动，无需 CGO，支持 Windows/Linux/macOS
-5. **urfave/cli/v2**: 成熟的 Go CLI 框架，支持子命令、Flag 解析、自动补全
-6. **mpb/v8**: 功能强大的多进度条库，支持并发、自定义装饰器
-7. **fatih/color**: 流行的终端颜色库，自动检测颜色支持，跨平台兼容
-
----
-
-## 扩展机制
-
-### 1. 脚本扩展
-
-应用通过 JavaScript 脚本定义安装逻辑：
-
-```javascript
-// apps/git.js
-class GitApp extends App {
-  constructor() {
-    super({
-      name: "git",
-      description: "Distributed version control system",
-      homepage: "https://git-scm.com/",
-      license: "GPL-2.0",
-    });
-  }
-
-  checkVersion() {
-    // 同步检查版本（Go 层自动处理并发）
-    const response = fetch.get(
-      "https://api.github.com/repos/git-for-windows/git/releases/latest",
-    );
-    const data = JSON.parse(response.body);
-    return data.tag_name.replace(/^v/, "");
-  }
-
-  getDownloadInfo(version, arch) {
-    // 同步获取下载信息（Go 层自动处理并发）
-    const archMap = { amd64: "64-bit", x86: "32-bit" };
-    const filename = `PortableGit-${version}-${archMap[arch]}.7z.exe`;
-    return {
-      url: `https://github.com/.../${filename}`,
-      checksum: "sha256:...",
-      type: "7z",
-    };
-  }
-
-  onInstall(ctx) {
-    // 同步安装逻辑（Go 层自动处理并发）
-    const { cookDir } = ctx;
-    path.addToPath(path.join(cookDir, "bin"));
-  }
-}
-
-module.exports = new GitApp();
-```
-
-### 2. 自定义 Bucket
-
-软件源是标准的 Git 仓库，结构如下：
+Chopsticks 使用 Goja (纯 Go JavaScript 引擎) 执行应用安装脚本。
 
 ```
-bucket/
-├── bucket.json          # 软件源配置
-├── apps/
-│   ├── _chopsticks_.js  # 基类定义
-│   ├── _tools_.js       # 共享工具
-│   └── *.js             # 应用脚本
-└── .gitignore
+┌─────────────────────────────────────────┐
+│           JS Engine (Goja)              │
+├─────────────────────────────────────────┤
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐   │
+│  │  fsutil │ │  fetch  │ │  execx  │   │
+│  └─────────┘ └─────────┘ └─────────┘   │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐   │
+│  │ archive │ │ checksum│ │  pathx  │   │
+│  └─────────┘ └─────────┘ └─────────┘   │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐   │
+│  │  logx   │ │  jsonx  │ │ symlink │   │
+│  └─────────┘ └─────────┘ └─────────┘   │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐   │
+│  │registry │ │ semver  │ │chopsticks│   │
+│  └─────────┘ └─────────┘ └─────────┘   │
+│  ┌─────────┐                            │
+│  │installer│                            │
+│  └─────────┘                            │
+└─────────────────────────────────────────┘
 ```
 
----
+### 6.2 内置模块
 
-## 安全设计
+| 模块         | 功能                        |
+| ------------ | --------------------------- |
+| `fsutil`     | 文件读写、目录操作          |
+| `fetch`      | HTTP 请求、下载             |
+| `execx`      | 命令执行                    |
+| `archive`    | 压缩解压 (zip, tar, 7z)     |
+| `checksum`   | 校验和验证 (MD5, SHA256)    |
+| `pathx`      | 路径操作                    |
+| `logx`       | 日志输出                    |
+| `jsonx`      | JSON 处理                   |
+| `symlink`    | 符号链接操作                |
+| `registry`   | Windows 注册表操作          |
+| `semver`     | 语义化版本比较              |
+| `chopsticks` | 系统 API (获取架构、路径等) |
+| `installer`  | 安装程序处理                |
 
-### 1. 脚本沙箱
+## 7. 目录结构
 
-- 脚本运行在受限的引擎环境中
-- 只能通过暴露的 API 访问系统资源
-- 禁止直接执行系统调用
+```
+chopsticks/
+├── cmd/                    # 程序入口
+│   ├── main.go            # 主函数
+│   └── cli/               # CLI 命令
+│       ├── root.go
+│       ├── install.go
+│       ├── search.go
+│       └── ...
+├── core/                   # 核心业务逻辑
+│   ├── app/               # 应用管理
+│   │   ├── manager.go
+│   │   ├── install.go
+│   │   └── installer.go
+│   ├── bucket/            # 软件源管理
+│   │   ├── bucket.go
+│   │   ├── loader.go
+│   │   └── parallel_search.go
+│   ├── manifest/          # 数据结构
+│   │   ├── app.go
+│   │   └── bucket.go
+│   ├── store/             # 数据存储
+│   │   └── storage.go
+│   └── conflict/          # 冲突检测
+│       └── detector.go
+├── engine/                 # JS 引擎
+│   ├── engine.go
+│   ├── js_engine.go
+│   ├── js_pool.go
+│   ├── js_batch.go
+│   └── */register.go      # 模块注册
+├── infra/                  # 基础设施
+│   ├── git/               # Git 客户端
+│   │   └── git.go
+│   └── installer/         # 安装程序处理
+│       └── installer.go
+├── pkg/                    # 通用包
+│   ├── config/            # 配置管理
+│   ├── download/          # 下载功能
+│   ├── errors/            # 错误处理
+│   ├── metrics/           # 性能监控
+│   ├── output/            # 输出格式化
+│   └── parallel/          # 并行处理
+└── wiki/                   # 文档
+    ├── ARCHITECTURE.md    # 本文件
+    ├── design/            # 设计文档
+    └── user/              # 用户文档
+```
 
-### 2. 下载验证
+## 8. 依赖列表
 
-- 支持 SHA256/MD5 校验和验证
-- 可配置是否启用验证（默认启用）
-- 验证失败时阻止安装
+| 依赖                              | 用途            | 版本                  |
+| --------------------------------- | --------------- | --------------------- |
+| `github.com/dop251/goja`          | JavaScript 引擎 | v0.0.0-20260226184354 |
+| `github.com/go-git/go-git/v5`     | Git 操作        | v5.17.0               |
+| `modernc.org/sqlite`              | SQLite 数据库   | v1.46.1               |
+| `github.com/spf13/cobra`          | CLI 框架        | v1.10.2               |
+| `github.com/ulikunitz/xz`         | XZ 压缩         | v0.5.15               |
+| `golang.org/x/sync`               | 并发工具        | v0.19.0               |
+| `github.com/google/uuid`          | UUID 生成       | v1.6.0                |
+| `github.com/natefinch/lumberjack` | 日志轮转        | v2.0.0                |
 
-### 3. 权限控制
+## 9. 设计原则
 
-- 所有操作在用户级别执行
-- 注册表操作限制在 HKCU
-- 不修改系统关键文件
+### 9.1 文件系统优先
 
-### 4. 操作追踪
+- 软件源配置存储在 `bucket.json`，而非数据库
+- 应用信息通过扫描文件系统获取
+- 版本信息通过目录结构确定
 
-- 自动记录所有系统操作（PATH、注册表等）
-- 卸载时精确清理，不影响其他软件
+### 9.2 同步优先
 
----
+- 核心功能使用同步函数
+- 调用方通过 `errgroup` 控制并发
+- 避免在函数内部隐藏并发逻辑
 
-_最后更新: 2026-03-01_  
-_架构版本: v2.0_  
-_软件版本: v0.10.0-alpha_
+### 9.3 纯 Go 实现
+
+- 零 CGO 依赖
+- 使用 Goja 替代 V8/QuickJS
+- 使用 go-git 替代系统 Git
+- 使用 modernc/sqlite 替代 CGO SQLite
+
+### 9.4 接口隔离
+
+- 每个模块定义清晰的接口
+- 通过构造函数注入依赖
+- 便于测试和 mock
+
+## 10. 扩展点
+
+### 10.1 添加新的 JS 模块
+
+1. 在 `engine/` 下创建新目录
+2. 实现 `JSRegistrar` 接口
+3. 在 `engine/register.go` 注册模块
+
+### 10.2 添加新的安装器类型
+
+1. 实现 `Installer` 接口
+2. 在 `core/app/app.go` 中配置使用
+
+### 10.3 添加新的存储后端
+
+1. 实现 `Storage` 接口
+2. 在 `core/app/app.go` 中配置使用

@@ -586,8 +586,8 @@ sequenceDiagram
     participant A as apps/
 
     U->>C: chopsticks sync install
-    C->>D: 读取 buckets 表
     C->>D: 读取 installed 表
+    C->>B: 扫描软件源目录(bucket.json)
     C->>B: 克隆/更新软件源
     loop 遍历已安装软件
         C->>B: 获取软件 manifest
@@ -601,11 +601,12 @@ sequenceDiagram
 
 `sync install` 命令会执行以下操作：
 
-1. **读取数据库**: 从 `data.db` 读取 `buckets` 和 `installed` 表
-2. **更新软件源**: 克隆或更新所有软件源仓库
-3. **遍历安装**: 按依赖顺序安装每个软件
-4. **冲突处理**: 根据策略处理版本冲突
-5. **记录更新**: 更新数据库中的安装记录
+1. **读取数据库**: 从 `data.db` 读取 `installed` 表
+2. **扫描软件源**: 扫描 `buckets` 目录，读取每个软件源的 `bucket.json`
+3. **更新软件源**: 克隆或更新所有软件源仓库
+4. **遍历安装**: 按依赖顺序安装每个软件
+5. **冲突处理**: 根据策略处理版本冲突
+6. **记录更新**: 更新数据库中的安装记录
 
 ### 11.7 冲突解决
 

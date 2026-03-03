@@ -713,63 +713,52 @@ class App {
 
 #### 7.1.2 表结构
 
-**buckets 表** - 软件源信息：
-
-```sql
-CREATE TABLE buckets (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    url TEXT NOT NULL,
-    branch TEXT DEFAULT 'main',
-    added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    local_path TEXT
-);
-```
-
-**apps 表** - 软件源内软件包元信息：
-
-```sql
-CREATE TABLE apps (
-    id TEXT PRIMARY KEY,
-    bucket_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    version TEXT,
-    description TEXT,
-    homepage TEXT,
-    license TEXT,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (bucket_id) REFERENCES buckets(id)
-);
-```
-
-**app_versions 表** - 软件包版本信息：
-
-```sql
-CREATE TABLE app_versions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    app_id TEXT NOT NULL,
-    version TEXT NOT NULL,
-    released_at DATETIME,
-    downloads TEXT,  -- JSON: {amd64: {url, hash, size}, x86: {...}}
-    FOREIGN KEY (app_id) REFERENCES apps(id)
-);
-```
-
 **installed 表** - 已安装软件：
 
 ```sql
 CREATE TABLE installed (
     id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE,
     version TEXT NOT NULL,
     bucket_id TEXT NOT NULL,
     cook_dir TEXT NOT NULL,
     installed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (bucket_id) REFERENCES buckets(id)
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
+
+**install_operations 表** - 安装操作记录：
+
+```sql
+CREATE TABLE install_operations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    installed_id TEXT NOT NULL,
+    operation_type TEXT NOT NULL,
+    target_path TEXT,
+    target_value TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (installed_id) REFERENCES installed(id) ON DELETE CASCADE
+);
+```
+
+**system_operations 表** - 系统操作记录：
+
+```sql
+CREATE TABLE system_operations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    installed_id TEXT NOT NULL,
+    operation_type TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_path TEXT,
+    target_key TEXT,
+    target_value TEXT,
+    original_value TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (installed_id) REFERENCES installed(id) ON DELETE CASCADE
+);
+```
+
+> **注意**: buckets、apps、app_versions 表已从 data.db 移除。软件源信息现在通过每个软件源目录下的 `bucket.json` 文件存储，应用信息通过文件系统扫描获取。
 
 ---
 
