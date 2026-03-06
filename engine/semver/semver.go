@@ -29,6 +29,13 @@ type Version struct {
 // 版本解析正则表达式
 var versionRegex = regexp.MustCompile(`^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-Za-z-.]+))?(?:\+([0-9A-Za-z-.]+))?$`)
 
+// 版本类型检测正则表达式
+var (
+	calverRegex   = regexp.MustCompile(`^(\d{4})(?:\.(\d{2}))?(?:\.(\d{2}))?$`)
+	quadRegex     = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)\.(\d+)$`)
+	buildRegex    = regexp.MustCompile(`^(?:build|r)?(\d+)$`)
+)
+
 // Parse 解析版本字符串。
 func Parse(version string) (*Version, error) {
 	version = strings.TrimPrefix(version, "v")
@@ -231,6 +238,29 @@ func parseConstraint(constraint string) (ConstraintType, string, error) {
 	}
 }
 
+// ParseConstraint 解析版本约束并返回详细信息（供 JavaScript 使用）。
+func ParseConstraint(constraint string) (ConstraintType, string, string, error) {
+	constraint = strings.TrimSpace(constraint)
+
+	switch {
+	case strings.HasPrefix(constraint, ">="):
+		return ConstraintGTE, strings.TrimSpace(constraint[2:]), ">=", nil
+	case strings.HasPrefix(constraint, "<="):
+		return ConstraintLTE, strings.TrimSpace(constraint[2:]), "<=", nil
+	case strings.HasPrefix(constraint, ">"):
+		return ConstraintGT, strings.TrimSpace(constraint[1:]), ">", nil
+	case strings.HasPrefix(constraint, "<"):
+		return ConstraintLT, strings.TrimSpace(constraint[1:]), "<", nil
+	case strings.HasPrefix(constraint, "^"):
+		return ConstraintCaret, strings.TrimSpace(constraint[1:]), "^", nil
+	case strings.HasPrefix(constraint, "~"):
+		return ConstraintTilde, strings.TrimSpace(constraint[1:]), "~", nil
+	default:
+		constraint = strings.TrimPrefix(constraint, "=")
+		return ConstraintExact, strings.TrimSpace(constraint), "=", nil
+	}
+}
+
 // Satisfies 检查版本是否满足约束。
 func Satisfies(version, constraint string) (bool, error) {
 	v, err := Parse(version)
@@ -293,4 +323,39 @@ func Satisfies(version, constraint string) (bool, error) {
 	default:
 		return false, fmt.Errorf("%w: %s", ErrInvalidVersion, constraint)
 	}
+}
+
+// Normalize 规范化版本字符串。
+func Normalize(version string) (string, error) {
+	v, err := Parse(version)
+	if err != nil {
+		return "", err
+	}
+	return v.String(), nil
+}
+
+// DetectType 检测版本类型。
+func DetectType(version string) string {
+	// 检查四段式版本 (如 10.0.26100.3194)
+	if quadRegex.MatchString(version) {
+		return "quad"
+	}
+
+	// 检查日历版本 (如 2024.03.01 或 24.09)
+	if calverRegex.MatchString(version) {
+		return "calver"
+	}
+
+	// 检查纯构建号 (如 build 12345 或 r456)
+	if buildRegex.MatchString(version) {
+		return "build"
+	}
+
+	// 检查语义化版本
+	if versionRegex.MatchString(version) {
+		return "semver"
+	}
+
+	// 回退到自定义类型
+	return "custom"
 }

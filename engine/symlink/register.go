@@ -56,17 +56,20 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 
 	symlinkObj.Set("is", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		isLink, _ := Is(path)
-		return vm.ToValue(isLink)
+		isLink, err := Is(path)
+		if err != nil {
+			return vm.ToValue(map[string]interface{}{"success": false, "isSymlink": false, "error": err.Error()})
+		}
+		return vm.ToValue(map[string]interface{}{"success": true, "isSymlink": isLink, "error": nil})
 	})
 
 	symlinkObj.Set("read", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		target, err := Read(path)
 		if err != nil {
-			return vm.ToValue(map[string]interface{}{"data": "", "error": err.Error()})
+			return vm.ToValue(map[string]interface{}{"success": false, "target": "", "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"data": target, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "target": target, "error": nil})
 	})
 
 	symlinkObj.Set("remove", func(call goja.FunctionCall) goja.Value {

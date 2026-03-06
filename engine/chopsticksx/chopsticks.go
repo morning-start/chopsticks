@@ -61,9 +61,22 @@ func (m *Module) GetCurrentVersion(name string) (string, error) {
 }
 
 // AddToPath 将路径添加到环境变量 PATH。
-func (m *Module) AddToPath(path string) error {
-	// Open user environment registry key
-	key, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.READ|registry.WRITE)
+// scope: "user" 或 "machine",默认为 "user"
+func (m *Module) AddToPath(path string, scope string) error {
+	if scope == "" {
+		scope = "user"
+	}
+
+	// Determine registry key based on scope
+	var regKey registry.Key
+	if scope == "machine" {
+		regKey = registry.LOCAL_MACHINE
+	} else {
+		regKey = registry.CURRENT_USER
+	}
+
+	// Open environment registry key
+	key, err := registry.OpenKey(regKey, `Environment`, registry.READ|registry.WRITE)
 	if err != nil {
 		return fmt.Errorf("open registry key: %w", err)
 	}
@@ -100,9 +113,22 @@ func (m *Module) AddToPath(path string) error {
 }
 
 // RemoveFromPath 从环境变量 PATH 移除路径。
-func (m *Module) RemoveFromPath(path string) error {
-	// Open user environment registry key
-	key, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.READ|registry.WRITE)
+// scope: "user" 或 "machine",默认为 "user"
+func (m *Module) RemoveFromPath(path string, scope string) error {
+	if scope == "" {
+		scope = "user"
+	}
+
+	// Determine registry key based on scope
+	var regKey registry.Key
+	if scope == "machine" {
+		regKey = registry.LOCAL_MACHINE
+	} else {
+		regKey = registry.CURRENT_USER
+	}
+
+	// Open environment registry key
+	key, err := registry.OpenKey(regKey, `Environment`, registry.READ|registry.WRITE)
 	if err != nil {
 		return fmt.Errorf("open registry key: %w", err)
 	}
@@ -145,8 +171,37 @@ func notifyEnvironmentChange() error {
 }
 
 // SetEnv 设置环境变量。
-func (m *Module) SetEnv(key, value string) error {
-	return os.Setenv(key, value)
+// scope: "user" 或 "machine",默认为 "user"
+func (m *Module) SetEnv(key, value, scope string) error {
+	if scope == "" {
+		scope = "user"
+	}
+
+	// Determine registry key based on scope
+	var regKey registry.Key
+	if scope == "machine" {
+		regKey = registry.LOCAL_MACHINE
+	} else {
+		regKey = registry.CURRENT_USER
+	}
+
+	// Open environment registry key
+	keyReg, err := registry.OpenKey(regKey, `Environment`, registry.READ|registry.WRITE)
+	if err != nil {
+		return fmt.Errorf("open registry key: %w", err)
+	}
+	defer keyReg.Close()
+
+	// Set environment variable in registry
+	if err := keyReg.SetStringValue(key, value); err != nil {
+		return fmt.Errorf("set environment variable: %w", err)
+	}
+
+	// Also set in current process
+	os.Setenv(key, value)
+
+	// Notify system environment changed
+	return notifyEnvironmentChange()
 }
 
 // GetEnv 获取环境变量。
@@ -155,9 +210,9 @@ func (m *Module) GetEnv(key string) string {
 }
 
 // CreateShim 创建命令链接（shim）。
-func (m *Module) CreateShim(source, name string) error {
+func (m *Module) CreateShim(source, name string) (string, error) {
 	if err := os.MkdirAll(m.shimsPath, 0755); err != nil {
-		return fmt.Errorf("create shims directory: %w", err)
+		return "", fmt.Errorf("create shims directory: %w", err)
 	}
 
 	shimPath := filepath.Join(m.shimsPath, name+".exe")
@@ -167,7 +222,7 @@ func (m *Module) CreateShim(source, name string) error {
 		// Remove existing shim
 		if _, err := os.Stat(shimPath); err == nil {
 			if err := os.Remove(shimPath); err != nil {
-				return fmt.Errorf("remove old shim: %w", err)
+				return "", fmt.Errorf("remove old shim: %w", err)
 			}
 		}
 
@@ -175,7 +230,7 @@ func (m *Module) CreateShim(source, name string) error {
 		if err := os.Symlink(source, shimPath); err != nil {
 			// If symlink fails, try copying file
 			if err := copyFile(source, shimPath); err != nil {
-				return fmt.Errorf("create shim: %w", err)
+				return "", fmt.Errorf("create shim: %w", err)
 			}
 		}
 	} else {
@@ -185,11 +240,12 @@ func (m *Module) CreateShim(source, name string) error {
 "%s" %%*
 `, source)
 		if err := os.WriteFile(batPath, []byte(content), 0755); err != nil {
-			return fmt.Errorf("create bat shim: %w", err)
+			return "", fmt.Errorf("create bat shim: %w", err)
 		}
+		shimPath = batPath
 	}
 
-	return nil
+	return shimPath, nil
 }
 
 // copyFile 复制文件
@@ -305,7 +361,7 @@ type ShortcutOptions struct {
 }
 
 // CreateShortcut 创建快捷方式。
-func (m *Module) CreateShortcut(opts ShortcutOptions) error {
+func (m *Module) CreateShortcut(opts ShortcutOptions) (string, error) {
 	// Get start menu path
 	startMenuPath := filepath.Join(os.Getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs")
 	shortcutPath := filepath.Join(startMenuPath, opts.Name+".lnk")
@@ -327,10 +383,10 @@ $Shortcut.Description = "%s"
 
 	cmd := exec.Command("powershell", "-Command", psScript)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("create shortcut: %w", err)
+		return "", fmt.Errorf("create shortcut: %w", err)
 	}
 
-	return nil
+	return shortcutPath, nil
 }
 
 // RemoveShortcut 移除快捷方式。
@@ -358,9 +414,22 @@ func (m *Module) GetConfigDir() string {
 }
 
 // DeleteEnv 删除环境变量。
-func (m *Module) DeleteEnv(key string) error {
-	// Open user environment registry key
-	keyReg, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.READ|registry.WRITE)
+// scope: "user" 或 "machine",默认为 "user"
+func (m *Module) DeleteEnv(key, scope string) error {
+	if scope == "" {
+		scope = "user"
+	}
+
+	// Determine registry key based on scope
+	var regKey registry.Key
+	if scope == "machine" {
+		regKey = registry.LOCAL_MACHINE
+	} else {
+		regKey = registry.CURRENT_USER
+	}
+
+	// Open environment registry key
+	keyReg, err := registry.OpenKey(regKey, `Environment`, registry.READ|registry.WRITE)
 	if err != nil {
 		return fmt.Errorf("open registry key: %w", err)
 	}
@@ -373,6 +442,9 @@ func (m *Module) DeleteEnv(key string) error {
 		}
 		return fmt.Errorf("delete environment variable: %w", err)
 	}
+
+	// Also unset in current process
+	os.Unsetenv(key)
 
 	// Notify system environment changed
 	return notifyEnvironmentChange()

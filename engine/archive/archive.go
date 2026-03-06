@@ -129,25 +129,58 @@ func Extract(src, dest string) error {
 	}
 }
 
+// ExtractWithFiles 自动检测类型并解压，返回解压的文件列表。
+func ExtractWithFiles(src, dest string) ([]string, error) {
+	typ := DetectType(src)
+	if typ == "" {
+		return nil, fmt.Errorf("%w: %s", ErrDetectArchiveType, src)
+	}
+
+	switch typ {
+	case ZIP:
+		return ExtractZipWithFiles(src, dest)
+	case TAR:
+		return ExtractTarWithFiles(src, dest)
+	case TARGZ:
+		return ExtractTarGzWithFiles(src, dest)
+	case TARXZ:
+		return ExtractTarXzWithFiles(src, dest)
+	case TARBZ2:
+		return ExtractTarBz2WithFiles(src, dest)
+	case SevenZ:
+		return Extract7zWithFiles(src, dest)
+	default:
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedArchive, typ)
+	}
+}
+
 // ExtractZip 解压 ZIP 文件。
 func ExtractZip(src, dest string) error {
+	_, err := ExtractZipWithFiles(src, dest)
+	return err
+}
+
+// ExtractZipWithFiles 解压 ZIP 文件并返回解压的文件列表。
+func ExtractZipWithFiles(src, dest string) ([]string, error) {
 	r, err := zip.OpenReader(src)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrOpenZipFile, err)
+		return nil, fmt.Errorf("%w: %w", ErrOpenZipFile, err)
 	}
 	defer r.Close()
 
 	if err := os.MkdirAll(dest, DirPerm0755); err != nil {
-		return fmt.Errorf("%w: %w", ErrCreateDestDir, err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateDestDir, err)
 	}
 
+	var extractedFiles []string
 	for _, f := range r.File {
 		if err := extractZipFile(f, dest); err != nil {
-			return fmt.Errorf("%w %s: %w", ErrExtractFile, f.Name, err)
+			return nil, fmt.Errorf("%w %s: %w", ErrExtractFile, f.Name, err)
 		}
+		extractedFiles = append(extractedFiles, f.Name)
 	}
 
-	return nil
+	return extractedFiles, nil
 }
 
 func extractZipFile(f *zip.File, dest string) error {
@@ -184,80 +217,99 @@ func extractZipFile(f *zip.File, dest string) error {
 
 // ExtractTar 解压 TAR 文件。
 func ExtractTar(src, dest string) error {
+	_, err := ExtractTarWithFiles(src, dest)
+	return err
+}
+
+// ExtractTarWithFiles 解压 TAR 文件并返回解压的文件列表。
+func ExtractTarWithFiles(src, dest string) ([]string, error) {
 	file, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrOpenTarFile, err)
+		return nil, fmt.Errorf("%w: %w", ErrOpenTarFile, err)
 	}
 	defer file.Close()
 
 	if err := os.MkdirAll(dest, DirPerm0755); err != nil {
-		return fmt.Errorf("%w: %w", ErrCreateDestDir, err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateDestDir, err)
 	}
 
 	tr := tar.NewReader(file)
-	return extractTar(tr, dest)
+	return extractTarWithFiles(tr, dest)
 }
 
 // ExtractTarGz 解压 tar.gz 文件。
 func ExtractTarGz(src, dest string) error {
+	_, err := ExtractTarGzWithFiles(src, dest)
+	return err
+}
+
+// ExtractTarGzWithFiles 解压 tar.gz 文件并返回解压的文件列表。
+func ExtractTarGzWithFiles(src, dest string) ([]string, error) {
 	file, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrOpenTarFile, err)
+		return nil, fmt.Errorf("%w: %w", ErrOpenTarFile, err)
 	}
 	defer file.Close()
 
 	gzr, err := gzip.NewReader(file)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrCreateGzipReader, err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateGzipReader, err)
 	}
 	defer gzr.Close()
 
 	if err := os.MkdirAll(dest, DirPerm0755); err != nil {
-		return fmt.Errorf("%w: %w", ErrCreateDestDir, err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateDestDir, err)
 	}
 
 	tr := tar.NewReader(gzr)
-	return extractTar(tr, dest)
+	return extractTarWithFiles(tr, dest)
 }
 
 func extractTar(tr *tar.Reader, dest string) error {
+	_, err := extractTarWithFiles(tr, dest)
+	return err
+}
+
+func extractTarWithFiles(tr *tar.Reader, dest string) ([]string, error) {
+	var extractedFiles []string
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		path := filepath.Join(dest, header.Name)
 
 		// 安全检查：防止路径穿越
 		if !strings.HasPrefix(path, filepath.Clean(dest)+string(os.PathSeparator)) {
-			return fmt.Errorf("%w: %s", ErrIllegalFilePath, header.Name)
+			return nil, fmt.Errorf("%w: %s", ErrIllegalFilePath, header.Name)
 		}
 
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(path, os.FileMode(header.Mode)); err != nil {
-				return err
+				return nil, err
 			}
 		case tar.TypeReg:
 			if err := os.MkdirAll(filepath.Dir(path), DirPerm0755); err != nil {
-				return err
+				return nil, err
 			}
 			out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(header.Mode))
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if _, err := io.Copy(out, tr); err != nil {
 				out.Close()
-				return err
+				return nil, err
 			}
 			out.Close()
 		}
+		extractedFiles = append(extractedFiles, header.Name)
 	}
-	return nil
+	return extractedFiles, nil
 }
 
 // ListZip 列出 ZIP 文件内容。
@@ -319,40 +371,52 @@ func IsArchive(path string) bool {
 
 // ExtractTarXz 解压 tar.xz 文件。
 func ExtractTarXz(src, dest string) error {
+	_, err := ExtractTarXzWithFiles(src, dest)
+	return err
+}
+
+// ExtractTarXzWithFiles 解压 tar.xz 文件并返回解压的文件列表。
+func ExtractTarXzWithFiles(src, dest string) ([]string, error) {
 	file, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrOpenTarFile, err)
+		return nil, fmt.Errorf("%w: %w", ErrOpenTarFile, err)
 	}
 	defer file.Close()
 
 	xzr, err := xz.NewReader(file)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrCreateXzReader, err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateXzReader, err)
 	}
 
 	if err := os.MkdirAll(dest, DirPerm0755); err != nil {
-		return fmt.Errorf("%w: %w", ErrCreateDestDir, err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateDestDir, err)
 	}
 
 	tr := tar.NewReader(xzr)
-	return extractTar(tr, dest)
+	return extractTarWithFiles(tr, dest)
 }
 
 // ExtractTarBz2 解压 tar.bz2 文件。
 func ExtractTarBz2(src, dest string) error {
+	_, err := ExtractTarBz2WithFiles(src, dest)
+	return err
+}
+
+// ExtractTarBz2WithFiles 解压 tar.bz2 文件并返回解压的文件列表。
+func ExtractTarBz2WithFiles(src, dest string) ([]string, error) {
 	file, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrOpenTarFile, err)
+		return nil, fmt.Errorf("%w: %w", ErrOpenTarFile, err)
 	}
 	defer file.Close()
 
 	if err := os.MkdirAll(dest, DirPerm0755); err != nil {
-		return fmt.Errorf("%w: %w", ErrCreateDestDir, err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateDestDir, err)
 	}
 
 	bzr := bzip2.NewReader(file)
 	tr := tar.NewReader(bzr)
-	return extractTar(tr, dest)
+	return extractTarWithFiles(tr, dest)
 }
 
 // findSevenZip 查找 7z 可执行文件路径
@@ -380,22 +444,45 @@ func findSevenZip() (string, error) {
 
 // Extract7z 解压 7z 文件。
 func Extract7z(src, dest string) error {
+	_, err := Extract7zWithFiles(src, dest)
+	return err
+}
+
+// Extract7zWithFiles 解压 7z 文件并返回解压的文件列表。
+func Extract7zWithFiles(src, dest string) ([]string, error) {
 	sevenZipPath, err := findSevenZip()
 	if err != nil {
-		return fmt.Errorf("%w: please ensure 7-Zip is installed and added to PATH", err)
+		return nil, fmt.Errorf("%w: please ensure 7-Zip is installed and added to PATH", err)
 	}
 
 	// 创建目标目录
 	if err := os.MkdirAll(dest, DirPerm0755); err != nil {
-		return fmt.Errorf("%w: %w", ErrCreateDestDir, err)
+		return nil, fmt.Errorf("%w: %w", ErrCreateDestDir, err)
 	}
 
-	// 使用 7z 命令解压
+	// 使用 7z 命令解压，并获取输出以提取文件列表
 	cmd := exec.Command(sevenZipPath, "x", "-y", "-o"+dest, src)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%w: %w\noutput: %s", ErrSevenZipExtract, err, string(output))
+		return nil, fmt.Errorf("%w: %w\noutput: %s", ErrSevenZipExtract, err, string(output))
 	}
 
-	return nil
+	// 解析 7z 输出以提取文件列表
+	// 7z 输出格式通常包含 "Extracting  filename" 这样的行
+	var extractedFiles []string
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "Extracting  ") {
+			// 移除前缀，获取文件名
+			fileName := strings.TrimPrefix(line, "- ")
+			fileName = strings.TrimPrefix(fileName, "Extracting  ")
+			fileName = strings.TrimSpace(fileName)
+			if fileName != "" {
+				extractedFiles = append(extractedFiles, fileName)
+			}
+		}
+	}
+
+	return extractedFiles, nil
 }

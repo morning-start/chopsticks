@@ -110,8 +110,8 @@ func installSingle(ctx context.Context, mgr app.AppManager, name, version, bucke
 	fmt.Println()
 
 	opts := app.InstallOptions{
-		Arch:  arch,
-		Force: force,
+		Arch:    arch,
+		Force:   force,
 		Isolate: isolate,
 		NoDeps:  noDeps,
 	}
@@ -237,7 +237,7 @@ func parseAppSpec(spec string) (name, version string) {
 }
 
 // showInstallPreview 显示安装预览
-func showInstallPreview(ctx context.Context, mgr app.AppManager, name, version, bucket, arch string) error {
+func showInstallPreview(_ context.Context, _ app.AppManager, name, version, bucket, arch string) error {
 	output.Infoln("========================================")
 	output.Infoln("安装预览")
 	output.Infoln("========================================")

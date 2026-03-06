@@ -31,10 +31,11 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 			}
 		}
 
-		if err := installer.Run(path, opts); err != nil {
-			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
+		exitCode, err := installer.Run(path, opts)
+		if err != nil {
+			return vm.ToValue(map[string]interface{}{"success": false, "exitCode": exitCode, "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "exitCode": exitCode, "error": nil})
 	})
 
 	instObj.Set("runNSIS", func(call goja.FunctionCall) goja.Value {
@@ -54,13 +55,14 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 
 		typ := installer.DetectType(path)
 		if typ != installer.NSIS {
-			return vm.ToValue(map[string]interface{}{"success": false, "error": "不是有效的 NSIS 安装程序"})
+			return vm.ToValue(map[string]interface{}{"success": false, "exitCode": 1, "error": "不是有效的 NSIS 安装程序"})
 		}
 
-		if err := installer.Run(path, opts); err != nil {
-			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
+		exitCode, err := installer.Run(path, opts)
+		if err != nil {
+			return vm.ToValue(map[string]interface{}{"success": false, "exitCode": exitCode, "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "exitCode": exitCode, "error": nil})
 	})
 
 	instObj.Set("runMSI", func(call goja.FunctionCall) goja.Value {
@@ -80,13 +82,14 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 
 		typ := installer.DetectType(path)
 		if typ != installer.MSI {
-			return vm.ToValue(map[string]interface{}{"success": false, "error": "不是有效的 MSI 安装程序"})
+			return vm.ToValue(map[string]interface{}{"success": false, "exitCode": 1, "error": "不是有效的 MSI 安装程序"})
 		}
 
-		if err := installer.Run(path, opts); err != nil {
-			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
+		exitCode, err := installer.Run(path, opts)
+		if err != nil {
+			return vm.ToValue(map[string]interface{}{"success": false, "exitCode": exitCode, "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "exitCode": exitCode, "error": nil})
 	})
 
 	instObj.Set("runInno", func(call goja.FunctionCall) goja.Value {
@@ -106,19 +109,20 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 
 		typ := installer.DetectType(path)
 		if typ != installer.Inno {
-			return vm.ToValue(map[string]interface{}{"success": false, "error": "不是有效的 Inno Setup 安装程序"})
+			return vm.ToValue(map[string]interface{}{"success": false, "exitCode": 1, "error": "不是有效的 Inno Setup 安装程序"})
 		}
 
-		if err := installer.Run(path, opts); err != nil {
-			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
+		exitCode, err := installer.Run(path, opts)
+		if err != nil {
+			return vm.ToValue(map[string]interface{}{"success": false, "exitCode": exitCode, "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "exitCode": exitCode, "error": nil})
 	})
 
 	instObj.Set("detectType", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		typ := installer.DetectType(path)
-		return vm.ToValue(string(typ))
+		return vm.ToValue(map[string]interface{}{"success": true, "type": string(typ), "error": nil})
 	})
 
 	vm.Set("installer", instObj)

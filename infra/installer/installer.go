@@ -54,14 +54,14 @@ func detectExeType(installerPath string) Type {
 	return Unknown
 }
 
-func Run(installerPath string, opts Options) error {
+func Run(installerPath string, opts Options) (int, error) {
 	if runtime.GOOS != "windows" {
-		return fmt.Errorf("仅支持 Windows 平台")
+		return 1, fmt.Errorf("仅支持 Windows 平台")
 	}
 
 	typ := DetectType(installerPath)
 	if typ == Unknown {
-		return fmt.Errorf("无法识别的安装程序类型: %s", installerPath)
+		return 1, fmt.Errorf("无法识别的安装程序类型: %s", installerPath)
 	}
 
 	var args []string
@@ -79,10 +79,13 @@ func Run(installerPath string, opts Options) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("安装失败: %w", err)
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return exitErr.ExitCode(), fmt.Errorf("安装失败: %w", err)
+		}
+		return 1, fmt.Errorf("安装失败: %w", err)
 	}
 
-	return nil
+	return 0, nil
 }
 
 func buildNSISArgs(_ string, opts Options) []string {

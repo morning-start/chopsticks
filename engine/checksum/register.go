@@ -15,27 +15,27 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		path := call.Argument(0).String()
 		sum, err := CalculateFile(path, MD5)
 		if err != nil {
-			return vm.ToValue(map[string]interface{}{"data": "", "error": err.Error()})
+			return vm.ToValue(map[string]interface{}{"success": false, "hash": "", "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"data": sum, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "hash": sum, "error": nil})
 	})
 
 	checksumObj.Set("sha256", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		sum, err := CalculateFile(path, SHA256)
 		if err != nil {
-			return vm.ToValue(map[string]interface{}{"data": "", "error": err.Error()})
+			return vm.ToValue(map[string]interface{}{"success": false, "hash": "", "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"data": sum, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "hash": sum, "error": nil})
 	})
 
 	checksumObj.Set("sha512", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		sum, err := CalculateFile(path, SHA512)
 		if err != nil {
-			return vm.ToValue(map[string]interface{}{"data": "", "error": err.Error()})
+			return vm.ToValue(map[string]interface{}{"success": false, "hash": "", "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"data": sum, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "hash": sum, "error": nil})
 	})
 
 	checksumObj.Set("verify", func(call goja.FunctionCall) goja.Value {
@@ -58,11 +58,13 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 			algorithm = SHA256
 		}
 
-		ok, err := VerifyFile(path, expected, algorithm)
+		actual, err := CalculateFile(path, algorithm)
 		if err != nil {
-			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
+			return vm.ToValue(map[string]interface{}{"success": false, "valid": false, "actualHash": "", "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"success": ok, "error": nil})
+
+		valid := (actual == expected)
+		return vm.ToValue(map[string]interface{}{"success": true, "valid": valid, "actualHash": actual, "error": nil})
 	})
 
 	checksumObj.Set("string", func(call goja.FunctionCall) goja.Value {
@@ -85,7 +87,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		}
 
 		sum := New(algorithm).CalculateString(data)
-		return vm.ToValue(map[string]interface{}{"data": sum, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "hash": sum, "error": nil})
 	})
 
 	vm.Set("checksum", checksumObj)

@@ -146,6 +146,33 @@ func GetStringValue(key registry.Key, name string) (string, error) {
 	return val, err
 }
 
+func GetStringValueWithType(key registry.Key, name string) (string, string, error) {
+	val, valType, err := key.GetStringValue(name)
+	if err != nil {
+		return "", "", err
+	}
+	
+	var typeStr string
+	switch valType {
+	case registry.SZ:
+		typeStr = "REG_SZ"
+	case registry.EXPAND_SZ:
+		typeStr = "REG_EXPAND_SZ"
+	case registry.DWORD:
+		typeStr = "REG_DWORD"
+	case registry.QWORD:
+		typeStr = "REG_QWORD"
+	case registry.BINARY:
+		typeStr = "REG_BINARY"
+	case registry.MULTI_SZ:
+		typeStr = "REG_MULTI_SZ"
+	default:
+		typeStr = "REG_SZ"
+	}
+	
+	return val, typeStr, nil
+}
+
 func SetDWordValue(key registry.Key, name string, value uint32) error {
 	return key.SetDWordValue(name, value)
 }
@@ -287,6 +314,81 @@ func ListValues(path string) ([]string, error) {
 	values, err := key.ReadValueNames(-1)
 	if err != nil {
 		return nil, fmt.Errorf("读取值: %w", err)
+	}
+
+	return values, nil
+}
+
+type ValueInfo struct {
+	Name  string
+	Type  string
+	Value interface{}
+}
+
+// ListValuesWithInfo 列出指定键下的所有值及其详细信息
+func ListValuesWithInfo(path string) ([]ValueInfo, error) {
+	parts := splitKeyPath(path)
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("无效的注册表路径: %s", path)
+	}
+
+	var rootKey registry.Key
+	switch normalizeKey(parts[0]) {
+	case "HKEY_CLASSES_ROOT", "HKCR":
+		rootKey = registry.CLASSES_ROOT
+	case "HKEY_CURRENT_USER", "HKCU":
+		rootKey = registry.CURRENT_USER
+	case "HKEY_LOCAL_MACHINE", "HKLM":
+		rootKey = registry.LOCAL_MACHINE
+	case "HKEY_USERS", "HKU":
+		rootKey = registry.USERS
+	case "HKEY_CURRENT_CONFIG", "HKCC":
+		rootKey = registry.CURRENT_CONFIG
+	default:
+		return nil, fmt.Errorf("未知的注册表根键: %s", parts[0])
+	}
+
+	key, err := registry.OpenKey(rootKey, parts[1], registry.READ)
+	if err != nil {
+		return nil, fmt.Errorf("打开注册表键: %w", err)
+	}
+	defer key.Close()
+
+	valueNames, err := key.ReadValueNames(-1)
+	if err != nil {
+		return nil, fmt.Errorf("读取值: %w", err)
+	}
+
+	var values []ValueInfo
+	for _, name := range valueNames {
+		val, valType, err := key.GetStringValue(name)
+		if err != nil {
+			return nil, fmt.Errorf("读取值 %s: %w", name, err)
+		}
+
+		var typeStr string
+		switch valType {
+		case registry.SZ:
+			typeStr = "REG_SZ"
+		case registry.EXPAND_SZ:
+			typeStr = "REG_EXPAND_SZ"
+		case registry.DWORD:
+			typeStr = "REG_DWORD"
+		case registry.QWORD:
+			typeStr = "REG_QWORD"
+		case registry.BINARY:
+			typeStr = "REG_BINARY"
+		case registry.MULTI_SZ:
+			typeStr = "REG_MULTI_SZ"
+		default:
+			typeStr = "REG_SZ"
+		}
+
+		values = append(values, ValueInfo{
+			Name:  name,
+			Type:  typeStr,
+			Value: val,
+		})
 	}
 
 	return values, nil

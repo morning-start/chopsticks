@@ -94,6 +94,11 @@ func TestAppScript(t *testing.T) {
 
 	assert.Equal(t, "test-app", script.Name)
 	assert.Equal(t, "Test description", script.Description)
+	assert.Equal(t, "https://example.com", script.Homepage)
+	assert.Equal(t, "MIT", script.License)
+	assert.Equal(t, "tools", script.Category)
+	assert.Equal(t, "maintainer@example.com", script.Maintainer)
+	assert.Equal(t, "main", script.Bucket)
 	assert.Len(t, script.Tags, 2)
 	assert.Len(t, script.Dependencies, 2)
 }
@@ -105,6 +110,8 @@ func TestAppScript_NoDependencies(t *testing.T) {
 		Dependencies: nil,
 	}
 
+	assert.Equal(t, "standalone-app", script.Name)
+	assert.Equal(t, "An app without dependencies", script.Description)
 	assert.Nil(t, script.Dependencies)
 	assert.Empty(t, script.Dependencies)
 }
@@ -132,6 +139,8 @@ func TestDependency_NoConditions(t *testing.T) {
 		Version: "1.0.0",
 	}
 
+	assert.Equal(t, "simple-dep", dep.Name)
+	assert.Equal(t, "1.0.0", dep.Version)
 	assert.Nil(t, dep.Conditions)
 	assert.False(t, dep.Optional)
 }
@@ -224,8 +233,12 @@ func TestAppRef(t *testing.T) {
 	}
 
 	assert.Equal(t, "test-app", ref.Name)
+	assert.Equal(t, "Test application", ref.Description)
 	assert.Equal(t, "1.0.0", ref.Version)
+	assert.Equal(t, "tools", ref.Category)
+	assert.Len(t, ref.Tags, 2)
 	assert.Equal(t, "/buckets/main/app.lua", ref.ScriptPath)
+	assert.Equal(t, "/buckets/main/app.meta.json", ref.MetaPath)
 }
 
 func TestInstalledApp(t *testing.T) {
@@ -244,6 +257,7 @@ func TestInstalledApp(t *testing.T) {
 	assert.Equal(t, "main", installed.Bucket)
 	assert.Equal(t, "/apps/test-app", installed.InstallDir)
 	assert.Equal(t, now, installed.InstalledAt)
+	assert.Equal(t, now, installed.UpdatedAt)
 }
 
 func TestAppInfo(t *testing.T) {
@@ -261,6 +275,13 @@ func TestAppInfo(t *testing.T) {
 	}
 
 	assert.Equal(t, "test-app", info.Name)
+	assert.Equal(t, "Test application", info.Description)
+	assert.Equal(t, "https://example.com", info.Homepage)
+	assert.Equal(t, "MIT", info.License)
+	assert.Equal(t, "tools", info.Category)
+	assert.Len(t, info.Tags, 1)
+	assert.Equal(t, "1.0.0", info.Version)
+	assert.Equal(t, "main", info.Bucket)
 	assert.True(t, info.Installed)
 	assert.Equal(t, "1.0.0", info.InstalledVersion)
 }
@@ -274,6 +295,10 @@ func TestAppInfo_NotInstalled(t *testing.T) {
 		Installed:   false,
 	}
 
+	assert.Equal(t, "test-app", info.Name)
+	assert.Equal(t, "Test application", info.Description)
+	assert.Equal(t, "1.0.0", info.Version)
+	assert.Equal(t, "main", info.Bucket)
 	assert.False(t, info.Installed)
 	assert.Empty(t, info.InstalledVersion)
 }

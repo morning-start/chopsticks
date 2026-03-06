@@ -1,6 +1,8 @@
 package chopsticksx
 
 import (
+	"strings"
+
 	"github.com/dop251/goja"
 )
 
@@ -11,8 +13,11 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 	chopsticksObj.Set("getCookDir", func(call goja.FunctionCall) goja.Value {
 		name := call.Argument(0).String()
 		version := call.Argument(1).String()
-		result := m.GetCookDir(name, version)
-		return vm.ToValue(result)
+		path := m.GetCookDir(name, version)
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"path":    path,
+		})
 	})
 
 	chopsticksObj.Set("getCurrentVersion", func(call goja.FunctionCall) goja.Value {
@@ -26,13 +31,14 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		}
 		return vm.ToValue(map[string]interface{}{
 			"success": true,
-			"data":    version,
+			"version": version,
 		})
 	})
 
 	chopsticksObj.Set("addToPath", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		if err := m.AddToPath(path); err != nil {
+		scope := call.Argument(1).String()
+		if err := m.AddToPath(path, scope); err != nil {
 			return vm.ToValue(map[string]interface{}{
 				"success": false,
 				"error":   err.Error(),
@@ -43,7 +49,8 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 
 	chopsticksObj.Set("removeFromPath", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		if err := m.RemoveFromPath(path); err != nil {
+		scope := call.Argument(1).String()
+		if err := m.RemoveFromPath(path, scope); err != nil {
 			return vm.ToValue(map[string]interface{}{
 				"success": false,
 				"error":   err.Error(),
@@ -55,7 +62,8 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 	chopsticksObj.Set("setEnv", func(call goja.FunctionCall) goja.Value {
 		key := call.Argument(0).String()
 		value := call.Argument(1).String()
-		if err := m.SetEnv(key, value); err != nil {
+		scope := call.Argument(2).String()
+		if err := m.SetEnv(key, value, scope); err != nil {
 			return vm.ToValue(map[string]interface{}{
 				"success": false,
 				"error":   err.Error(),
@@ -66,20 +74,29 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 
 	chopsticksObj.Set("getEnv", func(call goja.FunctionCall) goja.Value {
 		key := call.Argument(0).String()
-		result := m.GetEnv(key)
-		return vm.ToValue(result)
+		value := m.GetEnv(key)
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"value":    value,
+		})
 	})
 
 	chopsticksObj.Set("createShim", func(call goja.FunctionCall) goja.Value {
 		source := call.Argument(0).String()
 		name := call.Argument(1).String()
-		if err := m.CreateShim(source, name); err != nil {
+		shimPath, err := m.CreateShim(source, name)
+		if err != nil {
 			return vm.ToValue(map[string]interface{}{
-				"success": false,
-				"error":   err.Error(),
+				"success":  false,
+				"shimPath": "",
+				"error":    err.Error(),
 			})
 		}
-		return vm.ToValue(map[string]interface{}{"success": true})
+		return vm.ToValue(map[string]interface{}{
+			"success":  true,
+			"shimPath": shimPath,
+			"error":    nil,
+		})
 	})
 
 	chopsticksObj.Set("removeShim", func(call goja.FunctionCall) goja.Value {
@@ -124,28 +141,41 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		if v, ok := opts["icon"]; ok {
 			options.Icon = v.(string)
 		}
-		if err := m.CreateShortcut(options); err != nil {
+		shortcutPath, err := m.CreateShortcut(options)
+		if err != nil {
 			return vm.ToValue(map[string]interface{}{
-				"success": false,
-				"error":   err.Error(),
+				"success":      false,
+				"shortcutPath": "",
+				"error":        err.Error(),
 			})
 		}
-		return vm.ToValue(map[string]interface{}{"success": true})
+		return vm.ToValue(map[string]interface{}{
+			"success":      true,
+			"shortcutPath": shortcutPath,
+			"error":        nil,
+		})
 	})
 
 	chopsticksObj.Set("getCacheDir", func(call goja.FunctionCall) goja.Value {
-		result := m.GetCacheDir()
-		return vm.ToValue(result)
+		path := m.GetCacheDir()
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"path":    path,
+		})
 	})
 
 	chopsticksObj.Set("getConfigDir", func(call goja.FunctionCall) goja.Value {
-		result := m.GetConfigDir()
-		return vm.ToValue(result)
+		path := m.GetConfigDir()
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"path":    path,
+		})
 	})
 
 	chopsticksObj.Set("deleteEnv", func(call goja.FunctionCall) goja.Value {
 		key := call.Argument(0).String()
-		if err := m.DeleteEnv(key); err != nil {
+		scope := call.Argument(1).String()
+		if err := m.DeleteEnv(key, scope); err != nil {
 			return vm.ToValue(map[string]interface{}{
 				"success": false,
 				"error":   err.Error(),
@@ -155,18 +185,28 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 	})
 
 	chopsticksObj.Set("getPath", func(call goja.FunctionCall) goja.Value {
-		result := m.GetPath()
-		return vm.ToValue(result)
+		pathStr := m.GetPath()
+		paths := strings.Split(pathStr, ";")
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"paths":   paths,
+		})
 	})
 
 	chopsticksObj.Set("getShimDir", func(call goja.FunctionCall) goja.Value {
-		result := m.GetShimDir()
-		return vm.ToValue(result)
+		path := m.GetShimDir()
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"path":    path,
+		})
 	})
 
 	chopsticksObj.Set("getPersistDir", func(call goja.FunctionCall) goja.Value {
-		result := m.GetPersistDir()
-		return vm.ToValue(result)
+		path := m.GetPersistDir()
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"path":    path,
+		})
 	})
 
 	vm.Set("chopsticks", chopsticksObj)

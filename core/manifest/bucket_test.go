@@ -183,6 +183,7 @@ func TestBucket(t *testing.T) {
 	assert.Equal(t, "test-bucket", bucket.Config.ID)
 	assert.Equal(t, "Test Bucket", bucket.Config.Name)
 	assert.Equal(t, "/path/to/bucket", bucket.Path)
+	assert.True(t, bucket.LastUpdated.After(time.Time{}))
 	assert.Len(t, bucket.Apps, 2)
 	assert.Contains(t, bucket.Apps, "app1")
 	assert.Contains(t, bucket.Apps, "app2")
@@ -199,6 +200,10 @@ func TestBucket_EmptyApps(t *testing.T) {
 		LastUpdated: time.Now(),
 	}
 
+	assert.Equal(t, "empty-bucket", bucket.Config.ID)
+	assert.Equal(t, "Empty Bucket", bucket.Config.Name)
+	assert.Equal(t, "/path/to/empty", bucket.Path)
+	assert.True(t, bucket.LastUpdated.After(time.Time{}))
 	assert.Empty(t, bucket.Apps)
 }
 
@@ -213,5 +218,9 @@ func TestBucket_NilApps(t *testing.T) {
 		LastUpdated: time.Now(),
 	}
 
+	assert.Equal(t, "nil-apps-bucket", bucket.Config.ID)
+	assert.Equal(t, "Nil Apps Bucket", bucket.Config.Name)
+	assert.Equal(t, "/path/to/bucket", bucket.Path)
+	assert.True(t, bucket.LastUpdated.After(time.Time{}))
 	assert.Nil(t, bucket.Apps)
 }

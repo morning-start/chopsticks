@@ -34,15 +34,15 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 
 		key, err := OpenKey(keyPath)
 		if err != nil {
-			return vm.ToValue(map[string]interface{}{"value": nil, "error": err.Error()})
+			return vm.ToValue(map[string]interface{}{"success": false, "value": nil, "type": nil, "error": err.Error()})
 		}
 		defer key.Close()
 
-		value, err := GetStringValue(key, name)
+		value, valType, err := GetStringValueWithType(key, name)
 		if err != nil {
-			return vm.ToValue(map[string]interface{}{"value": nil, "error": err.Error()})
+			return vm.ToValue(map[string]interface{}{"success": false, "value": nil, "type": nil, "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"value": value, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "value": value, "type": valType, "error": nil})
 	})
 
 	regObj.Set("setDword", func(call goja.FunctionCall) goja.Value {
@@ -68,15 +68,15 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 
 		key, err := OpenKey(keyPath)
 		if err != nil {
-			return vm.ToValue(map[string]interface{}{"value": nil, "error": err.Error()})
+			return vm.ToValue(map[string]interface{}{"success": false, "value": nil, "error": err.Error()})
 		}
 		defer key.Close()
 
 		value, err := GetDWordValue(key, name)
 		if err != nil {
-			return vm.ToValue(map[string]interface{}{"value": nil, "error": err.Error()})
+			return vm.ToValue(map[string]interface{}{"success": false, "value": nil, "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"value": value, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "value": value, "error": nil})
 	})
 
 	regObj.Set("deleteValue", func(call goja.FunctionCall) goja.Value {
@@ -147,16 +147,26 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 
 	regObj.Set("listValues", func(call goja.FunctionCall) goja.Value {
 		keyPath := call.Argument(0).String()
-		values, err := ListValues(keyPath)
+		values, err := ListValuesWithInfo(keyPath)
 		if err != nil {
 			return vm.ToValue(map[string]interface{}{
 				"success": false,
 				"error":   err.Error(),
 			})
 		}
+		
+		jsValues := make([]map[string]interface{}, len(values))
+		for i, v := range values {
+			jsValues[i] = map[string]interface{}{
+				"name":  v.Name,
+				"type":  v.Type,
+				"value": v.Value,
+			}
+		}
+		
 		return vm.ToValue(map[string]interface{}{
 			"success": true,
-			"values":  values,
+			"values":  jsValues,
 		})
 	})
 

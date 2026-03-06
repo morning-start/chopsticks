@@ -15,7 +15,10 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 			elems[i] = arg.String()
 		}
 		result := Join(elems...)
-		return vm.ToValue(result)
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"path":    result,
+		})
 	})
 
 	pathObj.Set("abs", func(call goja.FunctionCall) goja.Value {
@@ -29,43 +32,71 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		}
 		return vm.ToValue(map[string]interface{}{
 			"success": true,
-			"data":    result,
+			"path":    result,
 		})
 	})
 
 	pathObj.Set("base", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		return vm.ToValue(Base(path))
+		result := Base(path)
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"name":    result,
+		})
 	})
 
 	pathObj.Set("dir", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		return vm.ToValue(Dir(path))
+		result := Dir(path)
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"dir":     result,
+		})
 	})
 
 	pathObj.Set("ext", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		return vm.ToValue(Ext(path))
+		result := Ext(path)
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"ext":     result,
+		})
 	})
 
 	pathObj.Set("clean", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		return vm.ToValue(Clean(path))
+		result := Clean(path)
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"path":    result,
+		})
 	})
 
 	pathObj.Set("isAbs", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		return vm.ToValue(IsAbs(path))
+		result := IsAbs(path)
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"isAbs":   result,
+		})
 	})
 
 	pathObj.Set("exists", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		return vm.ToValue(Exists(path))
+		result := Exists(path)
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"exists":  result,
+		})
 	})
 
 	pathObj.Set("isDir", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		return vm.ToValue(IsDir(path))
+		result := IsDir(path)
+		return vm.ToValue(map[string]interface{}{
+			"success": true,
+			"isDir":   result,
+		})
 	})
 
 	vm.Set("path", pathObj)

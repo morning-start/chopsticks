@@ -253,7 +253,7 @@ func (m *DependencyManager) CleanupRuntime(ctx context.Context) error {
 }
 
 // isAppInstalled 检查应用是否已安装
-func (m *DependencyManager) isAppInstalled(ctx context.Context, name string) bool {
+func (m *DependencyManager) isAppInstalled(_ context.Context, _ string) bool {
 	// TODO: 实现检查逻辑
 	return false
 }

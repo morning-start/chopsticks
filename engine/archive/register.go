@@ -15,50 +15,55 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		src := call.Argument(0).String()
 		dest := call.Argument(1).String()
 
-		if err := Extract(src, dest); err != nil {
+		files, err := ExtractWithFiles(src, dest)
+		if err != nil {
 			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "extractedFiles": files, "error": nil})
 	})
 
 	archiveObj.Set("extractZip", func(call goja.FunctionCall) goja.Value {
 		src := call.Argument(0).String()
 		dest := call.Argument(1).String()
 
-		if err := ExtractZip(src, dest); err != nil {
+		files, err := ExtractZipWithFiles(src, dest)
+		if err != nil {
 			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "extractedFiles": files, "error": nil})
 	})
 
 	archiveObj.Set("extract7z", func(call goja.FunctionCall) goja.Value {
 		src := call.Argument(0).String()
 		dest := call.Argument(1).String()
 
-		if err := Extract7z(src, dest); err != nil {
+		files, err := Extract7zWithFiles(src, dest)
+		if err != nil {
 			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "extractedFiles": files, "error": nil})
 	})
 
 	archiveObj.Set("extractTar", func(call goja.FunctionCall) goja.Value {
 		src := call.Argument(0).String()
 		dest := call.Argument(1).String()
 
-		if err := ExtractTar(src, dest); err != nil {
+		files, err := ExtractTarWithFiles(src, dest)
+		if err != nil {
 			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "extractedFiles": files, "error": nil})
 	})
 
 	archiveObj.Set("extractTarGz", func(call goja.FunctionCall) goja.Value {
 		src := call.Argument(0).String()
 		dest := call.Argument(1).String()
 
-		if err := ExtractTarGz(src, dest); err != nil {
+		files, err := ExtractTarGzWithFiles(src, dest)
+		if err != nil {
 			return vm.ToValue(map[string]interface{}{"success": false, "error": err.Error()})
 		}
-		return vm.ToValue(map[string]interface{}{"success": true, "error": nil})
+		return vm.ToValue(map[string]interface{}{"success": true, "extractedFiles": files, "error": nil})
 	})
 
 	archiveObj.Set("list", func(call goja.FunctionCall) goja.Value {
@@ -89,18 +94,18 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 				"isDir": f.IsDir,
 			})
 		}
-		return vm.ToValue(map[string]interface{}{"success": true, "data": result})
+		return vm.ToValue(map[string]interface{}{"success": true, "files": result})
 	})
 
 	archiveObj.Set("detectType", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
 		typ := DetectType(path)
-		return vm.ToValue(map[string]interface{}{"success": true, "data": typ})
+		return vm.ToValue(map[string]interface{}{"success": true, "type": typ})
 	})
 
 	archiveObj.Set("isArchive", func(call goja.FunctionCall) goja.Value {
 		path := call.Argument(0).String()
-		return vm.ToValue(map[string]interface{}{"success": true, "data": IsArchive(path)})
+		return vm.ToValue(map[string]interface{}{"success": true, "isArchive": IsArchive(path)})
 	})
 
 	vm.Set("archive", archiveObj)
