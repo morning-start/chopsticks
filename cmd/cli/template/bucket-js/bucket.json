@@ -1,8 +1,12 @@
 {
     "name": "{{.Name}}",
     "description": "A Chopsticks Bucket (JavaScript)",
+    "author": "",
     "homepage": "",
     "license": "MIT",
-    "author": "",
-    "keywords": ["chopsticks", "bucket", "javascript"]
+    "repository": {
+        "type": "git",
+        "url": "",
+        "branch": "main"
+    }
 }
