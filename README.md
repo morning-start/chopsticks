@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/your-repo/chopsticks/releases">
-    <img src="https://img.shields.io/badge/version-0.2.0--alpha-blue?style=flat-square" alt="Version">
+    <img src="https://img.shields.io/badge/version-v0.10.0--alpha-blue?style=flat-square" alt="Version">
   </a>
   <a href="https://go.dev/">
     <img src="https://img.shields.io/badge/Go-1.25.6-00ADD8?style=flat-square&logo=go" alt="Go Version">
@@ -245,7 +245,7 @@ go test -cover ./...
 
 - ✅ **v0.1.0-alpha** (2026-02-14) - 基础架构完成
 - ✅ **v0.2.0-alpha** (2026-02-27) - 引擎 API 完善
-- 🚧 **v0.3.0-alpha** (2026-03-14) - 核心功能实现（进行中）
+- ✅ **v0.3.0-alpha** (2026-02-27) - 核心功能实现
 - ⏳ **v1.0.0** (2026-04-25) - 正式版本发布
 
 ---

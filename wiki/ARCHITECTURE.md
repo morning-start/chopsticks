@@ -1,5 +1,12 @@
 # Chopsticks 架构文档
 
+> 版本：v0.10.0-alpha
+> 最后更新：2026-03-06
+
+> 描述 Chopsticks 系统架构设计、核心组件、数据模型和扩展点
+
+---
+
 ## 1. 架构概述
 
 Chopsticks 是一个 Windows 包管理器，采用分层架构设计，核心设计理念是：
@@ -10,6 +17,40 @@ Chopsticks 是一个 Windows 包管理器，采用分层架构设计，核心设
 
 ### 1.1 架构分层
 
+```mermaid
+graph TB
+    subgraph Layer1["Layer 1: CLI Layer (cmd/cli)"]
+        CLI[命令行接口<br/>用户交互入口]
+    end
+
+    subgraph Layer2["Layer 2: Performance Layer (pkg/)"]
+        Perf[下载、并行处理<br/>输出格式化、性能监控]
+    end
+
+    subgraph Layer3["Layer 3: Core Layer (core/)"]
+        Core[核心业务逻辑<br/>应用管理、软件源管理]
+    end
+
+    subgraph Layer4["Layer 4: Engine Layer (engine/)"]
+        Engine[JavaScript 脚本引擎<br/>API 模块]
+    end
+
+    subgraph Layer5["Layer 5: Infra Layer (infra/)"]
+        Infra[基础设施<br/>Git 客户端、安装程序处理]
+    end
+
+    CLI --> Perf
+    Perf --> Core
+    Core --> Engine
+    Engine --> Infra
+
+    style Layer1 fill:#e1f5ff
+    style Layer2 fill:#fff4e1
+    style Layer3 fill:#ffe1f5
+    style Layer4 fill:#e1ffe1
+    style Layer5 fill:#f5e1ff
+```
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ Layer 1: CLI Layer (cmd/cli)                                    │
@@ -19,25 +60,28 @@ Chopsticks 是一个 Windows 包管理器，采用分层架构设计，核心设
 │   - 下载、并行处理、输出格式化、性能监控等通用功能                │
 ├─────────────────────────────────────────────────────────────────┤
 │ Layer 3: Core Layer (core/)                                     │
-│   - 核心业务逻辑：应用管理、软件源管理、数据存储                  │
+│   - 核心业务逻辑：应用管理、软件源管理                                │
 ├─────────────────────────────────────────────────────────────────┤
 │ Layer 4: Engine Layer (engine/)                                 │
 │   - JavaScript 脚本引擎和 API 模块                              │
 ├─────────────────────────────────────────────────────────────────┤
 │ Layer 5: Infra Layer (infra/)                                   │
-│   - 基础设施：Git 客户端、安装程序处理                           │
+│   - 基础设施：Git 客户端、安装程序处理                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### 1.2 核心组件
 
-| 组件              | 包路径        | 职责                       |
-| ----------------- | ------------- | -------------------------- |
-| **AppManager**    | `core/app`    | 应用安装、卸载、更新、查询 |
-| **BucketManager** | `core/bucket` | 软件源管理、应用搜索       |
-| **Storage**       | `core/store`  | 已安装应用数据持久化       |
-| **JSEngine**      | `engine`      | JavaScript 脚本执行        |
-| **Git**           | `infra/git`   | 软件源仓库操作             |
+| 组件                 | 包路径            | 职责                       |
+| -------------------- | ----------------- | -------------------------- |
+| **AppManager**       | `core/app`        | 应用安装、卸载、更新、查询 |
+| **BucketManager**    | `core/bucket`     | 软件源管理、应用搜索       |
+| **Storage**          | `core/store`      | 已安装应用数据持久化       |
+| **ConflictDetector** | `core/conflict`   | 冲突检测与格式化           |
+| **Manifest**         | `core/manifest`   | 应用和软件源数据结构定义   |
+| **JSEngine**         | `engine`          | JavaScript 脚本执行        |
+| **Git**              | `infra/git`       | 软件源仓库操作             |
+| **Installer**        | `infra/installer` | 安装程序处理               |
 
 ## 2. 核心接口
 
@@ -110,17 +154,17 @@ type Installer interface {
 
 ## 3. 数据模型
 
-### 3.1 应用模型
+### 3.1 软件包模型
 
 ```go
-// App - 应用完整信息
+// App - 软件包完整信息
 type App struct {
     Script *AppScript // 脚本信息（来自 .js 文件）
     Meta   *AppMeta   // 元数据（来自 .meta.json 文件）
     Ref    *AppRef    // 引用信息
 }
 
-// AppScript - 应用脚本信息
+// AppScript - 软件包脚本信息
 type AppScript struct {
     Name         string       // 软件名称
     Description  string       // 描述
@@ -135,13 +179,13 @@ type AppScript struct {
 
 // Dependency - 依赖定义
 type Dependency struct {
-    Name       string            // 依赖应用名称
+    Name       string            // 依赖软件包名称
     Version    string            // 版本约束（如 ">=1.0.0"）
     Optional   bool              // 是否为可选依赖
     Conditions map[string]string // 安装条件
 }
 
-// AppMeta - 应用元数据
+// AppMeta - 软件包元数据
 type AppMeta struct {
     Version  string                 // 当前版本
     Versions map[string]VersionInfo // 所有版本信息
@@ -162,7 +206,7 @@ type DownloadInfo struct {
     Type string // 压缩类型
 }
 
-// AppRef - 应用引用（索引用）
+// AppRef - 软件包引用（索引用）
 type AppRef struct {
     Name        string   // 名称
     Description string   // 描述
@@ -173,7 +217,7 @@ type AppRef struct {
     MetaPath    string   // 元数据文件路径
 }
 
-// InstalledApp - 已安装应用
+// InstalledApp - 已安装软件包
 type InstalledApp struct {
     Name        string    // 名称
     Version     string    // 版本
@@ -220,14 +264,14 @@ type Bucket struct {
 
 Chopsticks 采用混合存储架构：
 
-| 数据类型   | 存储位置                        | 格式       |
-| ---------- | ------------------------------- | ---------- |
-| 已安装应用 | `data.db` (SQLite)              | 数据库表   |
-| 软件源配置 | `buckets/{id}/bucket.json`      | JSON       |
-| 应用脚本   | `buckets/{id}/apps/*.js`        | JavaScript |
-| 应用元数据 | `buckets/{id}/apps/*.meta.json` | JSON       |
-| 下载缓存   | `cache/downloads/`              | 二进制文件 |
-| 持久化数据 | `persist/{app}/`                | 任意格式   |
+| 数据类型     | 存储位置                        | 格式       |
+| ------------ | ------------------------------- | ---------- |
+| 已安装软件包 | `data.db` (SQLite)              | 数据库表   |
+| 软件源配置   | `buckets/{id}/bucket.json`      | JSON       |
+| 软件包脚本   | `buckets/{id}/apps/*.js`        | JavaScript |
+| 软件包元数据 | `buckets/{id}/apps/*.meta.json` | JSON       |
+| 下载缓存     | `cache/downloads/`              | 二进制文件 |
+| 持久化数据   | `persist/{app}/`                | 任意格式   |
 
 ### 4.2 数据库 Schema (data.db)
 
@@ -281,6 +325,7 @@ sequenceDiagram
     participant Installer
     participant BucketMgr as BucketManager
     participant Storage
+    participant Conflict as ConflictDetector
 
     User->>CLI: chopsticks install app
     CLI->>AppMgr: Install(spec, opts)
@@ -292,14 +337,34 @@ sequenceDiagram
 
     loop 安装依赖
         AppMgr->>Installer: Install(depApp, opts)
+        Installer->>Conflict: Detect()
+        Conflict-->>Installer: 冲突检测结果
+        Installer->>Installer: CheckInstalled()
+        Installer->>Installer: CreateInstallDir()
+        Installer->>Installer: GetDownloadInfo()
+        Installer->>Installer: Download()
+        Installer->>Installer: VerifyChecksum()
+        Installer->>Installer: CreateVersionDir()
+        Installer->>Installer: Extract()
+        Installer->>Installer: RunPreInstallHook()
+        Installer->>Installer: RunInstallScript()
+        Installer->>Installer: RunPostInstallHook()
         Installer->>Storage: SaveInstalledApp()
     end
 
     AppMgr->>Installer: Install(app, opts)
+    Installer->>Conflict: Detect()
+    Conflict-->>Installer: 冲突检测结果
+    Installer->>Installer: CheckInstalled()
+    Installer->>Installer: CreateInstallDir()
+    Installer->>Installer: GetDownloadInfo()
     Installer->>Installer: Download()
-    Installer->>Installer: Verify()
+    Installer->>Installer: VerifyChecksum()
+    Installer->>Installer: CreateVersionDir()
     Installer->>Installer: Extract()
-    Installer->>Installer: ExecuteHooks()
+    Installer->>Installer: RunPreInstallHook()
+    Installer->>Installer: RunInstallScript()
+    Installer->>Installer: RunPostInstallHook()
     Installer->>Storage: SaveInstalledApp()
 
     AppMgr-->>CLI: 完成

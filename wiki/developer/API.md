@@ -1,4 +1,4 @@
-# Chopsticks JavaScript API 参考
+﻿# Chopsticks JavaScript API 参考
 
 > 应用脚本中可用的 JavaScript API 完整参考
 
@@ -6,23 +6,23 @@
 
 ## 目录
 
-1. [fsutil - 文件操作](#1-fsutil---文件操作)
+1. [fsutil - 文件操作](#1-fs---文件操作)
 2. [fetch - HTTP 请求](#2-fetch---http-请求)
-3. [execx - 命令执行](#3-execx---命令执行)
+3. [execx - 命令执行](#3-exec---命令执行)
 4. [archive - 压缩解压](#4-archive---压缩解压)
 5. [checksum - 校验和](#5-checksum---校验和)
-6. [chopsticksx - Chopsticks 核心](#6-chopsticksx---chopsticks-核心)
-7. [jsonx - JSON 处理](#7-jsonx---json-处理)
-8. [logx - 日志](#8-logx---日志)
-9. [pathx - 路径操作](#9-pathx---路径操作)
+6. [chopsticksx - Chopsticks 核心](#6-chopsticks---chopsticks-核心)
+7. [jsonx - JSON 处理](#7-json---json-处理)
+8. [logx - 日志](#8-log---日志)
+9. [pathx - 路径操作](#9-path---路径操作)
 10. [registry - 注册表操作](#10-registry---注册表操作)
 11. [semver - 版本控制](#11-semver---版本控制)
 12. [symlink - 符号链接](#12-symlink---符号链接)
-13. [installerx - 安装程序](#13-installerx---安装程序)
+13. [installerx - 安装程序](#13-installer---安装程序)
 
 ---
 
-## 1. fsutil - 文件操作
+## 1. fs - 文件操作
 
 文件系统操作模块，提供文件的读写、目录管理等功能。
 
@@ -61,19 +61,19 @@
 | 字段      | 类型    | 说明               |
 | --------- | ------- | ------------------ |
 | `success` | boolean | 是否成功           |
-| `content` | string  | 文件内容（成功时） |
+| `data`    | string  | 文件内容（成功时） |
 | `error`   | string  | 错误信息（失败时） |
 
 **示例：**
 
 ```javascript
-const result = fsutil.readFile("config.json");
+const result = fs.readFile("config.json");
 if (result.success) {
-  logx.info("文件内容: " + result.content);
+  log.info("文件内容: " + result.data);
 }
 
 // 读取二进制文件
-const result = fsutil.readFile("data.bin", "binary");
+const result = fs.readFile("data.bin", "binary");
 ```
 
 ### writeFile(path, content)
@@ -97,9 +97,9 @@ const result = fsutil.readFile("data.bin", "binary");
 **示例：**
 
 ```javascript
-const result = fsutil.writeFile("config.json", '{"name": "test"}');
+const result = fs.writeFile("config.json", '{"name": "test"}');
 if (result.success) {
-  logx.info("文件写入成功");
+  log.info("文件写入成功");
 }
 ```
 
@@ -124,7 +124,7 @@ if (result.success) {
 **示例：**
 
 ```javascript
-fsutil.append("log.txt", "新的日志行\n");
+fs.append("log.txt", "新的日志行\n");
 ```
 
 ### mkdir(path)
@@ -147,7 +147,7 @@ fsutil.append("log.txt", "新的日志行\n");
 **示例：**
 
 ```javascript
-fsutil.mkdir("new_folder");
+fs.mkdir("new_folder");
 ```
 
 ### rmdir(path)
@@ -170,7 +170,7 @@ fsutil.mkdir("new_folder");
 **示例：**
 
 ```javascript
-fsutil.rmdir("empty_folder");
+fs.rmdir("empty_folder");
 ```
 
 ### remove(path)
@@ -193,7 +193,7 @@ fsutil.rmdir("empty_folder");
 **示例：**
 
 ```javascript
-fsutil.remove("old_file.txt");
+fs.remove("old_file.txt");
 ```
 
 ### exists(path)
@@ -217,9 +217,9 @@ fsutil.remove("old_file.txt");
 **示例：**
 
 ```javascript
-const result = fsutil.exists("config.json");
+const result = fs.exists("config.json");
 if (result.success && result.exists) {
-  logx.info("文件存在");
+  log.info("文件存在");
 }
 ```
 
@@ -244,9 +244,9 @@ if (result.success && result.exists) {
 **示例：**
 
 ```javascript
-const result = fsutil.isdir("my_folder");
+const result = fs.isdir("my_folder");
 if (result.success && result.isdir) {
-  logx.info("这是一个目录");
+  log.info("这是一个目录");
 }
 ```
 
@@ -271,10 +271,10 @@ if (result.success && result.isdir) {
 **示例：**
 
 ```javascript
-const result = fsutil.readDir("my_folder");
+const result = fs.readDir("my_folder");
 if (result.success) {
   for (const entry of result.entries) {
-    logx.info("条目: " + entry);
+    log.info("条目: " + entry);
   }
 }
 ```
@@ -300,7 +300,7 @@ if (result.success) {
 **示例：**
 
 ```javascript
-fsutil.copy("source.txt", "backup.txt");
+fs.copy("source.txt", "backup.txt");
 ```
 
 ### removeAll(path)
@@ -323,7 +323,7 @@ fsutil.copy("source.txt", "backup.txt");
 **示例：**
 
 ```javascript
-fsutil.removeAll("temp_folder");
+fs.removeAll("temp_folder");
 ```
 
 ### mkdirAll(path)
@@ -346,7 +346,7 @@ fsutil.removeAll("temp_folder");
 **示例：**
 
 ```javascript
-fsutil.mkdirAll("path/to/nested/folder");
+fs.mkdirAll("path/to/nested/folder");
 ```
 
 ### isFile(path)
@@ -370,9 +370,9 @@ fsutil.mkdirAll("path/to/nested/folder");
 **示例：**
 
 ```javascript
-const result = fsutil.isFile("document.txt");
+const result = fs.isFile("document.txt");
 if (result.success && result.isFile) {
-  logx.info("这是一个文件");
+  log.info("这是一个文件");
 }
 ```
 
@@ -400,10 +400,10 @@ if (result.success && result.isFile) {
 **示例：**
 
 ```javascript
-const result = fsutil.stat("file.txt");
+const result = fs.stat("file.txt");
 if (result.success) {
-  logx.info("大小: " + result.size + " 字节");
-  logx.info("修改时间: " + result.mtime);
+  log.info("大小: " + result.size + " 字节");
+  log.info("修改时间: " + result.mtime);
 }
 ```
 
@@ -464,7 +464,7 @@ const result = fetch.download(
   { timeout: 60000 },
 );
 if (result.success) {
-  logx.info("下载完成");
+  log.info("下载完成");
 }
 ```
 
@@ -495,7 +495,7 @@ if (result.success) {
 ```javascript
 const result = fetch.get("https://api.example.com/data");
 if (result.success && result.ok) {
-  logx.info("响应: " + result.body);
+  log.info("响应: " + result.body);
 }
 
 // 带请求头
@@ -602,8 +602,8 @@ const result = fetch.request("PUT", "https://api.example.com/update", {
 ```javascript
 const result = fetch.parseURL("https://example.com/path?key=value");
 if (result.success) {
-  logx.info("主机: " + result.host);
-  logx.info("路径: " + result.path);
+  log.info("主机: " + result.host);
+  log.info("路径: " + result.path);
 }
 ```
 
@@ -662,7 +662,7 @@ const result = fetch.getJSON(
   "https://api.github.com/repos/git/git/releases/latest",
 );
 if (result.success) {
-  logx.info("版本: " + result.data.tag_name);
+  log.info("版本: " + result.data.tag_name);
 }
 ```
 
@@ -751,7 +751,7 @@ fetch.setDefaultTimeout(60000); // 60秒超时
 
 ---
 
-## 3. execx - 命令执行
+## 3. exec - 命令执行
 
 命令执行模块，提供执行外部命令、Shell 脚本等功能。
 
@@ -797,13 +797,13 @@ fetch.setDefaultTimeout(60000); // 60秒超时
 
 ```javascript
 // 简单执行
-const result = execx.exec("git", ["--version"]);
+const result = exec.exec("git", ["--version"]);
 if (result.success) {
-    logx.info("版本: " + result.stdout);
+    log.info("版本: " + result.stdout);
 }
 
 // 带选项
-const result = execx.exec("npm", ["install"], {
+const result = exec.exec("npm", ["install"], {
     cwd: "D:\\Projects\\MyApp",
     timeout: 120000
 });
@@ -833,13 +833,13 @@ const result = execx.exec("npm", ["install"], {
 **示例：**
 
 ```javascript
-const result = execx.shell("echo Hello World");
+const result = exec.shell("echo Hello World");
 if (result.success) {
-    logx.info("输出: " + result.stdout);
+    log.info("输出: " + result.stdout);
 }
 
 // 多行命令
-const result = execx.shell("dir /b && echo Done");
+const result = exec.shell("dir /b && echo Done");
 ```
 
 ### powershell(command, options?)
@@ -866,13 +866,13 @@ const result = execx.shell("dir /b && echo Done");
 **示例：**
 
 ```javascript
-const result = execx.powershell("Get-Process | Select-Object -First 5");
+const result = exec.powershell("Get-Process | Select-Object -First 5");
 if (result.success) {
-    logx.info(result.stdout);
+    log.info(result.stdout);
 }
 
 // 执行 PowerShell 脚本
-const result = execx.powershell("Get-ChildItem -Path C:\\ -Filter *.txt");
+const result = exec.powershell("Get-ChildItem -Path C:\\ -Filter *.txt");
 ```
 
 ---
@@ -926,7 +926,7 @@ const result = execx.powershell("Get-ChildItem -Path C:\\ -Filter *.txt");
 ```javascript
 const result = archive.extract("download.zip", "extracted/");
 if (result.success) {
-    logx.info("解压完成，文件数: " + result.extractedFiles.length);
+    log.info("解压完成，文件数: " + result.extractedFiles.length);
 }
 ```
 
@@ -1058,7 +1058,7 @@ const result = archive.extractTarGz("archive.tar.gz", "output/");
 const result = archive.list("archive.zip");
 if (result.success) {
     for (const file of result.files) {
-        logx.info(file.name + " - " + file.size + " 字节");
+        log.info(file.name + " - " + file.size + " 字节");
     }
 }
 ```
@@ -1086,7 +1086,7 @@ if (result.success) {
 ```javascript
 const result = archive.detectType("file.zip");
 if (result.success) {
-    logx.info("类型: " + result.type);
+    log.info("类型: " + result.type);
 }
 ```
 
@@ -1113,7 +1113,7 @@ if (result.success) {
 ```javascript
 const result = archive.isArchive("file.zip");
 if (result.success && result.isArchive) {
-    logx.info("这是一个压缩包");
+    log.info("这是一个压缩包");
 }
 ```
 
@@ -1156,7 +1156,7 @@ if (result.success && result.isArchive) {
 ```javascript
 const result = checksum.md5("file.txt");
 if (result.success) {
-    logx.info("MD5: " + result.hash);
+    log.info("MD5: " + result.hash);
 }
 ```
 
@@ -1183,7 +1183,7 @@ if (result.success) {
 ```javascript
 const result = checksum.sha256("installer.exe");
 if (result.success) {
-    logx.info("SHA256: " + result.hash);
+    log.info("SHA256: " + result.hash);
 }
 ```
 
@@ -1210,7 +1210,7 @@ if (result.success) {
 ```javascript
 const result = checksum.sha512("large_file.iso");
 if (result.success) {
-    logx.info("SHA512: " + result.hash);
+    log.info("SHA512: " + result.hash);
 }
 ```
 
@@ -1245,9 +1245,9 @@ const result = checksum.verify(
 );
 if (result.success) {
     if (result.valid) {
-        logx.info("校验通过");
+        log.info("校验通过");
     } else {
-        logx.error("校验失败，实际值: " + result.actualHash);
+        log.error("校验失败，实际值: " + result.actualHash);
     }
 }
 ```
@@ -1276,13 +1276,13 @@ if (result.success) {
 ```javascript
 const result = checksum.string("Hello World", "sha256");
 if (result.success) {
-    logx.info("SHA256: " + result.hash);
+    log.info("SHA256: " + result.hash);
 }
 ```
 
 ---
 
-## 6. chopsticksx - Chopsticks 核心
+## 6. chopsticks - Chopsticks 核心
 
 Chopsticks 系统核心模块，提供系统目录、环境变量、快捷方式等功能。
 
@@ -1329,15 +1329,21 @@ Chopsticks 系统核心模块，提供系统目录、环境变量、快捷方式
 **示例：**
 
 ```javascript
-const result = chopsticksx.getCookDir("git", "2.43.0");
+const result = chopsticks.getCookDir("git", "2.43.0");
 if (result.success) {
-    logx.info("安装目录: " + result.path);
+    log.info("安装目录: " + result.path);
 }
 ```
 
-### getCurrentVersion()
+### getCurrentVersion(name)
 
-获取 Chopsticks 当前版本。
+获取指定应用的当前版本。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 是 | 应用名称 |
 
 **返回值：**
 
@@ -1350,9 +1356,9 @@ if (result.success) {
 **示例：**
 
 ```javascript
-const result = chopsticksx.getCurrentVersion();
+const result = chopsticks.getCurrentVersion("git");
 if (result.success) {
-    logx.info("Chopsticks 版本: " + result.version);
+    log.info("当前版本: " + result.version);
 }
 ```
 
@@ -1377,9 +1383,9 @@ if (result.success) {
 **示例：**
 
 ```javascript
-const result = chopsticksx.addToPath("C:\\Program Files\\MyApp\\bin", "user");
+const result = chopsticks.addToPath("C:\\Program Files\\MyApp\\bin", "user");
 if (result.success) {
-    logx.info("已添加到 PATH");
+    log.info("已添加到 PATH");
 }
 ```
 
@@ -1404,7 +1410,7 @@ if (result.success) {
 **示例：**
 
 ```javascript
-chopsticksx.removeFromPath("C:\\OldApp\\bin", "user");
+chopsticks.removeFromPath("C:\\OldApp\\bin", "user");
 ```
 
 ### setEnv(key, value, scope?)
@@ -1429,7 +1435,7 @@ chopsticksx.removeFromPath("C:\\OldApp\\bin", "user");
 **示例：**
 
 ```javascript
-chopsticksx.setEnv("JAVA_HOME", "C:\\Program Files\\Java\\jdk-17", "machine");
+chopsticks.setEnv("JAVA_HOME", "C:\\Program Files\\Java\\jdk-17", "machine");
 ```
 
 ### getEnv(key)
@@ -1453,9 +1459,9 @@ chopsticksx.setEnv("JAVA_HOME", "C:\\Program Files\\Java\\jdk-17", "machine");
 **示例：**
 
 ```javascript
-const result = chopsticksx.getEnv("PATH");
+const result = chopsticks.getEnv("PATH");
 if (result.success) {
-    logx.info("PATH: " + result.value);
+    log.info("PATH: " + result.value);
 }
 ```
 
@@ -1488,12 +1494,12 @@ if (result.success) {
 **示例：**
 
 ```javascript
-const result = chopsticksx.createShim(
+const result = chopsticks.createShim(
     "C:\\Program Files\\Node\\node.exe",
     "node"
 );
 if (result.success) {
-    logx.info("Shim 创建成功: " + result.shimPath);
+    log.info("Shim 创建成功: " + result.shimPath);
 }
 ```
 
@@ -1517,7 +1523,7 @@ if (result.success) {
 **示例：**
 
 ```javascript
-chopsticksx.removeShim("node");
+chopsticks.removeShim("node");
 ```
 
 ### persistData(appName, paths)
@@ -1541,7 +1547,7 @@ chopsticksx.removeShim("node");
 **示例：**
 
 ```javascript
-chopsticksx.persistData("vscode", ["data", "config/settings.json"]);
+chopsticks.persistData("vscode", ["data", "config/settings.json"]);
 ```
 
 ### createShortcut(options)
@@ -1576,7 +1582,7 @@ chopsticksx.persistData("vscode", ["data", "config/settings.json"]);
 **示例：**
 
 ```javascript
-const result = chopsticksx.createShortcut({
+const result = chopsticks.createShortcut({
     source: "C:\\Program Files\\App\\app.exe",
     name: "My Application",
     description: "My App Description",
@@ -1601,9 +1607,9 @@ const result = chopsticksx.createShortcut({
 **示例：**
 
 ```javascript
-const result = chopsticksx.getCacheDir();
+const result = chopsticks.getCacheDir();
 if (result.success) {
-    logx.info("缓存目录: " + result.path);
+    log.info("缓存目录: " + result.path);
 }
 ```
 
@@ -1622,9 +1628,9 @@ if (result.success) {
 **示例：**
 
 ```javascript
-const result = chopsticksx.getConfigDir();
+const result = chopsticks.getConfigDir();
 if (result.success) {
-    logx.info("配置目录: " + result.path);
+    log.info("配置目录: " + result.path);
 }
 ```
 
@@ -1649,7 +1655,7 @@ if (result.success) {
 **示例：**
 
 ```javascript
-chopsticksx.deleteEnv("OLD_VAR", "user");
+chopsticks.deleteEnv("OLD_VAR", "user");
 ```
 
 ### getPath()
@@ -1667,10 +1673,10 @@ chopsticksx.deleteEnv("OLD_VAR", "user");
 **示例：**
 
 ```javascript
-const result = chopsticksx.getPath();
+const result = chopsticks.getPath();
 if (result.success) {
     for (const p of result.paths) {
-        logx.info("PATH 项: " + p);
+        log.info("PATH 项: " + p);
     }
 }
 ```
@@ -1690,9 +1696,9 @@ if (result.success) {
 **示例：**
 
 ```javascript
-const result = chopsticksx.getShimDir();
+const result = chopsticks.getShimDir();
 if (result.success) {
-    logx.info("Shim 目录: " + result.path);
+    log.info("Shim 目录: " + result.path);
 }
 ```
 
@@ -1711,15 +1717,15 @@ if (result.success) {
 **示例：**
 
 ```javascript
-const result = chopsticksx.getPersistDir();
+const result = chopsticks.getPersistDir();
 if (result.success) {
-    logx.info("持久化目录: " + result.path);
+    log.info("持久化目录: " + result.path);
 }
 ```
 
 ---
 
-## 7. jsonx - JSON 处理
+## 7. json - JSON 处理
 
 JSON 处理模块，提供序列化和解析功能。
 
@@ -1755,11 +1761,11 @@ JSON 处理模块，提供序列化和解析功能。
 const data = { name: "test", version: "1.0.0", items: [1, 2, 3] };
 
 // 紧凑格式
-const result1 = jsonx.stringify(data);
+const result1 = json.stringify(data);
 // 结果: {"name":"test","version":"1.0.0","items":[1,2,3]}
 
 // 格式化输出
-const result2 = jsonx.stringify(data, 2);
+const result2 = json.stringify(data, 2);
 // 结果:
 // {
 //   "name": "test",
@@ -1790,22 +1796,22 @@ const result2 = jsonx.stringify(data, 2);
 
 ```javascript
 const jsonStr = '{"name":"test","version":"1.0.0"}';
-const result = jsonx.parse(jsonStr);
+const result = json.parse(jsonStr);
 if (result.success) {
-    logx.info("名称: " + result.data.name);
-    logx.info("版本: " + result.data.version);
+    log.info("名称: " + result.data.name);
+    log.info("版本: " + result.data.version);
 }
 
 // 解析失败处理
-const result2 = jsonx.parse("invalid json");
+const result2 = json.parse("invalid json");
 if (!result2.success) {
-    logx.error("解析失败: " + result2.error);
+    log.error("解析失败: " + result2.error);
 }
 ```
 
 ---
 
-## 8. logx - 日志
+## 8. log - 日志
 
 日志模块，提供分级日志输出功能。
 
@@ -1833,8 +1839,8 @@ if (!result2.success) {
 **示例：**
 
 ```javascript
-logx.debug("正在检查版本...");
-logx.debug("变量值: " + JSON.stringify(data));
+log.debug("正在检查版本...");
+log.debug("变量值: " + JSON.stringify(data));
 ```
 
 ### info(message)
@@ -1852,8 +1858,8 @@ logx.debug("变量值: " + JSON.stringify(data));
 **示例：**
 
 ```javascript
-logx.info("开始安装应用...");
-logx.info("下载完成，正在解压...");
+log.info("开始安装应用...");
+log.info("下载完成，正在解压...");
 ```
 
 ### warn(message)
@@ -1871,8 +1877,8 @@ logx.info("下载完成，正在解压...");
 **示例：**
 
 ```javascript
-logx.warn("配置文件已存在，将被覆盖");
-logx.warn("检测到旧版本，建议升级");
+log.warn("配置文件已存在，将被覆盖");
+log.warn("检测到旧版本，建议升级");
 ```
 
 ### error(message)
@@ -1890,13 +1896,13 @@ logx.warn("检测到旧版本，建议升级");
 **示例：**
 
 ```javascript
-logx.error("下载失败: 网络连接错误");
-logx.error("安装失败: " + error.message);
+log.error("下载失败: 网络连接错误");
+log.error("安装失败: " + error.message);
 ```
 
 ---
 
-## 9. pathx - 路径操作
+## 9. path - 路径操作
 
 路径操作模块，提供跨平台的路径处理功能。
 
@@ -1935,10 +1941,10 @@ logx.error("安装失败: " + error.message);
 **示例：**
 
 ```javascript
-const result = pathx.join("C:\\Users", "name", "Documents", "file.txt");
+const result = path.join("C:\\Users", "name", "Documents", "file.txt");
 // 结果: C:\\Users\\name\\Documents\\file.txt
 
-const result2 = pathx.join("/home", "user", "docs");
+const result2 = path.join("/home", "user", "docs");
 // 结果: /home/user/docs
 ```
 
@@ -1963,7 +1969,7 @@ const result2 = pathx.join("/home", "user", "docs");
 **示例：**
 
 ```javascript
-const result = pathx.abs("./config.json");
+const result = path.abs("./config.json");
 // 结果: C:\\Current\\Directory\\config.json
 ```
 
@@ -1989,10 +1995,10 @@ const result = pathx.abs("./config.json");
 **示例：**
 
 ```javascript
-const result1 = pathx.base("/path/to/file.txt");
+const result1 = path.base("/path/to/file.txt");
 // 结果: file.txt
 
-const result2 = pathx.base("/path/to/file.txt", ".txt");
+const result2 = path.base("/path/to/file.txt", ".txt");
 // 结果: file
 ```
 
@@ -2017,7 +2023,7 @@ const result2 = pathx.base("/path/to/file.txt", ".txt");
 **示例：**
 
 ```javascript
-const result = pathx.dir("/path/to/file.txt");
+const result = path.dir("/path/to/file.txt");
 // 结果: /path/to
 ```
 
@@ -2042,10 +2048,10 @@ const result = pathx.dir("/path/to/file.txt");
 **示例：**
 
 ```javascript
-const result = pathx.ext("/path/to/file.txt");
+const result = path.ext("/path/to/file.txt");
 // 结果: .txt
 
-const result2 = pathx.ext("/path/to/archive.tar.gz");
+const result2 = path.ext("/path/to/archive.tar.gz");
 // 结果: .gz
 ```
 
@@ -2070,7 +2076,7 @@ const result2 = pathx.ext("/path/to/archive.tar.gz");
 **示例：**
 
 ```javascript
-const result = pathx.clean("/path/./to/../file.txt");
+const result = path.clean("/path/./to/../file.txt");
 // 结果: /path/file.txt
 ```
 
@@ -2095,10 +2101,10 @@ const result = pathx.clean("/path/./to/../file.txt");
 **示例：**
 
 ```javascript
-const result1 = pathx.isAbs("/usr/bin");
+const result1 = path.isAbs("/usr/bin");
 // result.isAbs: true
 
-const result2 = pathx.isAbs("./relative/path");
+const result2 = path.isAbs("./relative/path");
 // result.isAbs: false
 ```
 
@@ -2123,9 +2129,9 @@ const result2 = pathx.isAbs("./relative/path");
 **示例：**
 
 ```javascript
-const result = pathx.exists("/path/to/check");
+const result = path.exists("/path/to/check");
 if (result.success && result.exists) {
-    logx.info("路径存在");
+    log.info("路径存在");
 }
 ```
 
@@ -2150,9 +2156,9 @@ if (result.success && result.exists) {
 **示例：**
 
 ```javascript
-const result = pathx.isDir("/path/to/check");
+const result = path.isDir("/path/to/check");
 if (result.success && result.isDir) {
-    logx.info("这是一个目录");
+    log.info("这是一个目录");
 }
 ```
 
@@ -2232,7 +2238,7 @@ const result = registry.setValue(
 ```javascript
 const result = registry.getValue("HKCU\\Software\\MyApp", "Version");
 if (result.success) {
-    logx.info("版本: " + result.value);
+    log.info("版本: " + result.value);
 }
 ```
 
@@ -2285,7 +2291,7 @@ registry.setDword("HKCU\\Software\\MyApp", "Count", 42);
 ```javascript
 const result = registry.getDword("HKCU\\Software\\MyApp", "Count");
 if (result.success) {
-    logx.info("计数: " + result.value);
+    log.info("计数: " + result.value);
 }
 ```
 
@@ -2382,7 +2388,7 @@ registry.deleteKey("HKCU\\Software\\MyApp\\OldSettings");
 ```javascript
 const result = registry.keyExists("HKCU\\Software\\MyApp");
 if (result.success && result.exists) {
-    logx.info("键存在");
+    log.info("键存在");
 }
 ```
 
@@ -2410,7 +2416,7 @@ if (result.success && result.exists) {
 const result = registry.listKeys("HKCU\\Software");
 if (result.success) {
     for (const key of result.keys) {
-        logx.info("子键: " + key);
+        log.info("子键: " + key);
     }
 }
 ```
@@ -2439,7 +2445,7 @@ if (result.success) {
 const result = registry.listValues("HKCU\\Software\\MyApp");
 if (result.success) {
     for (const val of result.values) {
-        logx.info(val.name + " = " + val.value);
+        log.info(val.name + " = " + val.value);
     }
 }
 ```
@@ -2490,9 +2496,9 @@ if (result.success) {
 ```javascript
 const result = semver.parse("1.2.3-beta.1+build.123");
 if (result.success) {
-    logx.info("主版本: " + result.major);
-    logx.info("次版本: " + result.minor);
-    logx.info("修订号: " + result.patch);
+    log.info("主版本: " + result.major);
+    log.info("次版本: " + result.minor);
+    log.info("修订号: " + result.patch);
 }
 ```
 
@@ -2521,11 +2527,11 @@ if (result.success) {
 const result = semver.compare("1.2.0", "1.2.3");
 if (result.success) {
     if (result.result < 0) {
-        logx.info("1.2.0 < 1.2.3");
+        log.info("1.2.0 < 1.2.3");
     } else if (result.result > 0) {
-        logx.info("1.2.0 > 1.2.3");
+        log.info("1.2.0 > 1.2.3");
     } else {
-        logx.info("版本相等");
+        log.info("版本相等");
     }
 }
 ```
@@ -2554,7 +2560,7 @@ if (result.success) {
 ```javascript
 const result = semver.gt("2.0.0", "1.9.9");
 if (result.success && result.result) {
-    logx.info("2.0.0 > 1.9.9");
+    log.info("2.0.0 > 1.9.9");
 }
 ```
 
@@ -2582,7 +2588,7 @@ if (result.success && result.result) {
 ```javascript
 const result = semver.lt("1.0.0", "2.0.0");
 if (result.success && result.result) {
-    logx.info("1.0.0 < 2.0.0");
+    log.info("1.0.0 < 2.0.0");
 }
 ```
 
@@ -2610,7 +2616,7 @@ if (result.success && result.result) {
 ```javascript
 const result = semver.eq("1.2.3", "1.2.3");
 if (result.success && result.result) {
-    logx.info("版本相等");
+    log.info("版本相等");
 }
 ```
 
@@ -2638,7 +2644,7 @@ if (result.success && result.result) {
 ```javascript
 const result = semver.gte("1.2.3", "1.0.0");
 if (result.success && result.result) {
-    logx.info("1.2.3 >= 1.0.0");
+    log.info("1.2.3 >= 1.0.0");
 }
 ```
 
@@ -2666,7 +2672,7 @@ if (result.success && result.result) {
 ```javascript
 const result = semver.lte("1.0.0", "1.2.3");
 if (result.success && result.result) {
-    logx.info("1.0.0 <= 1.2.3");
+    log.info("1.0.0 <= 1.2.3");
 }
 ```
 
@@ -2858,7 +2864,7 @@ const result = symlink.createJunction(
 ```javascript
 const result = symlink.is("C:\\Links\\app.exe");
 if (result.success && result.isSymlink) {
-    logx.info("这是一个符号链接");
+    log.info("这是一个符号链接");
 }
 ```
 
@@ -2885,7 +2891,7 @@ if (result.success && result.isSymlink) {
 ```javascript
 const result = symlink.read("C:\\Links\\app.exe");
 if (result.success) {
-    logx.info("目标: " + result.target);
+    log.info("目标: " + result.target);
 }
 ```
 
@@ -2914,7 +2920,7 @@ symlink.remove("C:\\Links\\app.exe");
 
 ---
 
-## 13. installerx - 安装程序
+## 13. installer - 安装程序
 
 安装程序执行模块，支持多种安装包格式。
 
@@ -2958,9 +2964,9 @@ symlink.remove("C:\\Links\\app.exe");
 **示例：**
 
 ```javascript
-const result = installerx.run("setup.exe", ["/S"], { wait: true });
+const result = installer.run("setup.exe", ["/S"], { wait: true });
 if (result.success) {
-    logx.info("安装完成，退出码: " + result.exitCode);
+    log.info("安装完成，退出码: " + result.exitCode);
 }
 ```
 
@@ -2994,7 +3000,7 @@ if (result.success) {
 **示例：**
 
 ```javascript
-const result = installerx.runNSIS("installer.exe", [
+const result = installer.runNSIS("installer.exe", [
     "/S",
     "/D=C:\\Program Files\\MyApp"
 ]);
@@ -3031,7 +3037,7 @@ const result = installerx.runNSIS("installer.exe", [
 **示例：**
 
 ```javascript
-const result = installerx.runMSI("installer.msi", [
+const result = installer.runMSI("installer.msi", [
     "/quiet",
     "/norestart"
 ]);
@@ -3070,7 +3076,7 @@ const result = installerx.runMSI("installer.msi", [
 **示例：**
 
 ```javascript
-const result = installerx.runInno("setup.exe", [
+const result = installer.runInno("setup.exe", [
     "/VERYSILENT",
     "/SUPPRESSMSGBOXES",
     "/NORESTART",
@@ -3109,9 +3115,9 @@ const result = installerx.runInno("setup.exe", [
 **示例：**
 
 ```javascript
-const result = installerx.detectType("setup.exe");
+const result = installer.detectType("setup.exe");
 if (result.success) {
-    logx.info("安装程序类型: " + result.type);
+    log.info("安装程序类型: " + result.type);
 }
 ```
 
@@ -3147,15 +3153,16 @@ if (result.success) {
 const result = someApi.someFunction();
 
 if (!result.success) {
-    logx.error("操作失败: " + result.error);
+    log.error("操作失败: " + result.error);
     return;
 }
 
 // 处理成功结果
-logx.info("操作成功: " + result.someData);
+log.info("操作成功: " + result.someData);
 ```
 
 ---
 
 _最后更新：2026-03-01_
 _版本：v0.10.0-alpha_
+

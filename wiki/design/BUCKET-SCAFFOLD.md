@@ -49,8 +49,8 @@ chopsticks bucket init my-bucket --dir ./buckets
 my-bucket/
 ├── bucket.json                 # 配置
 ├── bucket.db                   # 可选：元数据缓存（SQLite）
-├── apps/                       # 应用目录
-│   └── example.js              # 示例应用
+├── apps/                       # 软件包目录
+│   └── example.js              # 示例软件包
 ├── tools.js                    # 共享工具（可选）
 └── .gitignore                  # 忽略文件
 ```

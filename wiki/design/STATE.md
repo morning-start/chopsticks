@@ -179,7 +179,7 @@ stateDiagram-v2
 ├── main/              # 克隆的 main 软件源
 │   ├── .git/          # Git 仓库
 │   ├── bucket.json    # 软件源配置
-│   └── apps/          # 应用目录
+│   └── apps/          # 软件包目录
 ├── extras/            # 克隆的 extras 软件源
 └── ...
 ```

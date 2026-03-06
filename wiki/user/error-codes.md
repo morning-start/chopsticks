@@ -4,7 +4,7 @@
 
 ---
 
-## 错误代码格式
+## 1. 错误代码格式
 
 Chopsticks 错误代码格式: `CHP-XXXX`
 
@@ -13,7 +13,7 @@ Chopsticks 错误代码格式: `CHP-XXXX`
 
 ---
 
-## 1xxx - 系统错误
+## 2. 1xxx - 系统错误
 
 ### CHP-1001: 权限不足
 
@@ -135,7 +135,7 @@ chopsticks bucket add main https://github.com/chopsticks-bucket/main
 
 ---
 
-## 4xxx - 安装错误
+## 5. 4xxx - 安装错误
 
 ### CHP-4001: 软件未找到
 
@@ -212,7 +212,7 @@ notepad %USERPROFILE%\.chopsticks\config.yaml
 
 ---
 
-## 9xxx - 其他错误
+## 7. 9xxx - 其他错误
 
 ### CHP-9001: 未知错误
 
@@ -229,7 +229,7 @@ chopsticks reset
 
 ---
 
-## 快速排查指南
+## 8. 快速排查指南
 
 ### 遇到错误时的排查步骤
 

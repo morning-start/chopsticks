@@ -6,7 +6,7 @@
 
 ## 1. 什么是软件源
 
-软件源（Bucket）是 Chopsticks 中的软件源概念，用于组织和存储多个应用（软件包）。
+软件源（Bucket）是 Chopsticks 中的软件源概念，用于组织和存储多个软件包（App）。
 
 ### 1.1 核心术语
 
@@ -14,7 +14,7 @@
 | ----------- | ------------------------------ |
 | 软件源 (Bucket)    | 软件源的内部名称               |
 | 软件源      | 用户友好术语，软件源的别名         |
-| 应用 (App) | 单个软件包定义                 |
+| 软件包 (App) | 单个软件包定义                 |
 | 脚本文件    | 定义安装逻辑的 JavaScript 文件 |
 
 ---
@@ -27,11 +27,11 @@
 my-bucket/
 ├── bucket.json           # 必需：软件源配置文件
 ├── README.md            # 可选：说明文档
-├── bucket.db               # 可选：应用元数据缓存（SQLite）
+├── bucket.db               # 可选：软件包元数据缓存（SQLite）
 ├── apps/_chopsticks_.js  # 必需：类型定义（包含 App 基类）
-├── apps/_example_.js     # 必需：示例应用
+├── apps/_example_.js     # 必需：示例软件包
 ├── apps/_tools_.js       # 可选：共享工具函数
-└── apps/              # 必需：应用目录
+└── apps/              # 必需：软件包目录
     └── git.js           # 必需：JS 脚本
 ```
 
@@ -54,7 +54,7 @@ my-bucket/
 }
 ```
 
-### 3.2 创建应用脚本
+### 3.2 创建软件包脚本
 
 在 `apps/` 目录下创建 JavaScript 脚本文件。
 
@@ -167,7 +167,7 @@ chopsticks bucket add my-bucket https://github.com/username/my-bucket --depth 1
 
 ### 6.2 组织结构
 
-建议按功能分类组织应用：
+建议按功能分类组织软件包：
 
 ```
 my-bucket/
@@ -210,7 +210,7 @@ mkdir apps
 }
 ```
 
-### 步骤 3：创建应用脚本
+### 步骤 3：创建软件包脚本
 
 参考 App 最佳实践文档。
 

@@ -13,7 +13,7 @@ Chopsticks 采用**分布式存储**策略：
 
 | 存储位置                                               | 用途       | 存储方式  | 数据特性                 |
 | ------------------------------------------------------ | ---------- | --------- | ------------------------ |
-| `%USERPROFILE%\.chopsticks\buckets\{bucket}\apps\`     | 应用脚本   | 文件 (JS) | **只读**，来自 Git 仓库  |
+| `%USERPROFILE%\.chopsticks\buckets\{bucket}\apps\`     | 软件包脚本 | 文件 (JS) | **只读**，来自 Git 仓库  |
 | `%USERPROFILE%\.chopsticks\buckets\{bucket}\bucket.db` | 元数据缓存 | SQLite    | **只读**，自动生成的缓存 |
 | `%USERPROFILE%\.chopsticks\data.db`                    | 已安装软件 | SQLite    | **读写**，运行时状态     |
 
@@ -35,13 +35,13 @@ Chopsticks 采用**分布式存储**策略：
     ├── bucket.json            # 配置
     ├── bucket.db              # 可选：元数据缓存（SQLite）
     ├── apps\
-    │   ├── git.js             # 应用脚本（包含元数据和安装逻辑）
+    │   ├── git.js             # 软件包脚本（包含元数据和安装逻辑）
     │   └── nodejs.js
     └── .chopsticks\
         └── index.json         # 可选：预生成的搜索索引
 ```
 
-### 2.2 app.js - 应用脚本（包含元数据和安装逻辑）
+### 2.2 app.js - 软件包脚本（包含元数据和安装逻辑）
 
 ```javascript
 // git.js - Git for Windows 安装脚本
@@ -561,8 +561,40 @@ erDiagram
         datetime expires_at
     }
 
+    INSTALL_OPERATIONS {
+        int id PK
+        text app_id FK
+        text version
+        datetime installed_at
+        text operation_type
+        text from_version
+    }
+
+    SYSTEM_OPERATIONS {
+        int id PK
+        text app_id FK
+        text version FK
+        text operation_type
+        text key_name
+        text value
+        text original_value
+        datetime created_at
+    }
+
+    PATH_ENTRIES {
+        int id PK
+        text app_id FK
+        text version FK
+        text entry_path
+        text entry_type
+        datetime verified_at
+    }
+
     BUCKETS ||--o{ INSTALLED : installs
     BUCKETS ||--o{ SEARCH_CACHE : caches
+    INSTALLED ||--o{ INSTALL_OPERATIONS : has
+    INSTALL_OPERATIONS ||--o{ SYSTEM_OPERATIONS : tracks
+    INSTALL_OPERATIONS ||--o{ PATH_ENTRIES : has
 ```
 
 ---

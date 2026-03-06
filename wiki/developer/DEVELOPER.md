@@ -34,10 +34,10 @@ my-bucket/
 ├── bucket.json            # 必需：Bucket 配置
 ├── bucket.db              # 可选：元数据缓存（SQLite）
 ├── .gitignore            # 必需：忽略文件
-├── apps/                 # 必需：应用目录
+├── apps/                 # 必需：软件包目录
 │   ├── _chopsticks_.js   # 必需：类型定义（包含 App 基类）
-│   ├── _example_.js      # 必需：示例应用
-│   └── git.js            # 可选：应用脚本
+│   ├── _example_.js      # 必需：示例软件包
+│   └── git.js            # 可选：软件包脚本
 └── README.md             # 可选：说明文档
 ```
 
@@ -60,7 +60,7 @@ my-bucket/
 
 ### 3.1 类型定义 (_chopsticks_.js)
 
-所有应用脚本都依赖 `_chopsticks_.js` 中定义的 App 基类：
+所有软件包脚本都依赖 `_chopsticks_.js` 中定义的 App 基类：
 
 ```javascript
 class App {
@@ -88,7 +88,7 @@ class App {
 }
 ```
 
-### 3.2 应用脚本 (git.js)
+### 3.2 软件包脚本 (git.js)
 
 使用面向对象方式继承 App 基类：
 
@@ -254,10 +254,10 @@ App 基类在 `_chopsticks_.js` 中定义，提供以下核心功能：
 
 ### 5.1 必需方法
 
-| 方法                              | 说明         | 参数                        | 返回值                  |
-| --------------------------------- | ------------ | --------------------------- | ----------------------- |
-| `checkVersion()`                  | 获取最新版本 | -                           | `Promise<string>`       |
-| `getDownloadInfo(version, arch?)` | 获取下载信息 | `version` 必需，`arch` 可选 | `Promise<DownloadInfo>` |
+| 方法                              | 说明         | 参数                        | 返回值            |
+| --------------------------------- | ------------ | --------------------------- | ----------------- |
+| `checkVersion()`                  | 获取最新版本 | -                           | `string`          |
+| `getDownloadInfo(version, arch?)` | 获取下载信息 | `version` 必需，`arch` 可选 | `DownloadInfo`    |
 
 ### 5.2 安装/卸载生命周期钩子（可选）
 
@@ -719,10 +719,10 @@ my-bucket/
 ├── bucket.json                 # Bucket 配置
 ├── bucket.db                   # 可选：元数据缓存（SQLite）
 ├── .gitignore                  # 忽略文件
-├── apps/                       # 应用目录
+├── apps/                       # 软件包目录
 │   ├── _chopsticks_.js        # 类型定义（包含 App 基类）
-│   ├── _example_.js            # 示例应用
-│   └── git.js                  # 可选：应用脚本
+│   ├── _example_.js            # 示例软件包
+│   └── git.js                  # 可选：软件包脚本
 └── README.md                   # 说明文档
 ```
 
@@ -738,10 +738,10 @@ cd my-software
 # 3. 安装依赖（如需要）
 npm install
 
-# 4. 创建应用
+# 4. 创建软件包
 chopsticks bucket create git
 
-# 5. 开发应用
+# 5. 开发软件包
 # 编辑 apps/git.js
 
 # 6. 测试

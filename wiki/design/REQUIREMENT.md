@@ -31,10 +31,10 @@
 
 ### 2.1 术语对照
 
-| 用户友好术语 | 英文      | 说明             |
-| ------------ | --------- | ---------------- |
-| 软件源       | Bucket    | 软件包的集合     |
-| 软件包       | App       | 单个软件定义     |
+| 用户友好术语   | 英文      | 说明             |
+| -------------- | --------- | ---------------- |
+| 软件源 (Bucket)| Bucket    | 软件包的集合     |
+| 软件包 (App)   | App       | 单个软件定义     |
 | 安装         | Install   | 部署软件         |
 | 卸载         | Uninstall | 移除软件         |
 | 更新         | Update    | 升级软件         |
@@ -51,7 +51,7 @@
 每个软件源是一个 Git 仓库，根目录包含：
 
 - `bucket.json` - 软件源配置文件
-- `apps/` - 应用目录
+- `apps/` - 软件包目录
 
 #### 3.1.2 配置文件 (bucket.json)
 
@@ -77,12 +77,12 @@
 | ------------------------- | ---------------------- | ---- |
 | `bucket add <name> <url>` | 添加远程或本地软件源   | b    |
 | `bucket list`             | 列出所有已添加的软件源 | ls   |
-| `bucket update [name]`    | 从远程仓库拉取最新应用 | up   |
+| `bucket update [name]`    | 从远程仓库拉取最新软件包 | up   |
 | `bucket remove <name>`    | 删除软件源             | rm   |
 
 #### 3.1.4 共享工具
 
-支持在软件源根目录放置 `tools.js`，供该软件源内所有应用共享：
+支持在软件源根目录放置 `tools.js`，供该软件源内所有软件包共享：
 
 - 版本解析
 - URL 构建
@@ -90,11 +90,11 @@
 
 ---
 
-### 3.2 应用（App）定义
+### 3.2 软件包（App）定义
 
 #### 3.2.1 文件结构
 
-每个应用是一个 JavaScript 脚本文件：
+每个软件包是一个 JavaScript 脚本文件：
 
 - `app.js` - 脚本文件（包含元数据和安装逻辑）
 
@@ -130,7 +130,7 @@ class GitApp extends App {
 
 | 方法                   | 说明   | 上下文                              |
 | ---------------------- | ------ | ----------------------------------- |
-| `onPreDownload(ctx)`   | 下载前 | ctx.version, ctx.arch, ctx.cook_dir |
+| `onPreDownload(ctx)`   | 下载前 | ctx.version, ctx.arch, ctx.install_dir |
 | `onPostDownload(ctx)`  | 下载后 | 同上                                |
 | `onPreExtract(ctx)`    | 解压前 | 同上                                |
 | `onPostExtract(ctx)`   | 解压后 | 同上                                |
@@ -235,6 +235,9 @@ flowchart TD
 | `search`     | search.go     | `s`, `find`     | 搜索软件     |
 | `list`       | list.go       | `ls`            | 列出软件     |
 | `bucket`     | bucket.go     | -               | 软件源管理   |
+| `config`     | config.go     | -               | 配置管理     |
+| `conflict`   | conflict.go   | -               | 冲突检测     |
+| `perf`       | perf.go       | -               | 性能监控     |
 | `completion` | completion.go | -               | 生成补全脚本 |
 | `help`       | root.go       | `--help`, `-h`  | 显示帮助     |
 
@@ -248,6 +251,46 @@ flowchart TD
 | `remove` | rm, delete  | 删除软件源 |
 | `list`   | ls          | 列出软件源 |
 | `update` | up, upgrade | 更新软件源 |
+
+**config 子命令**：
+
+| 子命令 | 别名 | 说明         |
+| ------ | ---- | ------------ |
+| `get`  | -    | 获取配置项   |
+| `set`  | -    | 设置配置项   |
+| `list` | ls   | 列出所有配置 |
+
+**perf 子命令**：
+
+| 子命令    | 别名 | 说明                   |
+| --------- | ---- | ---------------------- |
+| `monitor` | -    | 实时监控性能指标       |
+| `report`  | -    | 生成性能报告           |
+| `status`  | -    | 查看当前性能状态       |
+| `js-pool` | -    | 查看 JS 引擎池状态     |
+
+#### 3.4.3 异步操作
+
+支持 `--async` 标志的命令：
+
+| 命令   | 说明                     | 并发控制标志     |
+| ------ | ------------------------ | ---------------- |
+| `install` | 并行安装多个包          | `--workers` / `-w` |
+| `update`  | 并行更新多个包          | `--workers` / `-w` |
+| `search`  | 并行搜索多个软件源      | `--workers` / `-w` |
+
+示例：
+
+```bash
+# 并行安装多个包
+chopsticks install git nodejs python --async --workers 4
+
+# 并行更新所有包
+chopsticks update --all --async
+
+# 并行搜索
+chopsticks search git --async --workers 10
+```
 
 ---
 
@@ -721,7 +764,7 @@ CREATE TABLE installed (
     name TEXT NOT NULL UNIQUE,
     version TEXT NOT NULL,
     bucket_id TEXT NOT NULL,
-    cook_dir TEXT NOT NULL,
+    install_dir TEXT NOT NULL,
     installed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -758,7 +801,7 @@ CREATE TABLE system_operations (
 );
 ```
 
-> **注意**: buckets、apps、app_versions 表已从 data.db 移除。软件源信息现在通过每个软件源目录下的 `bucket.json` 文件存储，应用信息通过文件系统扫描获取。
+> **注意**: buckets、apps、app_versions 表已从 data.db 移除。软件源信息现在通过每个软件源目录下的 `bucket.json` 文件存储，软件包信息通过文件系统扫描获取。
 
 ---
 

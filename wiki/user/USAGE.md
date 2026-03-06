@@ -100,7 +100,7 @@ Chopsticks 默认使用以下目录：
 | 目录         | 环境变量          | 默认路径                                | 说明                                |
 | ------------ | ----------------- | --------------------------------------- | ----------------------------------- |
 | 安装目录     | `CHOPSTICKS_HOME` | `%USERPROFILE%\.chopsticks`             | Chopsticks 主目录，包含所有数据     |
-| 应用目录     | -                 | `%USERPROFILE%\.chopsticks\apps`        | 已安装软件的目录，支持多版本管理    |
+| 软件包目录     | -                 | `%USERPROFILE%\.chopsticks\apps`        | 已安装软件的目录，支持多版本管理    |
 | 缓存目录     | -                 | `%USERPROFILE%\.chopsticks\cache`       | 下载缓存、临时文件和元数据缓存      |
 | 软件源目录   | -                 | `%USERPROFILE%\.chopsticks\buckets`     | 软件源（Bucket）仓库目录            |
 | 持久化目录   | -                 | `%USERPROFILE%\.chopsticks\persist`     | 软件持久化数据，更新时保留          |
@@ -256,6 +256,60 @@ chopsticks perf status
 # 查看 JS 引擎池状态
 chopsticks perf js-pool
 ```
+
+### 4.6 配置管理
+
+Chopsticks 提供配置管理功能：
+
+```bash
+# 获取配置项
+chopsticks config get proxy.url
+
+# 设置配置项
+chopsticks config set proxy.url http://127.0.0.1:7890
+
+# 列出所有配置
+chopsticks config list
+chopsticks config ls
+```
+
+### 4.7 冲突检测
+
+Chopsticks 提供安装前冲突检测功能：
+
+```bash
+# 检测指定软件的冲突
+chopsticks conflict check git
+
+# 检测多个软件的冲突
+chopsticks conflict check git nodejs
+
+# 显示冲突详情
+chopsticks conflict show git
+```
+
+### 4.8 异步操作
+
+Chopsticks 支持异步操作以提升性能：
+
+```bash
+# 异步安装多个包（并行安装）
+chopsticks install git nodejs python --async
+
+# 异步安装并指定并发数
+chopsticks install git nodejs python --async --workers 4
+
+# 异步更新所有包
+chopsticks update --all --async
+
+# 异步搜索多个软件源
+chopsticks search git --async --workers 10
+```
+
+**性能提升**：
+- 批量安装性能提升 5-6 倍
+- 并行搜索速度提升 6.7 倍
+- 多连接下载速度提升 3-5 倍
 
 ---
 
@@ -455,207 +509,7 @@ retry: 3
 
 ---
 
-## 11. 设备同步
-
-### 11.1 功能概述
-
-设备同步功能允许用户快速在新设备上恢复所有已安装的软件。当您需要更换电脑或重新安装系统时，只需复制整个 `.chopsticks` 目录到新设备，然后运行同步命令即可。
-
-### 11.2 目录结构
-
-```
-%USERPROFILE%\.chopsticks\
-├── buckets/           # 软件源（Bucket）目录
-│   ├── main/          # 默认软件源
-│   │   ├── git.js       # Git下载脚本
-│   │   └── ...
-│   └── extras/        # 其他软件源
-├── apps/              # 已安装的软件目录
-│   ├── app1/          # 应用1安装目录
-│   │   ├── current/   # 当前版本（符号链接）
-│   │   ├── 1.0.0/     # 版本 1.0.0
-│   │   └── 1.1.0/     # 版本 1.1.0
-│   └── app2/          # 应用2安装目录
-├── cache/             # 缓存目录
-│   ├── downloads/     # 下载的安装包缓存
-│   ├── temp/          # 临时文件
-│   └── metadata/      # 元数据缓存
-├── persist/           # 持久化数据目录（更新时保留）
-│   ├── app1/          # 应用1的持久化数据
-│   │   ├── config/    # 配置文件
-│   │   └── data/      # 数据文件
-│   └── app2/          # 应用2的持久化数据
-├── shim/              # 可执行文件快捷方式目录
-│   ├── git.exe        # Git 命令快捷方式
-│   └── ...
-├── logs/              # 日志文件
-│   └── chp_yyyy_mm_dd.log # 主日志文件
-├── data.db            # 全局数据库（SQLite）
-└── config.yaml        # 用户配置文件
-```
-
-**目录说明：**
-
-| 目录/文件          | 说明                                                      |
-| ------------------ | --------------------------------------------------------- |
-| `buckets/`         | 存储所有软件源（Bucket），每个子目录对应一个软件源        |
-| `apps/`            | 存储所有已安装的应用，每个应用一个子目录，支持多版本管理  |
-| `cache/`           | 缓存目录，包含下载缓存、临时文件和元数据缓存              |
-| `cache/downloads/` | 下载的安装包缓存                                          |
-| `cache/temp/`      | 临时文件                                                  |
-| `cache/metadata/`  | 元数据缓存                                                |
-| `persist/`         | 持久化数据目录，更新软件时保留用户配置和数据              |
-| `shim/`            | 可执行文件快捷方式目录，添加到 PATH 供全局调用            |
-| `logs/`            | 运行日志，便于排查问题                                    |
-| `data.db`          | SQLite 数据库，存储软件源配置、已安装软件信息、操作记录等 |
-| `config.yaml`      | 用户配置文件，包含代理设置、并行数、超时时间等            |
-
-### 11.3 使用场景
-
-**场景一：换电脑**
-
-1. 在旧电脑上，将 `%USERPROFILE%\.chopsticks` 目录复制到 U 盘或云盘
-2. 在新电脑上，将目录复制到相同位置 `%USERPROFILE%\.chopsticks`
-3. 运行同步命令恢复软件
-
-**场景二：重装系统**
-
-1. 重装系统前备份 `.chopsticks` 目录
-2. 重装系统后，将备份目录恢复到 `%USERPROFILE%\.chopsticks`
-3. 运行同步命令恢复软件
-
-### 11.4 命令用法
-
-#### 11.4.1 sync 命令语法
-
-```bash
-chopsticks sync [subcommand] [flags]
-```
-
-**子命令**:
-
-| 子命令    | 说明                     | 示例                      |
-| --------- | ------------------------ | ------------------------- |
-| `list`    | 查看将同步的软件列表     | `chopsticks sync list`    |
-| `install` | 同步安装所有已记录的软件 | `chopsticks sync install` |
-| `status`  | 查看同步状态             | `chopsticks sync status`  |
-
-**参数说明**:
-
-| 参数               | 简写 | 说明                   | 示例                                       |
-| ------------------ | ---- | ---------------------- | ------------------------------------------ |
-| `--device`         | `-d` | 指定目标设备           | `chopsticks sync -d laptop`                |
-| `--force`          | `-f` | 强制同步，覆盖冲突     | `chopsticks sync install -f`               |
-| `--dry-run`        | `-n` | 模拟运行，不实际安装   | `chopsticks sync install -n`               |
-| `--config-only`    | `-c` | 仅同步配置，不同步软件 | `chopsticks sync -c`                       |
-| `--skip-installed` | -    | 跳过已安装的软件       | `chopsticks sync install --skip-installed` |
-
-#### 11.4.2 常用命令示例
-
-```bash
-# 查看将同步的软件列表（不实际安装）
-chopsticks sync list
-
-# 同步安装所有已记录的软件
-chopsticks sync install
-
-# 同步安装（跳过已安装的）
-chopsticks sync install --skip-installed
-
-# 模拟同步（查看会发生什么，但不实际执行）
-chopsticks sync install --dry-run
-
-# 强制同步（覆盖已存在的配置）
-chopsticks sync install --force
-
-# 仅同步配置
-chopsticks sync --config-only
-
-# 查看同步状态
-chopsticks sync status
-```
-
-### 11.5 同步流程
-
-```mermaid
-sequenceDiagram
-    participant U as 用户
-    participant C as Chopsticks
-    participant D as data.db
-    participant B as 软件源
-    participant A as apps/
-
-    U->>C: chopsticks sync install
-    C->>D: 读取 installed 表
-    C->>B: 扫描软件源目录(bucket.json)
-    C->>B: 克隆/更新软件源
-    loop 遍历已安装软件
-        C->>B: 获取软件 manifest
-        C->>A: 安装软件
-        C->>D: 更新安装记录
-    end
-    C->>U: 同步完成
-```
-
-### 11.6 工作原理
-
-`sync install` 命令会执行以下操作：
-
-1. **读取数据库**: 从 `data.db` 读取 `installed` 表
-2. **扫描软件源**: 扫描 `buckets` 目录，读取每个软件源的 `bucket.json`
-3. **更新软件源**: 克隆或更新所有软件源仓库
-4. **遍历安装**: 按依赖顺序安装每个软件
-5. **冲突处理**: 根据策略处理版本冲突
-6. **记录更新**: 更新数据库中的安装记录
-
-### 11.7 冲突解决
-
-当多个设备上的配置不一致时，系统提供三种冲突解决策略：
-
-1. **本地优先** (`local`): 保留本地修改，覆盖云端
-2. **云端优先** (`remote`): 使用云端版本，覆盖本地
-3. **手动合并** (`merge`): 提示用户手动选择
-
-```bash
-# 设置默认冲突解决策略
-chopsticks config set sync.conflict_strategy local
-
-# 临时指定策略
-chopsticks sync install --conflict-strategy remote
-```
-
-### 11.8 注意事项
-
-- **数据库完整**：确保复制的 `data.db` 数据库文件完整无损
-- **网络连接**：同步过程需要重新下载软件，请确保网络畅通
-- **版本兼容**：部分软件可能在新设备上需要不同版本，请注意检查
-- **存储空间**：确保新设备有足够的存储空间安装所有软件
-
-### 11.9 故障排除
-
-**问题: 同步失败**
-
-```bash
-# 查看详细错误信息
-chopsticks sync install --verbose
-
-# 检查数据库完整性
-chopsticks doctor
-```
-
-**问题: 软件源无法访问**
-
-```bash
-# 更新软件源
-chopsticks bucket update
-
-# 检查网络连接
-ping github.com
-```
-
----
-
-## 12. 缓存管理
+## 11. 缓存管理
 
 Chopsticks 使用多级缓存机制来提升性能。详细说明请查看 [缓存管理指南](cache-management.md)。
 

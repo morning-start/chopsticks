@@ -68,8 +68,8 @@ Chopsticks（筷子）是一个基于 JavaScript 的 **Windows 包管理器**，
 
 | 用户友好术语     | 英文      | 说明         |
 | ---------------- | --------- | ------------ |
-| 软件源 (Source)  | Bucket    | 软件包的集合 |
-| 软件包 (Package) | App       | 单个软件定义 |
+| 软件源 (Bucket)  | Bucket    | 软件包的集合 |
+| 软件包 (App)     | App       | 单个软件定义 |
 | 安装 (Install)   | Install   | 部署软件     |
 | 卸载 (Uninstall) | Uninstall | 移除软件     |
 | 更新 (Update)    | Update    | 升级软件     |
@@ -128,7 +128,7 @@ chopsticks perf
 
 ---
 
-## ✨ 主要功能
+## 4. ✨ 主要功能
 
 ### 软件包管理
 
@@ -192,7 +192,7 @@ chopsticks perf
 
 ---
 
-## 📂 项目结构
+## 6. 📂 项目结构
 
 ```
 chopsticks/
@@ -234,4 +234,4 @@ chopsticks/
 
 ---
 
-_最后更新：2026-03-01_
+_最后更新：2026-03-06_
