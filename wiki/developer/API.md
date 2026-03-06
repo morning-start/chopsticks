@@ -1,4 +1,4 @@
-﻿# Chopsticks JavaScript API 参考
+﻿﻿# Chopsticks JavaScript API 参考
 
 > 应用脚本中可用的 JavaScript API 完整参考
 
