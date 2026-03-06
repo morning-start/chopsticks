@@ -1,775 +1,647 @@
-# Chopsticks 数据库设计
+# Chopsticks 数据存储设计
 
-> 版本: v0.10.0-alpha  
-> 最后更新: 2026-03-01
+> 版本: v1.0.0  
+> 最后更新: 2026-03-06
 
-> 分布式数据库设计：Bucket 内文件存储 + 全局 SQLite 存储
+> 基于文件系统的分布式存储设计
 
 ---
 
 ## 1. 设计概述
 
-Chopsticks 采用**分布式存储**策略：
+Chopsticks 采用**纯文件系统存储**策略，完全摒弃 SQLite 数据库，利用目录结构和 JSON 文件实现数据持久化。
 
-| 存储位置                                               | 用途       | 存储方式  | 数据特性                 |
-| ------------------------------------------------------ | ---------- | --------- | ------------------------ |
-| `%USERPROFILE%\.chopsticks\buckets\{bucket}\apps\`     | 软件包脚本 | 文件 (JS) | **只读**，来自 Git 仓库  |
-| `%USERPROFILE%\.chopsticks\buckets\{bucket}\bucket.db` | 元数据缓存 | SQLite    | **只读**，自动生成的缓存 |
-| `%USERPROFILE%\.chopsticks\data.db`                    | 已安装软件 | SQLite    | **读写**，运行时状态     |
+### 1.1 核心原则
 
-### 1.1 设计原则
+| 原则                 | 说明                                         |
+| -------------------- | -------------------------------------------- |
+| **文件系统即数据库** | 目录结构反映数据状态，删除目录即删除数据     |
+| **去中心化存储**     | 每个软件独立管理自己的元数据                 |
+| **人类可读**         | 所有元数据使用 JSON 格式，便于调试和手动修复 |
+| **可重建**           | 所有索引文件可从原始数据重新生成             |
 
-- **分离关注点**：Bucket 元数据（只读）与安装状态（读写）分离
-- **本地优先**：Bucket 数据直接从本地文件系统读取，无需数据库
-- **统一索引**：全局数据库仅存储已安装软件和搜索索引缓存
+### 1.2 存储位置
+
+| 路径                                          | 用途         | 数据特性            |
+| --------------------------------------------- | ------------ | ------------------- |
+| `%USERPROFILE%\.chopsticks\buckets\{bucket}\` | 软件源       | 只读，来自 Git 仓库 |
+| `%USERPROFILE%\.chopsticks\apps\{app}\`       | 已安装软件   | 读写，运行时状态    |
+| `%USERPROFILE%\.chopsticks\shims\`            | 命令快捷方式 | 自动生成            |
+| `%USERPROFILE%\.chopsticks\cache\`            | 下载缓存     | 可清理              |
+| `%USERPROFILE%\.chopsticks\persist\`          | 持久化数据   | 保留用户数据        |
 
 ---
 
-## 2. 数据文件结构
+## 2. 软件源存储 (Bucket)
 
 ### 2.1 目录结构
 
 ```
-%USERPROFILE%\.chopsticks\buckets\
-└── {bucket_id}\
-    ├── bucket.json            # 配置
-    ├── bucket.db              # 可选：元数据缓存（SQLite）
-    ├── apps\
-    │   ├── git.js             # 软件包脚本（包含元数据和安装逻辑）
-    │   └── nodejs.js
-    └── .chopsticks\
-        └── index.json         # 可选：预生成的搜索索引
+buckets/
+└── {bucket_name}/
+    ├── bucket.json          # 软件源配置
+    ├── index.json           # 应用索引（可重建）
+    └── apps/
+        ├── git.js
+        ├── nodejs.js
+        └── ...
 ```
 
-### 2.2 app.js - 软件包脚本（包含元数据和安装逻辑）
+### 2.2 bucket.json - 软件源配置
 
-```javascript
-// git.js - Git for Windows 安装脚本
-
-class GitApp extends App {
-  constructor() {
-    super({
-      name: "git",
-      description: "Distributed version control system",
-      homepage: "https://git-scm.com/",
-      license: "GPL-2.0",
-      category: "development",
-      tags: ["vcs", "git", "scm"],
-    });
-  }
-
-  // 获取最新版本（同步方法）
-  checkVersion() {
-    const response = fetch.get(
-      "https://api.github.com/repos/git-for-windows/git/releases/latest",
-    );
-    const data = JSON.parse(response.body);
-    return data.tag_name.replace(/^v/, "");
-  }
-
-  // 获取下载信息（同步方法）
-  getDownloadInfo(version, arch) {
-    const archMap = {
-      amd64: "64-bit",
-      x86: "32-bit",
-    };
-
-    const filename = `PortableGit-${version}-${archMap[arch] || arch}.7z.exe`;
-
-    return {
-      url: `https://github.com/git-for-windows/git/releases/download/v${version}.windows.1/${filename}`,
-      type: "7z",
-    };
-  }
-
-  // 安装后钩子（同步方法）
-  postCook(ctx) {
-    // 添加到 PATH
-    chopsticks.addToPath("bin");
+```json
+{
+  "name": "main",
+  "description": "Main bucket for chopsticks",
+  "author": "Chopsticks Team",
+  "homepage": "https://github.com/chopsticks-sh/main",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chopsticks-sh/main",
+    "branch": "main"
   }
 }
-
-module.exports = new GitApp();
 ```
+
+### 2.3 index.json - 应用索引
+
+**说明**：从 `apps/*.js` 解析生成的索引，用于快速搜索，可删除后自动重建。
+
+```json
+{
+  "generated_at": "2026-03-04T10:30:00Z",
+  "apps": {
+    "git": {
+      "name": "git",
+      "description": "Distributed version control system",
+      "homepage": "https://git-scm.com/",
+      "license": "GPL-2.0",
+      "category": "development",
+      "tags": ["vcs", "git", "scm"],
+      "script_path": "apps/git.js",
+      "latest_version": "2.43.0",
+      "version_history": [
+        {
+          "version": "2.43.0",
+          "released_at": "2024-01-01T00:00:00Z",
+          "downloads": {
+            "amd64": {
+              "url": "https://github.com/...",
+              "hash": "sha256:abc123...",
+              "size": 12345678
+            },
+            "arm64": {
+              "url": "https://github.com/...",
+              "hash": "sha256:def456...",
+              "size": 11500000
+            }
+          }
+        },
+        {
+          "version": "2.42.0",
+          "released_at": "2023-11-01T00:00:00Z",
+          "downloads": { ... }
+        }
+      ]
+    }
+  }
+}
+```
+
+### 2.4 字段说明
+
+| 字段              | 类型   | 说明                         |
+| ----------------- | ------ | ---------------------------- |
+| `generated_at`    | string | 索引生成时间（ISO 8601）     |
+| `apps`            | object | 应用字典，key 为应用名称     |
+| `version_history` | array  | 版本历史，按发布时间倒序     |
+| `downloads`       | object | 各架构下载信息，key 为架构名 |
 
 ---
 
-## 3. Bucket 数据库 (bucket.db)
+## 3. 已安装软件存储
 
-### 3.1 文件位置
+### 3.1 目录结构
 
 ```
-%USERPROFILE%\.chopsticks\buckets\{bucket_id}\bucket.db
+apps/
+└── {app_name}/
+    ├── manifest.json          # 软件元数据（必需）
+    ├── operations.json        # 系统操作记录（当前版本）
+    ├── current -> {version}/  # 符号链接指向当前版本
+    ├── {version_a}/           # 版本目录
+    │   ├── bin/
+    │   ├── lib/
+    │   └── ...
+    └── {version_b}/
+        └── ...
 ```
 
-### 3.2 用途
+### 3.2 manifest.json - 软件元数据
 
-`bucket.db` 是每个 Bucket（软件源）独立的 SQLite 数据库，用于缓存该 Bucket 下所有应用（App）的元信息。它是可选的，由系统自动生成和维护。
+**位置**：`apps/{app_name}/manifest.json`
 
-**数据特性**：
-
-- **只读缓存**：数据从 `apps/*.js` 脚本解析生成
-- **自动生成**：首次添加/更新 Bucket 时自动创建
-- **无需提交**：应添加到 `.gitignore`，不纳入版本控制
-
-### 3.3 表列表
-
-| 表名           | 说明         |
-| -------------- | ------------ |
-| `apps`         | 应用元信息   |
-| `app_versions` | 应用版本信息 |
-
-### 3.4 apps - 应用表
-
-```sql
-CREATE TABLE apps (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    version TEXT,
-    latest_version TEXT,
-    latest_downloads TEXT,
-    description TEXT,
-    homepage TEXT,
-    license TEXT,
-    category TEXT,
-    tags TEXT,
-    author TEXT,
-    script_path TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- 索引
-CREATE INDEX idx_apps_name ON apps(name);
-CREATE INDEX idx_apps_category ON apps(category);
+```json
+{
+  "name": "git",
+  "bucket": "main",
+  "current_version": "2.43.0",
+  "installed_versions": ["2.43.0", "2.42.0"],
+  "dependencies": {
+    "runtime": [{ "name": "vcredist140", "version": ">=14.0", "shared": true }],
+    "tools": [{ "name": "7zip", "version": ">=19.0", "shared": true }],
+    "libraries": [],
+    "conflicts": ["git-for-windows"]
+  },
+  "installed_at": "2026-03-04T10:30:00Z",
+  "installed_on_request": true,
+  "isolated": false
+}
 ```
 
 **字段说明**：
 
-| 字段             | 类型     | 说明                     |
-| ---------------- | -------- | ------------------------ |
-| id               | TEXT     | 唯一标识（如 "git"）     |
-| name             | TEXT     | 应用名称                 |
-| version          | TEXT     | 当前版本                 |
-| latest_version   | TEXT     | 最新版本                 |
-| latest_downloads | TEXT     | 最新版本下载信息（JSON） |
-| description      | TEXT     | 描述                     |
-| homepage         | TEXT     | 主页                     |
-| license          | TEXT     | 许可证                   |
-| category         | TEXT     | 分类                     |
-| tags             | TEXT     | 标签（JSON 数组）        |
-| author           | TEXT     | 作者                     |
-| script_path      | TEXT     | 脚本文件路径             |
-| created_at       | DATETIME | 创建时间                 |
-| updated_at       | DATETIME | 更新时间                 |
+| 字段                   | 类型   | 说明                 |
+| ---------------------- | ------ | -------------------- |
+| `name`                 | string | 软件名称（标识符）   |
+| `bucket`               | string | 来源软件源           |
+| `current_version`      | string | 当前激活版本         |
+| `installed_versions`   | array  | 已安装的所有版本     |
+| `dependencies`         | object | 依赖声明（见第7章）  |
+| `installed_at`         | string | 安装时间（ISO 8601） |
+| `installed_on_request` | bool   | 是否用户主动安装     |
+| `isolated`             | bool   | 是否为隔离安装       |
 
-### 3.5 app_versions - 应用版本表
+### 3.3 operations.json - 系统操作记录
 
-```sql
-CREATE TABLE app_versions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    app_id TEXT NOT NULL,
-    version TEXT NOT NULL,
-    released_at DATETIME,
-    downloads TEXT,
-    FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE CASCADE,
-    UNIQUE(app_id, version)
-);
+**位置**：`apps/{app_name}/operations.json`
 
--- 索引
-CREATE INDEX idx_app_versions_app_id ON app_versions(app_id);
+**说明**：仅记录**当前版本**的系统操作，用于卸载时自动清理。
+
+```json
+{
+  "version": "2.43.0",
+  "operations": [
+    {
+      "type": "path",
+      "path": "bin",
+      "created_at": "2026-03-04T10:30:00Z"
+    },
+    {
+      "type": "env",
+      "key": "GIT_HOME",
+      "value": "C:\\Users\\xxx\\.chopsticks\\apps\\git\\2.43.0",
+      "created_at": "2026-03-04T10:30:01Z"
+    },
+    {
+      "type": "registry",
+      "key": "HKCU\\Software\\Git",
+      "name": "InstallPath",
+      "value": "C:\\Users\\xxx\\.chopsticks\\apps\\git\\2.43.0",
+      "created_at": "2026-03-04T10:30:02Z"
+    },
+    {
+      "type": "shortcut",
+      "path": "C:\\Users\\xxx\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Git Bash.lnk",
+      "target": "C:\\Users\\xxx\\.chopsticks\\apps\\git\\2.43.0\\git-bash.exe",
+      "created_at": "2026-03-04T10:30:03Z"
+    },
+    {
+      "type": "symlink",
+      "link": "C:\\Users\\xxx\\.chopsticks\\shims\\git.exe",
+      "target": "C:\\Users\\xxx\\.chopsticks\\apps\\git\\2.43.0\\bin\\git.exe",
+      "created_at": "2026-03-04T10:30:04Z"
+    }
+  ]
+}
 ```
 
-**字段说明**：
+**操作类型说明**：
 
-| 字段        | 类型     | 说明             |
-| ----------- | -------- | ---------------- |
-| id          | INTEGER  | 自增主键         |
-| app_id      | TEXT     | 关联应用 ID      |
-| version     | TEXT     | 版本号           |
-| released_at | DATETIME | 发布时间         |
-| downloads   | TEXT     | 下载信息（JSON） |
+| 类型       | 字段                   | 说明                   |
+| ---------- | ---------------------- | ---------------------- |
+| `path`     | `path`                 | 添加到 PATH 的相对路径 |
+| `env`      | `key`, `value`         | 环境变量名和值         |
+| `registry` | `key`, `name`, `value` | 注册表键、值名、值     |
+| `shortcut` | `path`, `target`       | 快捷方式路径和目标     |
+| `symlink`  | `link`, `target`       | 符号链接路径和目标     |
 
-### 3.6 数据生成流程
+### 3.4 版本目录
 
-```
-用户添加 Bucket → 克隆 Git 仓库 → 扫描 apps/*.js
-    → 解析脚本元数据 → 执行 checkVersion() 获取版本
-    → 存储到 bucket.db
-```
+**位置**：`apps/{app_name}/{version}/`
 
-### 3.7 注意事项
-
-- **不提交到 Git**：`bucket.db` 应添加到 `.gitignore`
-- **自动更新**：Bucket 更新时自动刷新数据库
-- **可删除**：删除后下次更新会自动重新生成
-
-```bash
-# .gitignore 添加
-bucket.db
-*.db
-```
-
----
-
-## 4. 全局数据库
-
-### 4.1 文件位置
+**说明**：纯软件文件，不包含任何元数据。版本目录名即为版本号。
 
 ```
-%USERPROFILE%\.chopsticks\data.db
-```
-
-### 4.2 表列表
-
-| 表名             | 说明             |
-| ---------------- | ---------------- |
-| `schema_version` | 数据库版本       |
-| `buckets`        | 软件源信息       |
-| `installed`      | 已安装软件       |
-| `search_cache`   | 搜索缓存（可选） |
-
----
-
-### 4.3 schema_version - 数据库版本
-
-```sql
-CREATE TABLE schema_version (
-    version INTEGER PRIMARY KEY,
-    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+apps/git/2.43.0/
+├── bin/
+│   ├── git.exe
+│   └── ...
+├── lib/
+│   └── ...
+└── ...
 ```
 
 ---
 
-### 4.4 buckets - 软件源
+## 4. 核心操作流程
 
-```sql
-CREATE TABLE buckets (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    repo_url TEXT NOT NULL,        -- Git 仓库地址
-    branch TEXT DEFAULT 'main',
-    description TEXT,
-    author TEXT,
-    homepage TEXT,
-    license TEXT,
-    local_path TEXT,
-    added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- 索引
-CREATE INDEX idx_buckets_name ON buckets(name);
-CREATE INDEX idx_buckets_added_at ON buckets(added_at);
-```
-
-**字段说明**：
-
-| 字段        | 类型     | 说明                  |
-| ----------- | -------- | --------------------- |
-| id          | TEXT     | 唯一标识（如 "main"） |
-| name        | TEXT     | 显示名称              |
-| repo_url    | TEXT     | Git 仓库地址          |
-| branch      | TEXT     | 分支名（默认 main）   |
-| description | TEXT     | 描述                  |
-| author      | TEXT     | 作者                  |
-| homepage    | TEXT     | 主页                  |
-| license     | TEXT     | 许可证                |
-| local_path  | TEXT     | 本地克隆路径          |
-| added_at    | DATETIME | 添加时间              |
-| updated_at  | DATETIME | 更新时间              |
-
-> **注意**：`repo_url` 字段在早期 Wiki 版本中名为 `url`，现已更新为更清晰的命名。
-
----
-
-### 4.5 installed - 已安装软件
-
-```sql
-CREATE TABLE installed (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    version TEXT NOT NULL,
-    bucket_id TEXT NOT NULL,
-    install_dir TEXT NOT NULL,     -- 安装目录
-    installed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (bucket_id) REFERENCES buckets(id) ON DELETE SET NULL
-);
-
--- 索引
-CREATE INDEX idx_installed_name ON installed(name);
-CREATE INDEX idx_installed_bucket_id ON installed(bucket_id);
-CREATE INDEX idx_installed_version ON installed(version);
-```
-
-**字段说明**：
-
-| 字段         | 类型     | 说明                   |
-| ------------ | -------- | ---------------------- |
-| id           | TEXT     | 主键（name + version） |
-| name         | TEXT     | 软件名称               |
-| version      | TEXT     | 已安装版本             |
-| bucket_id    | TEXT     | 来源软件源 ID          |
-| install_dir  | TEXT     | 安装目录               |
-| installed_at | DATETIME | 安装时间               |
-| updated_at   | DATETIME | 更新时间               |
-
----
-
-### 4.6 search_cache - 搜索缓存（可选）
-
-```sql
-CREATE TABLE search_cache (
-    id TEXT PRIMARY KEY,
-    query TEXT NOT NULL,
-    results TEXT NOT NULL,
-    bucket_id TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    expires_at DATETIME,
-    FOREIGN KEY (bucket_id) REFERENCES buckets(id) ON DELETE CASCADE
-);
-
--- 索引
-CREATE INDEX idx_search_cache_query ON search_cache(query);
-CREATE INDEX idx_search_cache_bucket_id ON search_cache(bucket_id);
-CREATE INDEX idx_search_cache_expires ON search_cache(expires_at);
-```
-
----
-
-## 5. 安装追踪系统
-
-### 5.1 设计目标
-
-解决卸载时的自动清理问题：
-
-| 挑战         | 解决方案                        |
-| ------------ | ------------------------------- |
-| 长时间间隔   | SQLite 持久化所有操作记录       |
-| 版本更新     | 记录安装快照，精确匹配清理      |
-| 不影响其他   | 智能 PATH 清理 + 共享检测       |
-| 开发者自定义 | 分层执行：开发者钩子 → 系统自动 |
-
----
-
-### 5.2 核心表结构
-
-#### 5.2.1 install_operations - 安装操作记录
-
-```sql
-CREATE TABLE install_operations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    app_id TEXT NOT NULL,
-    version TEXT NOT NULL,
-    installed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    operation_type TEXT NOT NULL,  -- 'install', 'update'
-    from_version TEXT,             -- 更新时记录原版本
-    PRIMARY KEY (app_id, version)
-);
-
--- 索引
-CREATE INDEX idx_install_ops_app ON install_operations(app_id);
-CREATE INDEX idx_install_ops_time ON install_operations(installed_at);
-```
-
-**字段说明**：
-
-| 字段           | 类型     | 说明                                   |
-| -------------- | -------- | -------------------------------------- |
-| app_id         | TEXT     | 软件包 ID                              |
-| version        | TEXT     | 版本号                                 |
-| installed_at   | DATETIME | 安装时间                               |
-| operation_type | TEXT     | 操作类型：install(安装) / update(更新) |
-| from_version   | TEXT     | 更新前的版本（仅 update 时有值）       |
-
-#### 5.2.2 system_operations - 系统操作追踪
-
-```sql
-CREATE TABLE system_operations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    app_id TEXT NOT NULL,
-    version TEXT NOT NULL,
-    operation_type TEXT NOT NULL,  -- 'path', 'env', 'registry', 'shortcut', 'symlink'
-    key_name TEXT,                 -- 注册表键、PATH 条目、环境变量名
-    value TEXT,                    -- 操作的值（JSON 序列化）
-    original_value TEXT,           -- 操作前的值（用于回滚）
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (app_id, version) REFERENCES install_operations(app_id, version)
-);
-
--- 索引
-CREATE INDEX idx_sys_ops_app ON system_operations(app_id, version);
-CREATE INDEX idx_sys_ops_type ON system_operations(operation_type);
-```
-
-**字段说明**：
-
-| 字段           | 类型 | 说明                                         |
-| -------------- | ---- | -------------------------------------------- |
-| app_id         | TEXT | 软件包 ID                                    |
-| version        | TEXT | 版本号                                       |
-| operation_type | TEXT | 操作类型：path/env/registry/shortcut/symlink |
-| key_name       | TEXT | 操作键名（如注册表路径、PATH 条目）          |
-| value          | TEXT | 操作值（JSON）                               |
-| original_value | TEXT | 操作前的原值                                 |
-
-#### 5.2.3 path_entries - PATH 条目详情
-
-```sql
-CREATE TABLE path_entries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    app_id TEXT NOT NULL,
-    version TEXT NOT NULL,
-    entry_path TEXT NOT NULL,      -- 添加的 PATH 路径
-    entry_type TEXT DEFAULT 'user', -- 'user' 或 'system'
-    verified_at DATETIME,          -- 最后验证时间
-    FOREIGN KEY (app_id, version) REFERENCES install_operations(app_id, version)
-);
-
--- 索引
-CREATE INDEX idx_path_entries_path ON path_entries(entry_path);
-```
-
-### 5.3 操作记录流程
+### 4.1 安装流程
 
 ```mermaid
 flowchart TD
-    A[安装开始] --> B[记录 install_operations]
-    B --> C[开发者调用系统 API]
-    C --> D{调用类型}
-    D -->|addToPath| E[记录到 system_operations + path_entries]
-    D -->|setEnv| F[记录到 system_operations]
-    D -->|registry.setValue| G[记录到 system_operations]
-    D -->|createShortcut| H[记录到 system_operations]
-    E --> I[安装完成]
-    F --> I
-    G --> I
+    A[开始安装] --> B[下载并解压到 apps/{name}/{version}/]
+    B --> C[执行安装钩子]
+    C --> D[记录系统操作到 operations.json]
+    D --> E[创建/更新 manifest.json]
+    E --> F[更新 current 符号链接]
+    F --> G[完成]
+```
+
+### 4.2 卸载流程
+
+```mermaid
+flowchart TD
+    A[开始卸载] --> B[读取 operations.json]
+    B --> C[逆序执行清理操作]
+    C --> D[删除版本目录]
+    D --> E[更新 manifest.json]
+    E --> F{是否还有其他版本?}
+    F -->|是| G[更新 current 链接]
+    F -->|否| H[删除软件目录]
+    G --> I[完成]
     H --> I
 ```
 
-### 5.4 自动清理流程
+### 4.3 切换版本流程
 
 ```mermaid
 flowchart TD
-    A[卸载开始] --> B[加载操作记录]
-    B --> C{是否有开发者自定义卸载?}
-    C -->|是| D[执行 onPreUninstall]
-    D --> E[执行 onUninstall]
-    E --> F[执行 onPostUninstall]
-    C -->|否| G[系统自动处理]
-
-    F --> G
-    G --> H[清理注册表]
-    H --> I[清理环境变量]
-    I --> J[清理 PATH]
-    J --> K[清理快捷方式]
-    K --> L[清理符号链接]
-    L --> M[验证清理结果]
-    M --> N[完成]
+    A[开始切换] --> B[读取当前 operations.json]
+    B --> C[执行清理操作]
+    C --> D[更新 current 符号链接]
+    D --> E[执行新版本的安装钩子]
+    E --> F[记录新操作到 operations.json]
+    F --> G[更新 manifest.json]
+    G --> H[完成]
 ```
 
-### 5.5 智能 PATH 清理
+---
 
-```javascript
-// PATH 清理伪代码（Go 层实现，对 JS 透明）
-class PathManager {
-  removeFromPath(appId, version) {
-    // 1. 获取本软件添加的所有 PATH 条目
-    const entries = db.query(
-      "SELECT entry_path FROM path_entries WHERE app_id = ? AND version = ?",
-      [appId, version],
-    );
+## 5. 查询操作
 
-    for (const entry of entries) {
-      // 2. 检查条目是否仍存在于当前 PATH
-      const existsInPath = currentPath.includes(entry.entry_path);
-      if (!existsInPath) {
-        log.info(`PATH entry already removed: ${entry.entry_path}`);
-        continue;
-      }
+### 5.1 列出所有已安装软件
 
-      // 3. 检查是否被其他软件共享
-      const isShared = this.checkIfPathIsShared(entry.entry_path);
-
-      if (isShared) {
-        log.warn(`Skipping shared PATH: ${entry.entry_path}`);
-        continue;
-      }
-
-      // 4. 安全移除
-      this.removePathEntry(entry.entry_path);
+```go
+func ListInstalled() []string {
+    var apps []string
+    entries, _ := os.ReadDir("apps/")
+    for _, entry := range entries {
+        if entry.IsDir() {
+            // 检查是否存在 manifest.json
+            if _, err := os.Stat("apps/" + entry.Name() + "/manifest.json"); err == nil {
+                apps = append(apps, entry.Name())
+            }
+        }
     }
-  }
+    return apps
+}
+```
 
-  checkIfPathIsShared(targetPath) {
-    const users = db.query(
-      `
-            SELECT COUNT(DISTINCT app_id) as count
-            FROM path_entries
-            WHERE entry_path = ?
-        `,
-      [targetPath],
-    );
-    return users[0].count > 1;
-  }
+### 5.2 获取软件信息
+
+```go
+func GetAppInfo(name string) (*AppInfo, error) {
+    data, err := os.ReadFile("apps/" + name + "/manifest.json")
+    if err != nil {
+        return nil, err
+    }
+
+    var manifest Manifest
+    json.Unmarshal(data, &manifest)
+
+    // 读取 current 链接
+    current, _ := os.Readlink("apps/" + name + "/current")
+
+    return &AppInfo{
+        Name: manifest.Name,
+        CurrentVersion: current,
+        InstalledVersions: manifest.InstalledVersions,
+    }, nil
+}
+```
+
+### 5.3 检查是否已安装
+
+```go
+func IsInstalled(name string) bool {
+    _, err := os.Stat("apps/" + name + "/current")
+    return err == nil
+}
+
+func IsVersionInstalled(name, version string) bool {
+    _, err := os.Stat("apps/" + name + "/" + version)
+    return err == nil
 }
 ```
 
 ---
 
-## 6. ER 图
+## 6. 数据一致性保障
 
-```mermaid
-erDiagram
-    SCHEMA_VERSION {
-        int version PK
-        datetime applied_at
+### 6.1 文件系统天然一致性
+
+| 操作              | 效果                            |
+| ----------------- | ------------------------------- |
+| 删除软件目录      | 完全卸载，无残留记录            |
+| 删除版本目录      | 该版本被移除，manifest 自动更新 |
+| 修改 current 链接 | 切换版本，operations 重新生成   |
+
+### 6.2 异常情况处理
+
+| 异常情况                    | 处理方式                       |
+| --------------------------- | ------------------------------ |
+| manifest.json 丢失          | 从目录结构重建（扫描版本目录） |
+| operations.json 丢失        | 无法自动卸载，提示用户手动清理 |
+| current 链接指向不存在版本  | 自动指向最新版本，或清空       |
+| 版本目录存在但不在 manifest | 自动添加到 installed_versions  |
+
+### 6.3 重建 manifest.json
+
+```go
+func RebuildManifest(appName string) error {
+    manifest := Manifest{
+        Name: appName,
     }
 
-    BUCKETS {
-        text id PK
-        text name
-        text repo_url
-        text branch
-        text description
-        text author
-        text homepage
-        text license
-        text local_path
-        datetime added_at
-        datetime updated_at
+    // 扫描版本目录
+    entries, _ := os.ReadDir("apps/" + appName + "/")
+    for _, entry := range entries {
+        if entry.IsDir() && isVersion(entry.Name()) {
+            manifest.InstalledVersions = append(manifest.InstalledVersions, entry.Name())
+        }
     }
 
-    INSTALLED {
-        text id PK
-        text name
-        text version
-        text bucket_id FK
-        text install_dir
-        datetime installed_at
-        datetime updated_at
+    // 读取 current 链接
+    current, err := os.Readlink("apps/" + appName + "/current")
+    if err == nil {
+        manifest.CurrentVersion = filepath.Base(current)
+        manifest.Bucket = detectBucket(appName) // 从其他方式推断
     }
 
-    SEARCH_CACHE {
-        text id PK
-        text query
-        text results
-        text bucket_id FK
-        datetime created_at
-        datetime expires_at
-    }
-
-    INSTALL_OPERATIONS {
-        int id PK
-        text app_id FK
-        text version
-        datetime installed_at
-        text operation_type
-        text from_version
-    }
-
-    SYSTEM_OPERATIONS {
-        int id PK
-        text app_id FK
-        text version FK
-        text operation_type
-        text key_name
-        text value
-        text original_value
-        datetime created_at
-    }
-
-    PATH_ENTRIES {
-        int id PK
-        text app_id FK
-        text version FK
-        text entry_path
-        text entry_type
-        datetime verified_at
-    }
-
-    BUCKETS ||--o{ INSTALLED : installs
-    BUCKETS ||--o{ SEARCH_CACHE : caches
-    INSTALLED ||--o{ INSTALL_OPERATIONS : has
-    INSTALL_OPERATIONS ||--o{ SYSTEM_OPERATIONS : tracks
-    INSTALL_OPERATIONS ||--o{ PATH_ENTRIES : has
+    // 保存
+    data, _ := json.MarshalIndent(manifest, "", "  ")
+    return os.WriteFile("apps/" + appName + "/manifest.json", data, 0644)
+}
 ```
 
 ---
 
-## 7. 数据流
+## 7. 性能优化
 
-### 7.1 读取软件包信息流程
+### 7.1 缓存策略
 
-```mermaid
-sequenceDiagram
-    participant User as 用户
-    participant CLI as CLI
-    participant App as App Manager
-    participant Bucket as Bucket Manager
-    participant FS as 文件系统
-    participant DB as SQLite
+| 数据            | 缓存方式           | 重建条件         |
+| --------------- | ------------------ | ---------------- |
+| `index.json`    | 内存 + 文件        | Bucket 更新时    |
+| `manifest.json` | 内存（启动时加载） | 变更时自动更新   |
+| 已安装列表      | 内存（启动时扫描） | 每次启动重新扫描 |
 
-    User->>CLI: chopsticks info git
-    CLI->>App: Info("main", "git")
-    App->>Bucket: GetBucket("main")
-    Bucket-->>App: Bucket{Path: ".../buckets/main"}
+### 7.2 启动时优化
 
-    Note over App: 从文件系统读取 app.js
-    App->>FS: ReadFile("buckets/main/apps/git.js")
-    FS-->>App: git.js content
+```go
+type AppCache struct {
+    installed map[string]*Manifest  // 已安装软件缓存
+    buckets   map[string]*Index     // Bucket 索引缓存
+}
 
-    Note over App: 解析并返回 AppInfo
-    App-->>CLI: AppInfo{name: "git", version: "2.43.0", ...}
-    CLI-->>User: 显示软件信息
-```
+func (c *AppCache) Load() {
+    // 并行加载
+    var wg sync.WaitGroup
 
-### 7.2 安装软件流程
+    // 加载已安装软件
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        c.loadInstalled()
+    }()
 
-```mermaid
-sequenceDiagram
-    participant User as 用户
-    participant CLI as CLI
-    participant App as App Manager
-    participant Cook as Cook Manager
-    participant FS as 文件系统
-    participant DB as SQLite
+    // 加载 Bucket 索引
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        c.loadBuckets()
+    }()
 
-    User->>CLI: chopsticks install git
-    CLI->>App: Install("main", "git")
-    App->>FS: Read app.js
-
-    Note over App: 获取下载信息
-    App->>Cook: Cook(app, opts)
-
-    Cook->>FS: Download & Extract
-    Cook->>FS: Execute post_cook hook
-    Cook-->>App: Installation complete
-
-    Note over App: 记录到数据库
-    App->>DB: INSERT installed (...)
-    DB-->>App: Success
-    App-->>CLI: Installed
-    CLI-->>User: Git 2.43.0 安装成功！
+    wg.Wait()
+}
 ```
 
 ---
 
-## 8. 查询示例
+## 8. 备份与恢复
 
-### 8.1 从文件系统读取软件包信息
+### 8.1 备份
 
-```bash
-# 读取 app.js
-cat "$BUCKETS_PATH/main/apps/git.js"
-# 输出: JavaScript 脚本内容
-```
-
-### 8.2 SQL 查询已安装软件
-
-```sql
--- 获取所有已安装软件
-SELECT * FROM installed ORDER BY installed_at DESC;
-
--- 获取指定软件信息
-SELECT * FROM installed WHERE name = 'git';
-
--- 获取指定软件源已安装的软件
-SELECT * FROM installed WHERE bucket_id = 'main';
-```
-
-### 8.3 搜索软件（组合查询）
-
-```sql
--- 搜索已安装
-SELECT * FROM installed WHERE name LIKE '%git%';
-
--- 搜索并关联软件源信息
-SELECT i.*, b.name as bucket_name, b.repo_url as bucket_url
-FROM installed i
-JOIN buckets b ON i.bucket_id = b.id
-WHERE i.name LIKE '%node%';
-```
-
----
-
-## 9. 数据迁移
-
-### 9.1 迁移策略
-
-```sql
--- 迁移记录
-INSERT INTO schema_version (version, applied_at)
-VALUES (2, CURRENT_TIMESTAMP);
-```
-
-### 9.2 版本历史
-
-| 版本 | 说明                                      | 日期       |
-| ---- | ----------------------------------------- | ---------- |
-| 1    | 初始版本                                  | 2026-02-25 |
-| 2    | 分布式设计：Bucket内文件存储 + 全局SQLite | 2026-02-25 |
-
----
-
-## 10. 性能优化
-
-### 10.1 读取优化
-
-- **文件系统缓存**：OS 会缓存频繁访问的文件
-- **惰性加载**：仅在需要时读取 app.js
-- **内存索引**：启动时加载 app 名称列表到内存
-
-### 10.2 写入优化
-
-- **批量写入**：多个安装操作使用事务
-- **索引优化**：已在关键字段创建索引
-- **搜索缓存**：热门搜索结果缓存
-
-### 10.3 缓存策略
-
-| 数据类型   | 缓存位置 | 过期策略          |
-| ---------- | -------- | ----------------- |
-| app.js     | 内存     | Bucket 更新时失效 |
-| 搜索结果   | SQLite   | 1 小时过期        |
-| 已安装列表 | 内存     | 每次操作后刷新    |
-
----
-
-## 11. 备份与恢复
-
-### 11.1 备份
-
-```bash
-# 备份数据库
-cp ~/.chopsticks/data.db ~/.chopsticks/backup/data.db.bak
-
+```powershell
 # 备份所有已安装软件配置
-tar -czf ~/chopsticks-installed.tar.gz ~/.chopsticks/apps/
+Compress-Archive -Path "$env:USERPROFILE\.chopsticks\apps" -DestinationPath "chopsticks-apps-backup.zip"
+
+# 备份软件源
+Compress-Archive -Path "$env:USERPROFILE\.chopsticks\buckets" -DestinationPath "chopsticks-buckets-backup.zip"
 ```
 
-### 11.2 恢复
+### 8.2 恢复
 
-```bash
-# 恢复数据库
-cp ~/.chopsticks/backup/data.db.bak ~/.chopsticks/data.db
+```powershell
+# 恢复软件源
+Expand-Archive -Path "chopsticks-buckets-backup.zip" -DestinationPath "$env:USERPROFILE\.chopsticks\" -Force
+
+# 恢复已安装软件
+Expand-Archive -Path "chopsticks-apps-backup.zip" -DestinationPath "$env:USERPROFILE\.chopsticks\" -Force
+
+# 重新生成符号链接和 PATH
+chopsticks repair
 ```
 
 ---
 
-## 12. 设计优势
+## 7. 依赖管理数据
 
-| 优势           | 说明                                            |
-| -------------- | ----------------------------------------------- |
-| **数据一致性** | Bucket 数据来自单一真实源（Git 仓库），无需同步 |
-| **简单性**     | 无需在数据库中存储软件包元信息                  |
-| **可扩展性**   | 每个 Bucket 可以独立更新其软件包                |
-| **性能**       | 本地文件系统读取比数据库查询更快                |
-| **版本追踪**   | 通过 Git 自然实现软件包版本历史                 |
+### 7.1 依赖分类
+
+Chopsticks 将依赖分为 **4 类**：
+
+| 类型          | 说明                                   | 共享策略           | 卸载行为                                        |
+| ------------- | -------------------------------------- | ------------------ | ----------------------------------------------- |
+| **runtime**   | 系统级运行时库（VC++ Redist、.NET 等） | 全局共享，引用计数 | 最后一个使用者卸载时才清理                      |
+| **tools**     | 通用工具软件                           | 全局共享           | 检查 `installed_on_request`，无主动安装者时提示 |
+| **libraries** | 版本敏感的库文件                       | 不共享，各软件独立 | 随主软件一起卸载                                |
+| **conflicts** | 功能重复的互斥软件                     | 不允许同时存在     | 安装时阻止，提示用户选择                        |
+
+### 7.2 runtime-index.json - 运行时库索引
+
+**位置**：`%USERPROFILE%\.chopsticks\runtime-index.json`
+
+**说明**：记录运行时库的引用计数，用于管理共享依赖。
+
+```json
+{
+  "vcredist140": {
+    "version": "14.38.33135",
+    "installed_at": "2026-03-04T10:30:00Z",
+    "required_by": ["git", "nodejs", "python"],
+    "ref_count": 3,
+    "size": 23500000
+  },
+  "dotnet6": {
+    "version": "6.0.25",
+    "required_by": ["powershell"],
+    "ref_count": 1
+  }
+}
+```
+
+**字段说明**：
+
+| 字段           | 类型   | 说明                     |
+| -------------- | ------ | ------------------------ |
+| `version`      | string | 运行时库版本             |
+| `installed_at` | string | 安装时间                 |
+| `required_by`  | array  | 依赖此运行时库的软件列表 |
+| `ref_count`    | int    | 引用计数                 |
+| `size`         | int    | 占用字节数               |
+
+### 7.3 deps-index.json - 依赖索引（可重建）
+
+**位置**：`%USERPROFILE%\.chopsticks\deps-index.json`
+
+**说明**：从所有 `manifest.json` 生成的依赖索引，用于快速查询，**可删除后自动重建**。
+
+```json
+{
+  "generated_at": "2026-03-04T10:30:00Z",
+  "apps": {
+    "git": {
+      "dependencies": ["vcredist140", "7zip"],
+      "dependents": ["git-lfs", "hub"]
+    },
+    "7zip": {
+      "dependencies": [],
+      "dependents": ["git", "nodejs"]
+    }
+  }
+}
+```
+
+**字段说明**：
+
+| 字段           | 类型   | 说明                 |
+| -------------- | ------ | -------------------- |
+| `generated_at` | string | 索引生成时间         |
+| `apps`         | object | 软件依赖关系字典     |
+| `dependencies` | array  | 该软件依赖的其他软件 |
+| `dependents`   | array  | 依赖该软件的其他软件 |
+
+### 7.4 反向依赖计算
+
+**设计原则**：不存储反向依赖，通过扫描所有 `manifest.json` 动态计算。
+
+```go
+func getDependents(appName string) []string {
+    var dependents []string
+
+    installedApps := ListInstalled()
+    for _, app := range installedApps {
+        if app == appName {
+            continue
+        }
+
+        manifest := readManifest(app)
+        allDeps := append(manifest.Dependencies.Runtime,
+                         append(manifest.Dependencies.Tools,
+                                manifest.Dependencies.Libraries...)...)
+
+        for _, dep := range allDeps {
+            if dep == appName {
+                dependents = append(dependents, app)
+                break
+            }
+        }
+    }
+
+    return dependents
+}
+```
+
+### 7.5 孤儿依赖
+
+**定义**：不再被任何软件需要的依赖项。
+
+**检测逻辑**：
+
+```go
+func findOrphanDependencies(deps Dependencies) Orphans {
+    var orphans Orphans
+
+    // 检查运行时
+    for _, runtime := range deps.Runtime {
+        runtimeInfo := readRuntimeIndex(runtime)
+        if runtimeInfo != nil && runtimeInfo.RefCount == 0 {
+            orphans.Runtime = append(orphans.Runtime, runtime)
+        }
+    }
+
+    // 检查工具
+    for _, tool := range deps.Tools {
+        if !isRequiredByOthers(tool) {
+            manifest := readManifest(tool)
+            if !manifest.InstalledOnRequest {
+                orphans.Tools = append(orphans.Tools, tool)
+            }
+        }
+    }
+
+    return orphans
+}
+```
 
 ---
 
-_最后更新：2026-03-01_  
-_版本：v0.10.0-alpha_
+## 9. 设计优势
+
+| 优势             | 说明                                             |
+| ---------------- | ------------------------------------------------ |
+| **天然一致性**   | 文件系统状态即真实状态，无数据库与文件不一致问题 |
+| **易于调试**     | JSON 文件人类可读，可直接查看和修改              |
+| **易于备份**     | 直接复制目录即可完整备份                         |
+| **可移植性**     | 复制到另一台机器可直接使用                       |
+| **无数据库依赖** | 减少组件，降低复杂度                             |
+| **版本并存**     | 目录结构天然支持多版本                           |
+| **原子操作**     | 文件系统操作可保证原子性                         |
+
+---
+
+## 10. 版本历史
+
+| 版本 | 说明                                             | 日期       |
+| ---- | ------------------------------------------------ | ---------- |
+| 1    | 初始版本：SQLite 存储                            | 2026-02-25 |
+| 2    | 分布式设计：Bucket SQLite + 全局 SQLite          | 2026-02-25 |
+| 3    | 纯文件系统：完全摒弃 SQLite                      | 2026-03-04 |
+| 4    | 添加依赖管理设计：runtime 引用计数、反向依赖计算 | 2026-03-04 |
+
+---
+
+## 11. 相关文档
+
+- [REQUIREMENT.md](REQUIREMENT.md) - 功能需求规格
+- [DEPENDENCY.md](DEPENDENCY.md) - 依赖管理设计
+- [VERSION.md](VERSION.md) - 版本号处理设计
+- [ARCHITECTURE.md](../ARCHITECTURE.md) - 系统架构
+
+---
+
+_最后更新：2026-03-06_  
+_版本：v1.0.0_

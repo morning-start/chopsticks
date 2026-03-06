@@ -159,7 +159,6 @@ chopsticks bucket remove extras --purge
 ## 4. 软件包管理
 
 ### 4.1 安装软件
-
 ```bash
 # 安装最新版本
 chopsticks install git
@@ -183,10 +182,18 @@ chopsticks install git go python nodejs
 
 # 批量安装并指定并发数
 chopsticks install app1 app2 app3 --workers 8
+
+# 隔离安装（依赖独立安装，不共享）
+chopsticks install myapp --isolate
+
+# 不安装依赖（高级用户）
+chopsticks install myapp --no-deps
+
+# 安装前预览
+chopsticks install myapp --dry-run
 ```
 
 ### 4.2 卸载软件
-
 ```bash
 # 卸载软件（保留配置数据）
 chopsticks uninstall git
@@ -195,6 +202,15 @@ chopsticks rm git
 # 彻底卸载（删除所有数据）
 chopsticks uninstall git --purge
 chopsticks remove git
+
+# 强制卸载（忽略依赖检查）
+chopsticks uninstall git --force
+
+# 级联卸载依赖者
+chopsticks uninstall git --cascade
+
+# 同时清理孤儿依赖
+chopsticks uninstall git --autoremove
 ```
 
 ### 4.3 更新软件
@@ -273,7 +289,52 @@ chopsticks config list
 chopsticks config ls
 ```
 
-### 4.7 冲突检测
+### 4.8 依赖管理
+
+Chopsticks 提供完整的依赖管理功能：
+
+```bash
+# 查看依赖列表
+chopsticks deps git
+
+# 查看依赖树
+chopsticks deps git --tree
+
+# 查看反向依赖（谁依赖我）
+chopsticks deps git --reverse
+
+# 清理孤儿依赖
+chopsticks autoremove
+
+# 预览可清理内容
+chopsticks autoremove --dry-run
+
+# 清理无用运行时库
+chopsticks cleanup-runtime
+```
+
+**依赖分类**：
+- `runtime` - 运行时库（如 VC++ Redist），全局共享，引用计数管理
+- `tools` - 工具软件（如 7zip），全局共享，检查 `installed_on_request`
+- `libraries` - 库文件，不共享，随主软件一起卸载
+- `conflicts` - 冲突软件，不允许同时存在
+
+**示例输出**：
+
+```bash
+$ chopsticks deps git --tree
+
+git 2.43.0
+├── runtime: vcredist140 14.38 [shared by: git, nodejs, python]
+├── tools: 7zip 23.01 [installed]
+└── tools: curl 8.5.0 [will install]
+
+反向依赖（依赖 git 的软件）：
+├── git-lfs
+└── hub
+```
+
+### 4.9 冲突检测
 
 Chopsticks 提供安装前冲突检测功能：
 

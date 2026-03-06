@@ -2454,13 +2454,15 @@ if (result.success) {
 
 ## 11. semver - 版本控制
 
-语义化版本控制模块，提供版本解析、比较等功能。
+语义化版本控制模块，提供版本解析、比较、约束解析等功能。
 
 ### 函数列表
 
 | 函数 | 说明 |
 |------|------|
 | `parse(version)` | 解析版本字符串 |
+| `normalize(version)` | 规范化版本字符串 |
+| `detectType(version)` | 检测版本类型 |
 | `compare(v1, v2)` | 比较两个版本 |
 | `gt(v1, v2)` | 检查 v1 是否大于 v2 |
 | `lt(v1, v2)` | 检查 v1 是否小于 v2 |
@@ -2468,6 +2470,17 @@ if (result.success) {
 | `gte(v1, v2)` | 检查 v1 是否大于等于 v2 |
 | `lte(v1, v2)` | 检查 v1 是否小于等于 v2 |
 | `satisfies(version, range)` | 检查版本是否满足范围 |
+| `parseConstraint(constraint)` | 解析版本约束 |
+
+### 版本类型
+
+| 类型 | 说明 | 示例 |
+|------|------|------|
+| `semver` | 语义化版本 | `1.2.3`, `1.2.3-beta4` |
+| `calver` | 日历版本 | `2024.03.01`, `24.09` |
+| `quad` | 四段式版本 | `10.0.26100.3194` |
+| `build` | 纯构建号 | `build 12345`, `r456` |
+| `custom` | 自定义格式 | 回退到字符串比较 |
 
 ### parse(version)
 
@@ -2484,21 +2497,24 @@ if (result.success) {
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `success` | boolean | 是否成功 |
-| `major` | number | 主版本号 |
-| `minor` | number | 次版本号 |
-| `patch` | number | 修订号 |
+| `raw` | string | 原始字符串 |
+| `normalized` | string | 规范化后 |
+| `type` | string | 版本类型 |
+| `segments` | array | 数字段 |
 | `prerelease` | string | 预发布标识 |
+| `prereleaseNum` | number | 预发布编号 |
 | `build` | string | 构建元数据 |
+| `comparable` | boolean | 是否可比较 |
 | `error` | string | 错误信息（失败时） |
 
 **示例：**
 
 ```javascript
-const result = semver.parse("1.2.3-beta.1+build.123");
+const result = semver.parse("1.2.3-beta4+build.123");
 if (result.success) {
-    log.info("主版本: " + result.major);
-    log.info("次版本: " + result.minor);
-    log.info("修订号: " + result.patch);
+    log.info("类型: " + result.type);
+    log.info("数字段: " + result.segments.join("."));
+    log.info("预发布: " + result.prerelease);
 }
 ```
 
@@ -2536,22 +2552,101 @@ if (result.success) {
 }
 ```
 
-### gt(v1, v2)
+### satisfies(version, range)
 
-检查 v1 是否大于 v2。
+检查版本是否满足约束范围。
 
 **参数：**
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `v1` | string | 是 | 版本1 |
-| `v2` | string | 是 | 版本2 |
+| `version` | string | 是 | 版本字符串 |
+| `range` | string | 是 | 约束范围 |
+
+**约束语法：**
+
+| 语法 | 说明 | 示例 |
+|------|------|------|
+| `^1.2.3` | 兼容版本 | `>=1.2.3,<2.0.0` |
+| `~1.2.3` | 补丁版本 | `>=1.2.3,<1.3.0` |
+| `>=1.0.0` | 大于等于 | `>=1.0.0` |
+| `<=2.0.0` | 小于等于 | `<=2.0.0` |
+| `18.x` | 通配符 | `>=18.0.0,<19.0.0` |
 
 **返回值：**
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `success` | boolean | 是否成功 |
+| `result` | boolean | 是否满足约束 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = semver.satisfies("1.2.3", "^1.0.0");
+if (result.success) {
+    if (result.result) {
+        log.info("版本满足约束");
+    } else {
+        log.info("版本不满足约束");
+    }
+}
+```
+
+### normalize(version)
+
+规范化版本字符串。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `version` | string | 是 | 版本字符串 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `result` | string | 规范化后的版本 |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = semver.normalize("v1.2.3_beta");
+if (result.success) {
+    log.info("规范化: " + result.result); // "1.2.3-beta"
+}
+```
+
+### detectType(version)
+
+检测版本类型。
+
+**参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `version` | string | 是 | 版本字符串 |
+
+**返回值：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | boolean | 是否成功 |
+| `result` | string | 版本类型：semver/calver/quad/build/custom |
+| `error` | string | 错误信息（失败时） |
+
+**示例：**
+
+```javascript
+const result = semver.detectType("24.09");
+if (result.success) {
+    log.info("类型: " + result.result); // "calver"
+}
+```
 | `result` | boolean | v1 是否大于 v2 |
 | `error` | string | 错误信息（失败时） |
 

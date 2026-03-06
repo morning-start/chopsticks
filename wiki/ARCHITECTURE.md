@@ -79,6 +79,8 @@ graph TB
 | **Storage**          | `core/store`      | 已安装应用数据持久化       |
 | **ConflictDetector** | `core/conflict`   | 冲突检测与格式化           |
 | **Manifest**         | `core/manifest`   | 应用和软件源数据结构定义   |
+| **DependencyManager**| `core/dep`       | 依赖管理、引用计数、反向依赖 |
+| **VersionManager**   | `core/version`    | 版本号解析、比较、约束     |
 | **JSEngine**         | `engine`          | JavaScript 脚本执行        |
 | **Git**              | `infra/git`       | 软件源仓库操作             |
 | **Installer**        | `infra/installer` | 安装程序处理               |
@@ -141,7 +143,52 @@ type Storage interface {
 }
 ```
 
-### 2.4 Installer - 安装器
+### 2.4 DependencyManager - 依赖管理器
+
+```go
+type DependencyManager interface {
+    // 依赖解析
+    Resolve(ctx context.Context, app *manifest.App) (*Dependencies, error)
+    CheckConflicts(ctx context.Context, deps *Dependencies) ([]Conflict, error)
+    
+    // 运行时库管理
+    InstallRuntime(ctx context.Context, dep, version, appName string) error
+    UninstallRuntime(ctx context.Context, dep, appName string) error
+    GetRuntimeInfo(ctx context.Context, dep string) (*RuntimeInfo, error)
+    
+    // 反向依赖计算
+    GetDependents(ctx context.Context, appName string) ([]string, error)
+    
+    // 孤儿依赖清理
+    FindOrphans(ctx context.Context) (*Orphans, error)
+    CleanupOrphans(ctx context.Context, orphans *Orphans) error
+}
+```
+
+### 2.5 VersionManager - 版本管理器
+
+```go
+type VersionManager interface {
+    // 版本解析
+    Parse(version string) (*Version, error)
+    Normalize(version string) string
+    DetectType(version string) string
+    
+    // 版本比较
+    Compare(v1, v2 *Version) int
+    CompareStrings(v1, v2 string) (int, error)
+    
+    // 版本约束
+    Satisfies(version *Version, constraint string) bool
+    ParseConstraint(constraint string) (*Constraint, error)
+    
+    // 版本排序
+    Sort(versions []*Version) []*Version
+    Latest(versions []*Version) *Version
+}
+```
+
+### 2.6 Installer - 安装器
 
 ```go
 type Installer interface {
@@ -183,6 +230,53 @@ type Dependency struct {
     Version    string            // 版本约束（如 ">=1.0.0"）
     Optional   bool              // 是否为可选依赖
     Conditions map[string]string // 安装条件
+}
+
+// Dependencies - 完整依赖声明
+type Dependencies struct {
+    Runtime    []Dependency // 运行时库
+    Tools      []Dependency // 工具软件
+    Libraries  []Dependency // 库文件
+    Conflicts  []string     // 冲突软件
+}
+
+// RuntimeInfo - 运行时库信息
+type RuntimeInfo struct {
+    Version     string    // 版本号
+    InstalledAt time.Time // 安装时间
+    RequiredBy  []string  // 依赖此运行时库的软件列表
+    RefCount    int       // 引用计数
+    Size        int64     // 占用字节数
+}
+
+// Orphans - 孤儿依赖
+type Orphans struct {
+    Runtime []string // 孤儿运行时库
+    Tools   []string // 孤儿工具软件
+}
+
+// Version - 版本号
+type Version struct {
+    Raw          string   // 原始字符串
+    Normalized   string   // 规范化后
+    Type         string   // 类型：semver/calver/quad/build/custom
+    Segments     []int    // 数字段
+    Prerelease   string   // 预发布标识
+    PrereleaseNum int     // 预发布编号
+    Build        string   // 构建元数据
+    Comparable   bool     // 是否可比较
+}
+
+// Constraint - 版本约束
+type Constraint struct {
+    Type    string   // 约束类型：semver/calver/loose/exact/any
+    Ranges  []Range  // 约束范围
+}
+
+// Range - 版本范围
+type Range struct {
+    Operator string  // 操作符：>= <= > < ^ ~
+    Version  *Version
 }
 
 // AppMeta - 软件包元数据
@@ -574,3 +668,18 @@ chopsticks/
 
 1. 实现 `Storage` 接口
 2. 在 `core/app/app.go` 中配置使用
+
+---
+
+## 11. 相关文档
+
+- [REQUIREMENT.md](design/REQUIREMENT.md) - 功能需求规格
+- [DATABASE.md](design/DATABASE.md) - 数据存储设计
+- [DEPENDENCY.md](design/DEPENDENCY.md) - 依赖管理设计
+- [VERSION.md](design/VERSION.md) - 版本号处理设计
+- [README.md](README.md) - 项目概述
+
+---
+
+_最后更新：2026-03-06_  
+_版本：v1.0.0_

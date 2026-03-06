@@ -42,7 +42,9 @@
 | 文档                                                           | 说明              | 目标读者         |
 | -------------------------------------------------------------- | ----------------- | ---------------- |
 | [REQUIREMENT](design/REQUIREMENT.md)                           | 功能需求规格      | 产品经理、开发者 |
-| [DATABASE](design/DATABASE.md)                                 | 数据库设计        | 架构师、开发者   |
+| [DATABASE](design/DATABASE.md)                                 | 数据存储设计      | 架构师、开发者   |
+| [DEPENDENCY](design/DEPENDENCY.md)                              | 依赖管理设计      | 架构师、开发者   |
+| [VERSION](design/VERSION.md)                                    | 版本号处理设计    | 架构师、开发者   |
 | [STATE](design/STATE.md)                                       | 状态管理设计      | 架构师、开发者   |
 | [BUCKET-SCAFFOLD](design/BUCKET-SCAFFOLD.md)                   | Bucket 脚手架设计 | 开发者           |
 | [PERFORMANCE-OPTIMIZATION](design/PERFORMANCE-OPTIMIZATION.md) | 性能优化设计      | 架构师、开发者   |
@@ -60,9 +62,11 @@ Chopsticks（筷子）是一个基于 JavaScript 的 **Windows 包管理器**，
 - 📦 **开放** - 支持自定义软件源 (bucket)
 - 🖥️ **优雅** - 命令行自动补全
 - 🔄 **JavaScript 引擎** - 基于 Goja 的高性能脚本引擎
-- 🗄️ **SQLite 存储** - 关系型数据库，支持复杂查询
+- 🗄️ **纯文件系统存储** - 人类可读的 JSON 格式，易于调试和备份
 - 🚀 **高性能** - 并行处理，批量操作性能提升 5-6 倍
 - 📊 **可观测** - 实时性能监控和诊断工具
+- 🔗 **智能依赖管理** - 分类管理（runtime、tools、libraries）、引用计数、反向依赖计算
+- 🏷️ **智能版本处理** - 支持多种版本号格式（SemVer、CalVer、四段式等）
 
 ### 术语对照表
 
@@ -95,7 +99,6 @@ git --version
 ```
 
 ### 常用命令
-
 ```bash
 # 安装软件
 chopsticks install git
@@ -116,6 +119,12 @@ chopsticks s vscode
 # 管理软件源
 chopsticks bucket add main https://github.com/chopsticks-bucket/main
 chopsticks bucket list
+
+# 依赖管理
+chopsticks deps git --tree              # 查看依赖树
+chopsticks deps git --reverse           # 查看反向依赖
+chopsticks autoremove                  # 清理孤儿依赖
+chopsticks cleanup-runtime             # 清理无用运行时库
 
 # 批量安装（Go 层自动并发调度）
 chopsticks install git nodejs python
