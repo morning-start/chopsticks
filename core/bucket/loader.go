@@ -335,14 +335,14 @@ func extractDependenciesFromJS(content string) []manifest.Dependency {
 	// 解析依赖数组内容
 	contentStr := dependsContent.String()
 	if contentStr == "" {
-		return deps
+		return []manifest.Dependency{}
 	}
 
 	// 提取方括号内的内容
 	startIdx := strings.Index(contentStr, "[")
 	endIdx := strings.Index(contentStr, "]")
 	if startIdx == -1 || endIdx == -1 || endIdx <= startIdx {
-		return deps
+		return []manifest.Dependency{}
 	}
 
 	innerContent := contentStr[startIdx+1 : endIdx]
@@ -362,7 +362,6 @@ func extractDependenciesFromJS(content string) []manifest.Dependency {
 			Name:    item,
 			Version: "",
 		}
-
 		// 检查是否有版本约束 (格式: "name:version")
 		if idx := strings.Index(item, ":"); idx != -1 {
 			dep.Name = item[:idx]

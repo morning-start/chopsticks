@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Chopsticks App 类型定义
  * @module @chopsticks/core
  * @version 1.0.0
@@ -225,9 +225,9 @@ class App {
 
   /**
    * 检查最新版本
-   * @returns {Promise<string>}
+   * @returns {string}
    */
-  async checkVersion() {
+  checkVersion() {
     throw new Error("Not implemented");
   }
 
@@ -235,21 +235,21 @@ class App {
    * 获取下载信息
    * @param {string} version
    * @param {string} arch
-   * @returns {Promise<DownloadInfo>}
+   * @returns {DownloadInfo}
    */
-  async getDownloadInfo(version, arch) {
+  getDownloadInfo(version, arch) {
     throw new Error("Not implemented");
   }
 
   /**
    * 安全调用钩子函数
    * @template T
-   * @param {function(): Promise<T>} fn
-   * @returns {Promise<{success: boolean, value?: T, error?: string}>}
+   * @param {function(): T} fn
+   * @returns {{success: boolean, value?: T, error?: string}}
    */
-  async safeCall(fn) {
+  safeCall(fn) {
     try {
-      const value = await fn();
+      const value = fn();
       return { success: true, value };
     } catch (error) {
       return { success: false, error: String(error) };

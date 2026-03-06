@@ -113,33 +113,6 @@ func initSQLiteTables(db *sql.DB) error {
 		local_path TEXT
 	);
 
-	CREATE TABLE IF NOT EXISTS apps (
-		id TEXT PRIMARY KEY,
-		bucket_id TEXT NOT NULL,
-		name TEXT NOT NULL,
-		version TEXT,
-		description TEXT,
-		homepage TEXT,
-		license TEXT,
-		category TEXT,
-		tags TEXT,
-		maintainer TEXT,
-		script_path TEXT,
-		meta_path TEXT,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (bucket_id) REFERENCES buckets(id) ON DELETE CASCADE
-	);
-
-	CREATE TABLE IF NOT EXISTS app_versions (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		app_id TEXT NOT NULL,
-		version TEXT NOT NULL,
-		released_at DATETIME,
-		downloads TEXT,
-		FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE CASCADE,
-		UNIQUE(app_id, version)
-	);
-
 	CREATE TABLE IF NOT EXISTS installed (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL UNIQUE,
@@ -147,8 +120,7 @@ func initSQLiteTables(db *sql.DB) error {
 		bucket_id TEXT NOT NULL,
 		install_dir TEXT NOT NULL,
 		installed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (bucket_id) REFERENCES buckets(id)
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
 	CREATE TABLE IF NOT EXISTS install_operations (
@@ -174,8 +146,6 @@ func initSQLiteTables(db *sql.DB) error {
 		FOREIGN KEY (installed_id) REFERENCES installed(id) ON DELETE CASCADE
 	);
 
-	CREATE INDEX IF NOT EXISTS idx_apps_bucket_id ON apps(bucket_id);
-	CREATE INDEX IF NOT EXISTS idx_app_versions_app_id ON app_versions(app_id);
 	CREATE INDEX IF NOT EXISTS idx_installed_name ON installed(name);
 	CREATE INDEX IF NOT EXISTS idx_install_operations_installed_id ON install_operations(installed_id);
 	CREATE INDEX IF NOT EXISTS idx_system_operations_installed_id ON system_operations(installed_id);

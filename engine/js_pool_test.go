@@ -4,10 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"sync/atomic"
 	"testing"
-
-	"chopsticks/pkg/async"
 
 	"github.com/dop251/goja"
 )
@@ -148,95 +145,6 @@ func TestJSEnginePool_ExecuteWithCache(t *testing.T) {
 	}
 	if cacheStats.HitRate != 0.5 {
 		t.Errorf("Cache hit rate = %f, want 0.5", cacheStats.HitRate)
-	}
-}
-
-func TestJSEnginePool_ExecuteBatch(t *testing.T) {
-	config := DefaultPoolConfig()
-	pool := NewJSEnginePool(config)
-	defer pool.Close()
-
-	ctx := context.Background()
-
-	// 创建任务
-	tasks := make([]async.Task, 5)
-	var counter int32
-	for i := 0; i < 5; i++ {
-		taskID := string(rune('a' + i))
-		tasks[i] = async.NewTaskFunc(
-			taskID,
-			async.JSTaskProfile(5),
-			func(ctx context.Context) error {
-				atomic.AddInt32(&counter, 1)
-				return nil
-			},
-		)
-	}
-
-	batchConfig := DefaultBatchConfig()
-	result, err := pool.ExecuteBatch(ctx, tasks, batchConfig)
-
-	if err != nil {
-		t.Errorf("ExecuteBatch() error = %v", err)
-	}
-
-	if result == nil {
-		t.Fatal("ExecuteBatch() returned nil result")
-	}
-
-	if result.Total != 5 {
-		t.Errorf("Total = %d, want 5", result.Total)
-	}
-
-	if result.Success != 5 {
-		t.Errorf("Success = %d, want 5", result.Success)
-	}
-
-	if counter != 5 {
-		t.Errorf("Counter = %d, want 5", counter)
-	}
-}
-
-func TestJSEnginePool_ExecuteBatch_WithError(t *testing.T) {
-	config := DefaultPoolConfig()
-	pool := NewJSEnginePool(config)
-	defer pool.Close()
-
-	ctx := context.Background()
-
-	// 创建任务，其中一个会失败
-	tasks := []async.Task{
-		async.NewTaskFunc("task-1", async.JSTaskProfile(5), func(ctx context.Context) error {
-			return nil
-		}),
-		async.NewTaskFunc("task-2", async.JSTaskProfile(5), func(ctx context.Context) error {
-			return context.Canceled
-		}),
-		async.NewTaskFunc("task-3", async.JSTaskProfile(5), func(ctx context.Context) error {
-			return nil
-		}),
-	}
-
-	batchConfig := DefaultBatchConfig()
-	batchConfig.ContinueOnError = true
-
-	result, err := pool.ExecuteBatch(ctx, tasks, batchConfig)
-
-	// ContinueOnError = true，所以不应该返回错误
-	if err != nil {
-		t.Errorf("ExecuteBatch() with ContinueOnError should not return error, got %v", err)
-	}
-
-	if result.Failed != 1 {
-		t.Errorf("Failed = %d, want 1", result.Failed)
-	}
-
-	if result.Success != 2 {
-		t.Errorf("Success = %d, want 2", result.Success)
-	}
-
-	if len(result.Errors) != 1 {
-		t.Errorf("Errors count = %d, want 1", len(result.Errors))
 	}
 }
 

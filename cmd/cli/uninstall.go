@@ -12,7 +12,10 @@ import (
 )
 
 var (
-	uninstallPurge bool
+	uninstallPurge   bool
+	uninstallForce   bool
+	uninstallCascade bool
+	uninstallAutoRemove bool
 )
 
 // uninstallCmd 表示 uninstall 命令
@@ -149,5 +152,9 @@ func printUninstallResults(results []batchResult) error {
 
 func init() {
 	uninstallCmd.Flags().BoolVarP(&uninstallPurge, "purge", "p", false, "彻底清除，包括配置文件和数据")
+	uninstallCmd.Flags().BoolVarP(&uninstallForce, "force", "f", false, "强制卸载（忽略依赖检查）")
+	uninstallCmd.Flags().BoolVarP(&uninstallCascade, "cascade", "c", false, "级联卸载依赖者")
+	uninstallCmd.Flags().BoolVarP(&uninstallAutoRemove, "autoremove", "a", false, "同时清理孤儿依赖")
+
 	rootCmd.AddCommand(uninstallCmd)
 }

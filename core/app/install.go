@@ -36,7 +36,9 @@ type InstallOptions struct {
 	InstallDir string  // 16 bytes (string header)
 	Arch       string  // 16 bytes (string header)
 	Force      bool    // 1 byte
-	_          [7]byte // padding for alignment
+	Isolate    bool    // 1 byte
+	NoDeps     bool    // 1 byte
+	_           [7]byte // padding for alignment
 }
 
 // UninstallOptions 卸载选项

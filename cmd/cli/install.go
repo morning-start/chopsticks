@@ -33,6 +33,9 @@ var (
 	installBucket  string
 	installAsync   bool
 	installWorkers int
+	installIsolate bool
+	installNoDeps  bool
+	installDryRun  bool
 )
 
 // installCmd 表示 install 命令
@@ -74,7 +77,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 
 	// 单个包直接安装
 	if len(packages) == 1 {
-		return installSingle(ctx, application.AppManager(), packages[0].name, packages[0].version, installBucket, installArch, installForce)
+		return installSingle(ctx, application.AppManager(), packages[0].name, packages[0].version, installBucket, installArch, installForce, installIsolate, installNoDeps, installDryRun)
 	}
 
 	// 批量安装
@@ -82,7 +85,13 @@ func runInstall(cmd *cobra.Command, args []string) error {
 }
 
 // installSingle 安装单个软件包
-func installSingle(ctx context.Context, mgr app.AppManager, name, version, bucket, arch string, force bool) error {
+func installSingle(ctx context.Context, mgr app.AppManager, name, version, bucket, arch string, force, isolate, noDeps, dryRun bool) error {
+	// 预览模式
+	if dryRun {
+		output.Info("预览模式：不会实际安装")
+		return showInstallPreview(ctx, mgr, name, version, bucket, arch)
+	}
+
 	output.Info("Installing ")
 	output.Highlight("%s", name)
 	if version != "" {
@@ -92,11 +101,19 @@ func installSingle(ctx context.Context, mgr app.AppManager, name, version, bucke
 	if force {
 		output.Warning(" (force)")
 	}
+	if isolate {
+		output.Warning(" (isolate)")
+	}
+	if noDeps {
+		output.Warning(" (no-deps)")
+	}
 	fmt.Println()
 
 	opts := app.InstallOptions{
 		Arch:  arch,
 		Force: force,
+		Isolate: isolate,
+		NoDeps:  noDeps,
 	}
 
 	installSpec := app.InstallSpec{
@@ -219,12 +236,45 @@ func parseAppSpec(spec string) (name, version string) {
 	return spec[:idx], spec[idx+1:]
 }
 
+// showInstallPreview 显示安装预览
+func showInstallPreview(ctx context.Context, mgr app.AppManager, name, version, bucket, arch string) error {
+	output.Infoln("========================================")
+	output.Infoln("安装预览")
+	output.Infoln("========================================")
+	fmt.Println()
+
+	output.Info("将安装：")
+	output.Highlight("%s", name)
+	if version != "" {
+		output.Dim("@")
+		output.Info("%s", version)
+	}
+	if bucket != "" {
+		output.Dim(" (bucket: ")
+		output.Info("%s)", bucket)
+	}
+	if arch != "" {
+		output.Dim(" (arch: ")
+		output.Info("%s)", arch)
+	}
+	fmt.Println()
+
+	// TODO: 实现依赖预览
+	// TODO: 实现下载大小预览
+	// TODO: 实现磁盘空间预览
+
+	return nil
+}
+
 func init() {
 	installCmd.Flags().BoolVarP(&installForce, "force", "f", false, "强制重新安装，即使已存在")
 	installCmd.Flags().StringVarP(&installArch, "arch", "a", defaultArch, "指定架构 (amd64, x86, arm64)")
 	installCmd.Flags().StringVarP(&installBucket, "bucket", "b", defaultBucket, "指定软件源")
 	installCmd.Flags().BoolVar(&installAsync, "async", false, "使用异步模式（并行安装）")
 	installCmd.Flags().IntVarP(&installWorkers, "workers", "w", defaultWorkers, "异步模式下的最大并发数")
+	installCmd.Flags().BoolVarP(&installIsolate, "isolate", "i", false, "隔离安装（依赖独立安装，不共享）")
+	installCmd.Flags().BoolVarP(&installNoDeps, "no-deps", "n", false, "不安装依赖")
+	installCmd.Flags().BoolVarP(&installDryRun, "dry-run", "d", false, "安装前预览")
 
 	rootCmd.AddCommand(installCmd)
 }

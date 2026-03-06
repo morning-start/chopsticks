@@ -56,4 +56,19 @@ func init() {
 			output.DisableColor()
 		}
 	}
+
+	// 注册命令
+	rootCmd.AddCommand(installCmd)
+	rootCmd.AddCommand(uninstallCmd)
+	rootCmd.AddCommand(updateCmd)
+	rootCmd.AddCommand(searchCmd)
+	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(bucketCmd)
+	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(conflictCmd)
+	rootCmd.AddCommand(perfCmd)
+	rootCmd.AddCommand(completionCmd)
+	rootCmd.AddCommand(depsCmd)
+	rootCmd.AddCommand(autoremoveCmd)
+	rootCmd.AddCommand(cleanupRuntimeCmd)
 }
