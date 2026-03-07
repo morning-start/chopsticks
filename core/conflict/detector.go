@@ -83,7 +83,7 @@ func (d *detector) Detect(ctx context.Context, app *manifest.App) (*Result, erro
 	// 获取所有已安装应用
 	installed, err := d.storage.ListInstalledApps(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "list installed apps")
+		return nil, errors.Wrap(err, "list all installed apps for conflict detection")
 	}
 
 	result := &Result{
@@ -93,28 +93,28 @@ func (d *detector) Detect(ctx context.Context, app *manifest.App) (*Result, erro
 	// 检测文件冲突
 	fileConflicts, err := d.DetectFileConflicts(ctx, app, installed)
 	if err != nil {
-		return nil, errors.Wrap(err, "detect file conflicts")
+		return nil, errors.Wrapf(err, "detect file conflicts for %s", app.Script.Name)
 	}
 	result.Conflicts = append(result.Conflicts, fileConflicts...)
 
 	// 检测端口冲突
 	portConflicts, err := d.DetectPortConflicts(ctx, app)
 	if err != nil {
-		return nil, errors.Wrap(err, "detect port conflicts")
+		return nil, errors.Wrapf(err, "detect port conflicts for %s", app.Script.Name)
 	}
 	result.Conflicts = append(result.Conflicts, portConflicts...)
 
 	// 检测环境变量冲突
 	envConflicts, err := d.DetectEnvVarConflicts(ctx, app, installed)
 	if err != nil {
-		return nil, errors.Wrap(err, "detect env var conflicts")
+		return nil, errors.Wrapf(err, "detect env var conflicts for %s", app.Script.Name)
 	}
 	result.Conflicts = append(result.Conflicts, envConflicts...)
 
 	// 检测注册表冲突
 	regConflicts, err := d.DetectRegistryConflicts(ctx, app, installed)
 	if err != nil {
-		return nil, errors.Wrap(err, "detect registry conflicts")
+		return nil, errors.Wrapf(err, "detect registry conflicts for %s", app.Script.Name)
 	}
 	result.Conflicts = append(result.Conflicts, regConflicts...)
 
@@ -188,21 +188,26 @@ func (d *detector) DetectFileConflicts(ctx context.Context, app *manifest.App, i
 func (d *detector) DetectPortConflicts(ctx context.Context, app *manifest.App) ([]Conflict, error) {
 	var conflicts []Conflict
 
-	// 从应用元数据中获取端口信息
-	if app.Meta == nil {
+	// 检查 Resources 是否为 nil
+	if app == nil || app.Script == nil || app.Script.Resources == nil {
 		return conflicts, nil
 	}
 
-	// 检查常用端口是否被占用
-	commonPorts := d.getAppPorts(app)
-	for _, port := range commonPorts {
-		if isPortInUse(port) {
+	// 从 app.Resources.Ports 读取端口声明
+	for _, portDecl := range app.Script.Resources.Ports {
+		if isPortInUse(portDecl.Port) {
+			// 根据 Required 字段判断冲突严重程度
+			severity := SeverityWarning
+			if portDecl.Required {
+				severity = SeverityCritical
+			}
+
 			conflicts = append(conflicts, Conflict{
 				Type:        ConflictTypePort,
-				Severity:    SeverityWarning,
-				Target:      fmt.Sprintf("%d", port),
+				Severity:    severity,
+				Target:      fmt.Sprintf("%d", portDecl.Port),
 				CurrentApp:  "unknown",
-				Description: fmt.Sprintf("端口 %d 已被占用", port),
+				Description: fmt.Sprintf("端口 %d 已被占用 (%s)", portDecl.Port, portDecl.Description),
 				Suggestion:  "应用启动时可能需要指定其他端口",
 			})
 		}
@@ -215,29 +220,49 @@ func (d *detector) DetectPortConflicts(ctx context.Context, app *manifest.App) (
 func (d *detector) DetectEnvVarConflicts(ctx context.Context, app *manifest.App, installed []*manifest.InstalledApp) ([]Conflict, error) {
 	var conflicts []Conflict
 
-	// 获取应用可能需要的环境变量
-	envVars := d.getAppEnvVars(app)
+	// 检查 Resources 是否为 nil
+	if app == nil || app.Script == nil || app.Script.Resources == nil {
+		return conflicts, nil
+	}
 
-	for _, envVar := range envVars {
-		currentValue := os.Getenv(envVar.Name)
+	// 从 app.Resources.EnvVars 读取环境变量声明
+	for _, envDecl := range app.Script.Resources.EnvVars {
+		currentValue := os.Getenv(envDecl.Name)
 		if currentValue == "" {
+			// 环境变量未设置，如果声明为必需则添加警告
+			if envDecl.Required {
+				conflicts = append(conflicts, Conflict{
+					Type:        ConflictTypeEnvVar,
+					Severity:    SeverityWarning,
+					Target:      envDecl.Name,
+					CurrentApp:  "system",
+					Description: fmt.Sprintf("必需的环境变量 '%s' 未设置", envDecl.Name),
+					Suggestion:  fmt.Sprintf("安装时将设置为 '%s'", envDecl.Value),
+				})
+			}
 			continue
 		}
 
-		// 检查是否有其他应用设置了此环境变量
+		// 环境变量已存在，检查是否有其他应用使用了此变量
 		for _, inst := range installed {
 			if inst.Name == app.Script.Name {
 				continue
 			}
 
 			// 检查该应用是否可能使用相同的环境变量
-			if d.isLikelyEnvVarConflict(envVar.Name, inst.Name) {
+			if d.isLikelyEnvVarConflict(envDecl.Name, inst.Name) {
+				// 根据 Required 字段判断严重程度
+				severity := SeverityInfo
+				if envDecl.Required {
+					severity = SeverityWarning
+				}
+
 				conflicts = append(conflicts, Conflict{
 					Type:        ConflictTypeEnvVar,
-					Severity:    SeverityWarning,
-					Target:      envVar.Name,
+					Severity:    severity,
+					Target:      envDecl.Name,
 					CurrentApp:  inst.Name,
-					Description: fmt.Sprintf("环境变量 '%s' 已被设置为 '%s'", envVar.Name, currentValue),
+					Description: fmt.Sprintf("环境变量 '%s' 已被设置为 '%s'", envDecl.Name, currentValue),
 					Suggestion:  "可能需要更新环境变量值",
 				})
 			}
@@ -251,17 +276,31 @@ func (d *detector) DetectEnvVarConflicts(ctx context.Context, app *manifest.App,
 func (d *detector) DetectRegistryConflicts(ctx context.Context, app *manifest.App, installed []*manifest.InstalledApp) ([]Conflict, error) {
 	var conflicts []Conflict
 
-	// 获取应用可能的注册表项
-	regKeys := d.getAppRegistryKeys(app)
+	// 检查 Resources 是否为 nil
+	if app == nil || app.Script == nil || app.Script.Resources == nil {
+		return conflicts, nil
+	}
 
-	for _, regKey := range regKeys {
+	// 从 app.Resources.Registry 读取注册表声明
+	for _, regDecl := range app.Script.Resources.Registry {
+		// 构建完整的注册表键路径
+		regKey := fmt.Sprintf(`%s\%s`, regDecl.Hive, regDecl.Key)
+		if regDecl.ValueName != "" {
+			regKey += fmt.Sprintf(`\%s`, regDecl.ValueName)
+		}
+
 		// 检查注册表项是否已存在
 		exists, currentValue, err := d.checkRegistryKeyExists(regKey)
 		if err != nil {
-			// 注册表检查失败，记录为警告
+			// 注册表检查失败，根据 Required 字段判断严重程度
+			severity := SeverityInfo
+			if regDecl.Required {
+				severity = SeverityWarning
+			}
+
 			conflicts = append(conflicts, Conflict{
 				Type:        ConflictTypeRegistry,
-				Severity:    SeverityInfo,
+				Severity:    severity,
 				Target:      regKey,
 				CurrentApp:  "unknown",
 				Description: fmt.Sprintf("无法检查注册表项 '%s': %v", regKey, err),
@@ -274,12 +313,18 @@ func (d *detector) DetectRegistryConflicts(ctx context.Context, app *manifest.Ap
 			// 查找占用此注册表项的应用
 			ownerApp := d.findRegistryKeyOwner(ctx, regKey, installed)
 
+			// 根据 Required 字段判断严重程度
+			severity := SeverityInfo
+			if regDecl.Required {
+				severity = SeverityWarning
+			}
+
 			conflicts = append(conflicts, Conflict{
 				Type:        ConflictTypeRegistry,
-				Severity:    SeverityWarning,
+				Severity:    severity,
 				Target:      regKey,
 				CurrentApp:  ownerApp,
-				Description: fmt.Sprintf("注册表项 '%s' 已存在，值为 '%s'", regKey, currentValue),
+				Description: fmt.Sprintf("注册表项 '%s' 已存在，值为 '%s' (%s)", regKey, currentValue, regDecl.Description),
 				Suggestion:  "安装时可能被覆盖",
 			})
 		}
@@ -290,61 +335,16 @@ func (d *detector) DetectRegistryConflicts(ctx context.Context, app *manifest.Ap
 
 // isPortInUse 检查端口是否被占用。
 func isPortInUse(port int) bool {
-	addr := fmt.Sprintf(":%d", port)
+	// 尝试在 127.0.0.1 上监听端口
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
+		// 监听失败说明端口已被占用
 		return true
 	}
+	// 监听成功说明端口可用，关闭监听器
 	listener.Close()
 	return false
-}
-
-// getAppPorts 获取应用可能使用的端口列表。
-func (d *detector) getAppPorts(app *manifest.App) []int {
-	// 这里可以根据应用类型或元数据返回常用端口
-	// 实际实现中可以从应用元数据读取
-	ports := []int{}
-
-	// 根据应用名称推断常用端口
-	appName := strings.ToLower(app.Script.Name)
-	switch {
-	case strings.Contains(appName, "mysql"):
-		ports = append(ports, 3306)
-	case strings.Contains(appName, "postgres"):
-		ports = append(ports, 5432)
-	case strings.Contains(appName, "redis"):
-		ports = append(ports, 6379)
-	case strings.Contains(appName, "mongo"):
-		ports = append(ports, 27017)
-	case strings.Contains(appName, "nginx"):
-		ports = append(ports, 80, 443)
-	case strings.Contains(appName, "apache"):
-		ports = append(ports, 80, 443)
-	case strings.Contains(appName, "node") || strings.Contains(appName, "npm"):
-		ports = append(ports, 3000, 8080)
-	}
-
-	return ports
-}
-
-// EnvVar 表示环境变量信息。
-type EnvVar struct {
-	Name        string
-	Description string
-}
-
-// getAppEnvVars 获取应用可能使用的环境变量。
-func (d *detector) getAppEnvVars(app *manifest.App) []EnvVar {
-	vars := []EnvVar{}
-
-	// 根据应用名称推断常用环境变量
-	appName := strings.ToUpper(app.Script.Name)
-	vars = append(vars, EnvVar{
-		Name:        appName + "_HOME",
-		Description: app.Script.Name + " 安装目录",
-	})
-
-	return vars
 }
 
 // isLikelyEnvVarConflict 判断是否可能是环境变量冲突。
@@ -355,24 +355,6 @@ func (d *detector) isLikelyEnvVarConflict(envVarName, appName string) bool {
 
 	// 如果环境变量名包含应用名，可能是该应用设置的
 	return strings.Contains(envVarUpper, appNameUpper)
-}
-
-// getAppRegistryKeys 获取应用可能的注册表项。
-func (d *detector) getAppRegistryKeys(app *manifest.App) []string {
-	keys := []string{}
-
-	// 根据应用名称推断可能的注册表项
-	appName := app.Script.Name
-
-	// 常见的注册表路径
-	commonPaths := []string{
-		`HKLM\SOFTWARE\` + appName,
-		`HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\` + appName,
-		`HKCU\SOFTWARE\` + appName,
-	}
-
-	keys = append(keys, commonPaths...)
-	return keys
 }
 
 // checkRegistryKeyExists 检查注册表项是否存在。
