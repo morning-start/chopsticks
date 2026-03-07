@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "architecture-doc-generator": {
+      "source": "morning-start/wiki-skills",
+      "sourceType": "github",
+      "computedHash": "c7b4c3305b241fe0704dd6fb6fd3d5c419b1e2c22bf7281f89b6235602bb8869"
+    },
     "design-pattern-advisor": {
       "source": "morning-start/wiki-skills",
       "sourceType": "github",

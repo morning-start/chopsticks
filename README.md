@@ -25,8 +25,10 @@
 
 <p align="center">
   <a href="docs/ROADMAP.md">路线图</a> •
-  <a href="docs/ARCHITECTURE.md">架构设计</a> •
+  <a href="wiki/ARCHITECTURE.md">架构设计</a> •
   <a href="docs/CHANGELOG.md">变更日志</a> •
+  <a href="docs/ARCHITECTURE-REVIEW.md">架构检测</a> •
+  <a href="docs/ARCHITECTURE-FIXES-COMPLETE.md">架构修复</a> •
   <a href="wiki/user/USAGE.md">使用指南</a> •
   <a href="wiki/developer/DEVELOPER.md">开发文档</a>
 </p>
