@@ -151,7 +151,7 @@ func GetStringValueWithType(key registry.Key, name string) (string, string, erro
 	if err != nil {
 		return "", "", err
 	}
-	
+
 	var typeStr string
 	switch valType {
 	case registry.SZ:
@@ -169,7 +169,7 @@ func GetStringValueWithType(key registry.Key, name string) (string, string, erro
 	default:
 		typeStr = "REG_SZ"
 	}
-	
+
 	return val, typeStr, nil
 }
 

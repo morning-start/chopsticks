@@ -68,7 +68,6 @@ func (p *JSEnginePool) ExecuteBatch(
 	var mu sync.Mutex
 
 	for _, task := range tasks {
-		task := task // 捕获循环变量
 		g.Go(func() error {
 			// 创建带超时的上下文
 			taskCtx, cancel := context.WithTimeout(ctx, config.Timeout)
@@ -136,7 +135,6 @@ func (p *JSEnginePool) ExecuteScriptsBatch(
 	var mu sync.Mutex
 
 	for _, path := range scriptPaths {
-		path := path // 捕获循环变量
 		g.Go(func() error {
 			// 创建带超时的上下文
 			taskCtx, cancel := context.WithTimeout(ctx, config.Timeout)

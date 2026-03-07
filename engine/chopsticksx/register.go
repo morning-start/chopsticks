@@ -77,7 +77,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		value := m.GetEnv(key)
 		return vm.ToValue(map[string]interface{}{
 			"success": true,
-			"value":    value,
+			"value":   value,
 		})
 	})
 

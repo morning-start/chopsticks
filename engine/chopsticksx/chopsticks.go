@@ -252,9 +252,12 @@ func (m *Module) CreateShim(source, name string) (string, error) {
 func copyFile(src, dst string) error {
 	data, err := os.ReadFile(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("读取源文件 [%s] 失败：%w", src, err)
 	}
-	return os.WriteFile(dst, data, 0755)
+	if err := os.WriteFile(dst, data, 0755); err != nil {
+		return fmt.Errorf("写入目标文件 [%s] 失败：%w", dst, err)
+	}
+	return nil
 }
 
 // RemoveShim 移除命令链接（shim）。

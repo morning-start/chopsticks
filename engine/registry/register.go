@@ -154,7 +154,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 				"error":   err.Error(),
 			})
 		}
-		
+
 		jsValues := make([]map[string]interface{}, len(values))
 		for i, v := range values {
 			jsValues[i] = map[string]interface{}{
@@ -163,7 +163,7 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 				"value": v.Value,
 			}
 		}
-		
+
 		return vm.ToValue(map[string]interface{}{
 			"success": true,
 			"values":  jsValues,

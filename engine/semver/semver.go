@@ -31,9 +31,9 @@ var versionRegex = regexp.MustCompile(`^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-
 
 // 版本类型检测正则表达式
 var (
-	calverRegex   = regexp.MustCompile(`^(\d{4})(?:\.(\d{2}))?(?:\.(\d{2}))?$`)
-	quadRegex     = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)\.(\d+)$`)
-	buildRegex    = regexp.MustCompile(`^(?:build|r)?(\d+)$`)
+	calverRegex = regexp.MustCompile(`^(\d{4})(?:\.(\d{2}))?(?:\.(\d{2}))?$`)
+	quadRegex   = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)\.(\d+)$`)
+	buildRegex  = regexp.MustCompile(`^(?:build|r)?(\d+)$`)
 )
 
 // Parse 解析版本字符串。

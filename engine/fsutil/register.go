@@ -138,12 +138,12 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		info, err := Stat(path)
 		if err != nil {
 			return vm.ToValue(map[string]interface{}{
-				"success": false,
-				"size":     0,
+				"success":     false,
+				"size":        0,
 				"isDirectory": false,
-				"isFile":   false,
-				"mtime":    "",
-				"error":    err.Error(),
+				"isFile":      false,
+				"mtime":       "",
+				"error":       err.Error(),
 			})
 		}
 		return vm.ToValue(map[string]interface{}{

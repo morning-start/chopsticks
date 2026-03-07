@@ -137,9 +137,9 @@ func TestExtractZip(t *testing.T) {
 		{
 			name: "valid zip with files",
 			files: map[string]string{
-				"file1.txt":       "content1",
-				"dir/file2.txt":   "content2",
-				"dir/sub/file3":   "content3",
+				"file1.txt":     "content1",
+				"dir/file2.txt": "content2",
+				"dir/sub/file3": "content3",
 			},
 			wantErr:    false,
 			checkFiles: []string{"file1.txt", "dir/file2.txt", "dir/sub/file3"},

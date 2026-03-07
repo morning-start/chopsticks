@@ -37,15 +37,15 @@ func (m *Module) RegisterJS(vm *goja.Runtime) {
 		segments := []int{v.Major, v.Minor, v.Patch}
 
 		return vm.ToValue(map[string]interface{}{
-			"success": true,
-			"raw":      version,
-			"normalized": v.String(),
-			"type":     "semver",
-			"segments": segments,
-			"prerelease": v.Pre,
+			"success":       true,
+			"raw":           version,
+			"normalized":    v.String(),
+			"type":          "semver",
+			"segments":      segments,
+			"prerelease":    v.Pre,
 			"prereleaseNum": prereleaseNum,
-			"build":    v.Build,
-			"comparable": true,
+			"build":         v.Build,
+			"comparable":    true,
 		})
 	})
 
