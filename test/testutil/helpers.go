@@ -51,7 +51,10 @@ func SetupTestEnvironment(t *testing.T) *TestComponents {
 
 	// Setup app manager
 	appsDir := filepath.Join(tmpDir, "apps")
-	appMgr := app.NewManager(bucketMgr, adapter, installer, nil, appsDir)
+	appMgr, err := app.NewManager(bucketMgr, adapter, installer, nil, appsDir)
+	if err != nil {
+		t.Fatalf("创建应用管理器失败：%v", err)
+	}
 
 	t.Cleanup(func() {
 		storage.Close()
