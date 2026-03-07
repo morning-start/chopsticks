@@ -1,24 +1,67 @@
-﻿﻿# Chopsticks JavaScript API 参考
+﻿# Chopsticks JavaScript API 参考
 
 > 应用脚本中可用的 JavaScript API 完整参考
 
 ---
 
+## 返回值格式规范
+
+所有 API 函数统一使用以下返回值格式：
+
+```javascript
+// 成功时
+{
+  success: true,    // 是否成功
+  data: <T>,        // 返回数据（具体类型根据函数而定）
+  error: null       // 错误信息（成功时为 null 或省略）
+}
+
+// 失败时
+{
+  success: false,   // 是否成功
+  data: null,       // 返回数据（失败时为 null 或省略）
+  error: <string>   // 错误信息（包含错误描述和恢复建议）
+}
+```
+
+### 使用示例
+
+```javascript
+// 读取文件
+const result = fs.readFile("config.json");
+if (result.success) {
+  log.info("文件内容：" + result.data);
+} else {
+  log.error("读取失败：" + result.error);
+}
+
+// 执行命令
+const execResult = exec.exec("git", ["--version"]);
+if (execResult.success) {
+  log.info("Git 版本：" + execResult.stdout);
+  log.info("退出码：" + execResult.exitCode);
+} else {
+  log.error("执行失败：" + execResult.error);
+}
+```
+
+---
+
 ## 目录
 
-1. [fsutil - 文件操作](#1-fs---文件操作)
+1. [fs - 文件操作](#1-fs---文件操作)
 2. [fetch - HTTP 请求](#2-fetch---http-请求)
-3. [execx - 命令执行](#3-exec---命令执行)
+3. [exec - 命令执行](#3-exec---命令执行)
 4. [archive - 压缩解压](#4-archive---压缩解压)
 5. [checksum - 校验和](#5-checksum---校验和)
-6. [chopsticksx - Chopsticks 核心](#6-chopsticks---chopsticks-核心)
-7. [jsonx - JSON 处理](#7-json---json-处理)
-8. [logx - 日志](#8-log---日志)
-9. [pathx - 路径操作](#9-path---路径操作)
+6. [chopsticks - Chopsticks 核心](#6-chopsticks---chopsticks-核心)
+7. [json - JSON 处理](#7-json---json-处理)
+8. [log - 日志](#8-log---日志)
+9. [path - 路径操作](#9-path---路径操作)
 10. [registry - 注册表操作](#10-registry---注册表操作)
 11. [semver - 版本控制](#11-semver---版本控制)
 12. [symlink - 符号链接](#12-symlink---符号链接)
-13. [installerx - 安装程序](#13-installer---安装程序)
+13. [installer - 安装程序](#13-installer---安装程序)
 
 ---
 
