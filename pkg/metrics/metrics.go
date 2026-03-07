@@ -50,6 +50,16 @@ type PerformanceMetrics struct {
 	// 安装指标
 	ActiveInstalls   int `json:"active_installs"`    // 活跃安装数
 	InstallQueueSize int `json:"install_queue_size"` // 安装队列大小
+
+	// 缓存指标 (新增)
+	AppCacheHitRate    float64 `json:"app_cache_hit_rate"`    // 应用缓存命中率
+	AppCacheSize       int     `json:"app_cache_size"`        // 应用缓存大小
+	BucketCacheHitRate float64 `json:"bucket_cache_hit_rate"` // Bucket 缓存命中率
+	BucketCacheSize    int     `json:"bucket_cache_size"`     // Bucket 缓存大小
+	IndexCacheHitRate  float64 `json:"index_cache_hit_rate"`  // 索引缓存命中率
+	IndexCacheSize     int     `json:"index_cache_size"`      // 索引缓存大小
+	CacheEvictions     int64   `json:"cache_evictions"`       // 缓存淘汰次数
+	BatchReadEfficiency float64 `json:"batch_read_efficiency"` // 批量读取效率
 }
 
 // MetricsSnapshot 指标快照

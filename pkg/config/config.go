@@ -33,132 +33,129 @@ const (
 
 // 错误定义
 var (
-	ErrEmptyAppsPath    = errors.New("apps_path cannot be empty")
-	ErrEmptyBucketsPath = errors.New("buckets_path cannot be empty")
-	ErrEmptyStoragePath = errors.New("storage_path cannot be empty")
-	ErrInvalidParallel  = errors.New("parallel must be greater than 0")
+	ErrEmptyRootDir    = errors.New("root_dir cannot be empty")
+	ErrInvalidParallel = errors.New("parallel must be greater than 0")
 )
 
 // Config 应用程序配置
+// 使用 RootDir 作为根目录，其他路径自动推导
 type Config struct {
-	Global  GlobalConfig `yaml:"global" json:"global"`
-	Buckets BucketConfig `yaml:"buckets" json:"buckets"`
-	Proxy   ProxyConfig  `yaml:"proxy" json:"proxy"`
-	Log     LogConfig    `yaml:"log" json:"log"`
-}
+	RootDir string `yaml:"root_dir" json:"root_dir"` // 根目录，其他目录基于此推导
 
-// GlobalConfig 全局配置
-type GlobalConfig struct {
-	AppsPath    string `yaml:"apps_path" json:"apps_path"`
-	BucketsPath string `yaml:"buckets_path" json:"buckets_path"`
-	CachePath   string `yaml:"cache_path" json:"cache_path"`
-	PersistPath string `yaml:"persist_path" json:"persist_path"`
-	ShimPath    string `yaml:"shim_path" json:"shim_path"`
-	StoragePath string `yaml:"storage_path" json:"storage_path"`
-	Parallel    int    `yaml:"parallel" json:"parallel"`
-	Timeout     int    `yaml:"timeout" json:"timeout"`
-	Retry       int    `yaml:"retry" json:"retry"`
-	NoConfirm   bool   `yaml:"no_confirm" json:"no_confirm"`
-	Color       bool   `yaml:"color" json:"color"`
-	Verbose     bool   `yaml:"verbose" json:"verbose"`
-}
+	// 全局配置 - 简化字段命名
+	AppsDir    string `yaml:"apps_dir" json:"apps_dir"`       // 应用安装目录
+	BucketsDir string `yaml:"buckets_dir" json:"buckets_dir"` // 软件源目录
+	CacheDir   string `yaml:"cache_dir" json:"cache_dir"`     // 缓存目录
+	PersistDir string `yaml:"persist_dir" json:"persist_dir"` // 持久化数据目录
+	ShimDir    string `yaml:"shim_dir" json:"shim_dir"`       // 可执行文件 shim 目录
+	StorageDir string `yaml:"storage_dir" json:"storage_dir"` // 数据存储目录
 
-// BucketConfig Bucket 配置
-type BucketConfig struct {
-	Default    string            `yaml:"default" json:"default"`
-	AutoUpdate bool              `yaml:"auto_update" json:"auto_update"`
-	Mirrors    map[string]string `yaml:"mirrors" json:"mirrors"`
-}
+	// 执行配置
+	Parallel  int  `yaml:"parallel" json:"parallel"`
+	Timeout   int  `yaml:"timeout" json:"timeout"`
+	Retry     int  `yaml:"retry" json:"retry"`
+	NoConfirm bool `yaml:"no_confirm" json:"no_confirm"`
+	Color     bool `yaml:"color" json:"color"`
+	Verbose   bool `yaml:"verbose" json:"verbose"`
 
-// ProxyConfig 代理配置
-type ProxyConfig struct {
-	Enable  bool   `yaml:"enable" json:"enable"`
-	System  bool   `yaml:"system" json:"system"`
-	HTTP    string `yaml:"http" json:"http"`
-	HTTPS   string `yaml:"https" json:"https"`
-	NoProxy string `yaml:"no_proxy" json:"no_proxy"`
-}
+	// Bucket 配置
+	DefaultBucket string            `yaml:"default_bucket" json:"default_bucket"`
+	AutoUpdate    bool              `yaml:"auto_update" json:"auto_update"`
+	BucketMirrors map[string]string `yaml:"bucket_mirrors" json:"bucket_mirrors"`
 
-// LogConfig 日志配置
-type LogConfig struct {
-	Level      string `yaml:"level" json:"level"`
-	File       string `yaml:"file" json:"file"`
-	MaxSize    int    `yaml:"max_size" json:"max_size"`
-	MaxBackups int    `yaml:"max_backups" json:"max_backups"`
-	MaxAge     int    `yaml:"max_age" json:"max_age"`
-	Compress   bool   `yaml:"compress" json:"compress"`
+	// 代理配置
+	ProxyEnable  bool   `yaml:"proxy_enable" json:"proxy_enable"`
+	ProxySystem  bool   `yaml:"proxy_system" json:"proxy_system"`
+	ProxyHTTP    string `yaml:"proxy_http" json:"proxy_http"`
+	ProxyHTTPS   string `yaml:"proxy_https" json:"proxy_https"`
+	ProxyNoProxy string `yaml:"proxy_no_proxy" json:"proxy_no_proxy"`
+
+	// 日志配置
+	LogLevel      string `yaml:"log_level" json:"log_level"`
+	LogFile       string `yaml:"log_file" json:"log_file"`
+	LogMaxSize    int    `yaml:"log_max_size" json:"log_max_size"`
+	LogMaxBackups int    `yaml:"log_max_backups" json:"log_max_backups"`
+	LogMaxAge     int    `yaml:"log_max_age" json:"log_max_age"`
+	LogCompress   bool   `yaml:"log_compress" json:"log_compress"`
 }
 
 // Option 配置选项函数类型
 type Option func(*Config)
 
-// WithAppsPath 设置应用路径
-func WithAppsPath(path string) Option {
+// WithRootDir 设置根目录
+func WithRootDir(dir string) Option {
 	return func(c *Config) {
-		c.Global.AppsPath = path
+		c.RootDir = dir
 	}
 }
 
-// WithBucketsPath 设置 Bucket 路径
-func WithBucketsPath(path string) Option {
+// WithAppsDir 设置应用目录
+func WithAppsDir(dir string) Option {
 	return func(c *Config) {
-		c.Global.BucketsPath = path
+		c.AppsDir = dir
 	}
 }
 
-// WithCachePath 设置缓存路径
-func WithCachePath(path string) Option {
+// WithBucketsDir 设置 Bucket 目录
+func WithBucketsDir(dir string) Option {
 	return func(c *Config) {
-		c.Global.CachePath = path
+		c.BucketsDir = dir
 	}
 }
 
-// WithStoragePath 设置存储路径
-func WithStoragePath(path string) Option {
+// WithCacheDir 设置缓存目录
+func WithCacheDir(dir string) Option {
 	return func(c *Config) {
-		c.Global.StoragePath = path
+		c.CacheDir = dir
+	}
+}
+
+// WithStorageDir 设置存储目录
+func WithStorageDir(dir string) Option {
+	return func(c *Config) {
+		c.StorageDir = dir
 	}
 }
 
 // WithParallel 设置并行度
 func WithParallel(n int) Option {
 	return func(c *Config) {
-		c.Global.Parallel = n
+		c.Parallel = n
 	}
 }
 
 // WithTimeout 设置超时时间
 func WithTimeout(seconds int) Option {
 	return func(c *Config) {
-		c.Global.Timeout = seconds
+		c.Timeout = seconds
 	}
 }
 
 // WithRetry 设置重试次数
 func WithRetry(n int) Option {
 	return func(c *Config) {
-		c.Global.Retry = n
+		c.Retry = n
 	}
 }
 
 // WithColor 设置是否启用彩色输出
 func WithColor(enabled bool) Option {
 	return func(c *Config) {
-		c.Global.Color = enabled
+		c.Color = enabled
 	}
 }
 
 // WithVerbose 设置是否启用详细输出
 func WithVerbose(enabled bool) Option {
 	return func(c *Config) {
-		c.Global.Verbose = enabled
+		c.Verbose = enabled
 	}
 }
 
 // WithLogLevel 设置日志级别
 func WithLogLevel(level string) Option {
 	return func(c *Config) {
-		c.Log.Level = level
+		c.LogLevel = level
 	}
 }
 
@@ -181,40 +178,33 @@ func NewConfig(opts ...Option) *Config {
 	rootDir := getRootDir()
 
 	cfg := &Config{
-		Global: GlobalConfig{
-			AppsPath:    filepath.Join(rootDir, "apps"),
-			BucketsPath: filepath.Join(rootDir, "buckets"),
-			CachePath:   filepath.Join(rootDir, "cache"),
-			PersistPath: filepath.Join(rootDir, "persist"),
-			ShimPath:    filepath.Join(rootDir, "shims"),
-			StoragePath: filepath.Join(rootDir, "data.db"),
-			Parallel:    DefaultParallel,
-			Timeout:     DefaultTimeout,
-			Retry:       DefaultRetry,
-			NoConfirm:   false,
-			Color:       true,
-			Verbose:     false,
-		},
-		Buckets: BucketConfig{
-			Default:    DefaultBucket,
-			AutoUpdate: false,
-			Mirrors:    make(map[string]string),
-		},
-		Proxy: ProxyConfig{
-			Enable:  true,
-			System:  true,
-			HTTP:    "",
-			HTTPS:   "",
-			NoProxy: "",
-		},
-		Log: LogConfig{
-			Level:      DefaultLogLevel,
-			File:       "",
-			MaxSize:    DefaultLogMaxSize,
-			MaxBackups: DefaultLogMaxBackups,
-			MaxAge:     DefaultLogMaxAge,
-			Compress:   true,
-		},
+		RootDir:       rootDir,
+		AppsDir:       filepath.Join(rootDir, "apps"),
+		BucketsDir:    filepath.Join(rootDir, "buckets"),
+		CacheDir:      filepath.Join(rootDir, "cache"),
+		PersistDir:    filepath.Join(rootDir, "persist"),
+		ShimDir:       filepath.Join(rootDir, "shims"),
+		StorageDir:    filepath.Join(rootDir, "data"),
+		Parallel:      DefaultParallel,
+		Timeout:       DefaultTimeout,
+		Retry:         DefaultRetry,
+		NoConfirm:     false,
+		Color:         true,
+		Verbose:       false,
+		DefaultBucket: DefaultBucket,
+		AutoUpdate:    false,
+		BucketMirrors: make(map[string]string),
+		ProxyEnable:   true,
+		ProxySystem:   true,
+		ProxyHTTP:     "",
+		ProxyHTTPS:    "",
+		ProxyNoProxy:  "",
+		LogLevel:      DefaultLogLevel,
+		LogFile:       "",
+		LogMaxSize:    DefaultLogMaxSize,
+		LogMaxBackups: DefaultLogMaxBackups,
+		LogMaxAge:     DefaultLogMaxAge,
+		LogCompress:   true,
 	}
 
 	// 应用选项
@@ -227,25 +217,39 @@ func NewConfig(opts ...Option) *Config {
 
 // Validate 验证配置有效性，并为无效值设置默认值
 func (c *Config) Validate() error {
-	if c.Global.AppsPath == "" {
-		return ErrEmptyAppsPath
+	if c.RootDir == "" {
+		return ErrEmptyRootDir
 	}
-	if c.Global.BucketsPath == "" {
-		return ErrEmptyBucketsPath
+
+	// 如果目录未设置，基于 RootDir 自动推导
+	if c.AppsDir == "" {
+		c.AppsDir = filepath.Join(c.RootDir, "apps")
 	}
-	if c.Global.StoragePath == "" {
-		return ErrEmptyStoragePath
+	if c.BucketsDir == "" {
+		c.BucketsDir = filepath.Join(c.RootDir, "buckets")
+	}
+	if c.CacheDir == "" {
+		c.CacheDir = filepath.Join(c.RootDir, "cache")
+	}
+	if c.PersistDir == "" {
+		c.PersistDir = filepath.Join(c.RootDir, "persist")
+	}
+	if c.ShimDir == "" {
+		c.ShimDir = filepath.Join(c.RootDir, "shims")
+	}
+	if c.StorageDir == "" {
+		c.StorageDir = filepath.Join(c.RootDir, "data")
 	}
 
 	// 设置默认值
-	if c.Global.Parallel <= 0 {
-		c.Global.Parallel = 1
+	if c.Parallel <= 0 {
+		c.Parallel = 1
 	}
-	if c.Global.Timeout <= 0 {
-		c.Global.Timeout = DefaultTimeout
+	if c.Timeout <= 0 {
+		c.Timeout = DefaultTimeout
 	}
-	if c.Global.Retry <= 0 {
-		c.Global.Retry = DefaultRetry
+	if c.Retry <= 0 {
+		c.Retry = DefaultRetry
 	}
 
 	return nil
@@ -267,16 +271,9 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	// 为缺失的路径字段设置默认值
-	rootDir := getRootDir()
-	if cfg.Global.CachePath == "" {
-		cfg.Global.CachePath = filepath.Join(rootDir, "cache")
-	}
-	if cfg.Global.PersistPath == "" {
-		cfg.Global.PersistPath = filepath.Join(rootDir, "persist")
-	}
-	if cfg.Global.ShimPath == "" {
-		cfg.Global.ShimPath = filepath.Join(rootDir, "shims")
+	// 如果 RootDir 未设置，使用默认值
+	if cfg.RootDir == "" {
+		cfg.RootDir = getRootDir()
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -344,63 +341,69 @@ func NewBuilder() *Builder {
 	}
 }
 
-// SetAppsPath 设置应用路径
-func (b *Builder) SetAppsPath(path string) *Builder {
-	b.config.Global.AppsPath = path
+// SetRootDir 设置根目录
+func (b *Builder) SetRootDir(dir string) *Builder {
+	b.config.RootDir = dir
 	return b
 }
 
-// SetBucketsPath 设置 Bucket 路径
-func (b *Builder) SetBucketsPath(path string) *Builder {
-	b.config.Global.BucketsPath = path
+// SetAppsDir 设置应用目录
+func (b *Builder) SetAppsDir(dir string) *Builder {
+	b.config.AppsDir = dir
 	return b
 }
 
-// SetCachePath 设置缓存路径
-func (b *Builder) SetCachePath(path string) *Builder {
-	b.config.Global.CachePath = path
+// SetBucketsDir 设置 Bucket 目录
+func (b *Builder) SetBucketsDir(dir string) *Builder {
+	b.config.BucketsDir = dir
 	return b
 }
 
-// SetStoragePath 设置存储路径
-func (b *Builder) SetStoragePath(path string) *Builder {
-	b.config.Global.StoragePath = path
+// SetCacheDir 设置缓存目录
+func (b *Builder) SetCacheDir(dir string) *Builder {
+	b.config.CacheDir = dir
+	return b
+}
+
+// SetStorageDir 设置存储目录
+func (b *Builder) SetStorageDir(dir string) *Builder {
+	b.config.StorageDir = dir
 	return b
 }
 
 // SetParallel 设置并行度
 func (b *Builder) SetParallel(n int) *Builder {
-	b.config.Global.Parallel = n
+	b.config.Parallel = n
 	return b
 }
 
 // SetTimeout 设置超时时间
 func (b *Builder) SetTimeout(seconds int) *Builder {
-	b.config.Global.Timeout = seconds
+	b.config.Timeout = seconds
 	return b
 }
 
 // SetRetry 设置重试次数
 func (b *Builder) SetRetry(n int) *Builder {
-	b.config.Global.Retry = n
+	b.config.Retry = n
 	return b
 }
 
 // SetColor 设置是否启用彩色输出
 func (b *Builder) SetColor(enabled bool) *Builder {
-	b.config.Global.Color = enabled
+	b.config.Color = enabled
 	return b
 }
 
 // SetVerbose 设置是否启用详细输出
 func (b *Builder) SetVerbose(enabled bool) *Builder {
-	b.config.Global.Verbose = enabled
+	b.config.Verbose = enabled
 	return b
 }
 
 // SetLogLevel 设置日志级别
 func (b *Builder) SetLogLevel(level string) *Builder {
-	b.config.Log.Level = level
+	b.config.LogLevel = level
 	return b
 }
 
@@ -414,14 +417,14 @@ func (b *Builder) Build() (*Config, error) {
 
 // GetEffectiveProxy 获取有效的代理配置
 // 如果启用了系统代理，会从环境变量读取代理设置
-func (c *ProxyConfig) GetEffectiveProxy() (httpProxy, httpsProxy, noProxy string) {
+func (c *Config) GetEffectiveProxy() (httpProxy, httpsProxy, noProxy string) {
 	// 如果未启用代理，返回空
-	if !c.Enable {
+	if !c.ProxyEnable {
 		return "", "", ""
 	}
 
 	// 如果使用系统代理，从环境变量读取
-	if c.System {
+	if c.ProxySystem {
 		httpProxy = c.getSystemHTTPProxy()
 		httpsProxy = c.getSystemHTTPSProxy()
 		noProxy = c.getSystemNoProxy()
@@ -429,11 +432,11 @@ func (c *ProxyConfig) GetEffectiveProxy() (httpProxy, httpsProxy, noProxy string
 	}
 
 	// 使用手动配置的代理
-	return c.HTTP, c.HTTPS, c.NoProxy
+	return c.ProxyHTTP, c.ProxyHTTPS, c.ProxyNoProxy
 }
 
 // getSystemHTTPProxy 从环境变量获取 HTTP 代理
-func (c *ProxyConfig) getSystemHTTPProxy() string {
+func (c *Config) getSystemHTTPProxy() string {
 	// 按优先级检查环境变量
 	if proxy := os.Getenv("HTTP_PROXY"); proxy != "" {
 		return proxy
@@ -441,11 +444,11 @@ func (c *ProxyConfig) getSystemHTTPProxy() string {
 	if proxy := os.Getenv("http_proxy"); proxy != "" {
 		return proxy
 	}
-	return c.HTTP
+	return c.ProxyHTTP
 }
 
 // getSystemHTTPSProxy 从环境变量获取 HTTPS 代理
-func (c *ProxyConfig) getSystemHTTPSProxy() string {
+func (c *Config) getSystemHTTPSProxy() string {
 	// 按优先级检查环境变量
 	if proxy := os.Getenv("HTTPS_PROXY"); proxy != "" {
 		return proxy
@@ -453,11 +456,11 @@ func (c *ProxyConfig) getSystemHTTPSProxy() string {
 	if proxy := os.Getenv("https_proxy"); proxy != "" {
 		return proxy
 	}
-	return c.HTTPS
+	return c.ProxyHTTPS
 }
 
 // getSystemNoProxy 从环境变量获取不代理的地址列表
-func (c *ProxyConfig) getSystemNoProxy() string {
+func (c *Config) getSystemNoProxy() string {
 	// 按优先级检查环境变量
 	if noProxy := os.Getenv("NO_PROXY"); noProxy != "" {
 		return noProxy
@@ -465,5 +468,5 @@ func (c *ProxyConfig) getSystemNoProxy() string {
 	if noProxy := os.Getenv("no_proxy"); noProxy != "" {
 		return noProxy
 	}
-	return c.NoProxy
+	return c.ProxyNoProxy
 }

@@ -22,7 +22,7 @@ type DepsIndex struct {
 // AppDeps 表示应用的依赖信息
 type AppDeps struct {
 	Dependencies []string // 依赖列表
-	Dependents  []string // 反向依赖（谁依赖我）
+	Dependents   []string // 反向依赖（谁依赖我）
 }
 
 // NewDepsIndex 创建依赖索引
@@ -180,7 +180,7 @@ func (d *DepsIndex) Rebuild(ctx context.Context, rootPath string) error {
 		// 创建应用依赖信息
 		d.apps[appName] = &AppDeps{
 			Dependencies: deps,
-			Dependents: []string{}, // 稍后计算
+			Dependents:   []string{}, // 稍后计算
 		}
 	}
 

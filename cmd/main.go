@@ -49,17 +49,8 @@ func run() error {
 		userCfg = config.DefaultConfig()
 	}
 
-	// 将 pkg/config 配置转换为 core/app 配置
-	cfg := &coreapp.Config{
-		AppsPath:    userCfg.Global.AppsPath,
-		BucketsPath: userCfg.Global.BucketsPath,
-		CachePath:   userCfg.Global.CachePath,
-		PersistPath: userCfg.Global.PersistPath,
-		ShimPath:    userCfg.Global.ShimPath,
-		StoragePath: userCfg.Global.StoragePath,
-	}
-
-	application, err := coreapp.New(cfg)
+	// 使用 pkg/config 配置直接创建应用
+	application, err := coreapp.New(userCfg)
 	if err != nil {
 		return fmt.Errorf("failed to create application: %w", err)
 	}

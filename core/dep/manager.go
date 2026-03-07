@@ -4,9 +4,11 @@ package dep
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"chopsticks/core/bucket"
 	"chopsticks/core/manifest"
+	"chopsticks/core/store"
 	"chopsticks/pkg/errors"
 )
 
@@ -15,35 +17,73 @@ type Manager interface {
 	// 依赖解析
 	Resolve(ctx context.Context, app *manifest.App) (*DependencyGraph, error)
 	CheckConflicts(ctx context.Context, deps *manifest.Dependencies) ([]Conflict, error)
+	CheckCircular(ctx context.Context, deps []string) error
 
 	// 运行时库管理
-	InstallRuntime(ctx context.Context, dep, version, appName string) error
+	InstallRuntime(ctx context.Context, dep, version, appName string, size int64) error
 	UninstallRuntime(ctx context.Context, dep, appName string) error
 	GetRuntimeInfo(ctx context.Context, dep string) (*manifest.RuntimeInfo, error)
 	CleanupRuntime(ctx context.Context) error
+	ListRuntimes(ctx context.Context) map[string]*manifest.RuntimeInfo
 
 	// 反向依赖计算
 	GetDependents(ctx context.Context, appName string) ([]string, error)
+	GetAllDependents(ctx context.Context, appName string) ([]string, error)
+	GetDependentsTree(ctx context.Context, appName string) *DependentTree
 
 	// 孤儿依赖清理
 	FindOrphans(ctx context.Context) (*manifest.Orphans, error)
 	CleanupOrphans(ctx context.Context, orphans *manifest.Orphans) error
+	DryRunCleanup(ctx context.Context, orphans *manifest.Orphans) error
+
+	// 依赖索引管理
+	RebuildIndex(ctx context.Context) error
+	UpdateDepsIndex(ctx context.Context, appName string, deps []string) error
 }
 
 // DependencyManager 依赖管理器实现
 type DependencyManager struct {
-	bucketMgr   bucket.BucketManager
-	runtimeIndex *RuntimeIndex
-	depsIndex   *DepsIndex
+	mu              sync.RWMutex
+	bucketMgr       bucket.BucketManager
+	storage         store.LegacyStorage
+	resolver        Resolver
+	runtimeMgr      RuntimeManager
+	reverseDepsCalc ReverseDepsCalculator
+	orphanDetector  OrphanDetector
+	rootPath        string
+	depsIndex       *DepsIndex
 }
 
 // NewDependencyManager 创建依赖管理器
-func NewDependencyManager(bucketMgr bucket.BucketManager, rootPath string) *DependencyManager {
-	return &DependencyManager{
-		bucketMgr:   bucketMgr,
-		runtimeIndex: NewRuntimeIndex(rootPath),
-		depsIndex:   NewDepsIndex(rootPath),
+func NewDependencyManager(bucketMgr bucket.BucketManager, storage store.LegacyStorage, rootPath string) (*DependencyManager, error) {
+	// 创建运行时管理器
+	runtimeMgr, err := NewRuntimeManager(rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create runtime manager: %w", err)
 	}
+
+	// 创建依赖索引
+	depsIndex := NewDepsIndex(rootPath)
+
+	// 创建依赖解析器
+	resolver := NewResolver(bucketMgr, storage)
+
+	// 创建反向依赖计算器
+	reverseDepsCalc := NewReverseDepsCalculator(rootPath)
+
+	// 创建孤儿依赖检测器
+	orphanDetector := NewOrphanDetector(rootPath, runtimeMgr, depsIndex)
+
+	return &DependencyManager{
+		bucketMgr:       bucketMgr,
+		storage:         storage,
+		resolver:        resolver,
+		runtimeMgr:      runtimeMgr,
+		reverseDepsCalc: reverseDepsCalc,
+		orphanDetector:  orphanDetector,
+		rootPath:        rootPath,
+		depsIndex:       depsIndex,
+	}, nil
 }
 
 // BucketManager 返回 bucket 管理器
@@ -53,41 +93,27 @@ func (m *DependencyManager) BucketManager() bucket.BucketManager {
 
 // Resolve 解析应用的依赖树
 func (m *DependencyManager) Resolve(ctx context.Context, app *manifest.App) (*DependencyGraph, error) {
-	// 加载依赖索引
-	if err := m.depsIndex.Load(); err != nil {
-		return nil, fmt.Errorf("failed to load deps index: %w", err)
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if app == nil || app.Script == nil {
+		return nil, errors.Newf(errors.KindInvalidInput, "invalid app")
 	}
 
-	// 检查冲突
-	if app.Script != nil && len(app.Script.Dependencies) > 0 {
-		// 将 []Dependency 转换为 Dependencies 结构
-		deps := &manifest.Dependencies{
-			Runtime:    app.Script.Dependencies,
-			Tools:      []manifest.Dependency{},
-			Libraries:  []manifest.Dependency{},
-			Conflicts:  []string{},
-		}
-		conflicts, err := m.CheckConflicts(ctx, deps)
-		if err != nil {
-			return nil, err
-		}
-		if len(conflicts) > 0 {
-			return nil, errors.NewDependencyConflict(
-				app.Script.Name,
-				fmt.Sprintf("found %d conflicts", len(conflicts)),
-			)
-		}
+	// 使用解析器解析依赖
+	graph, err := m.resolver.Resolve(ctx, app)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve dependencies: %w", err)
 	}
 
-	// TODO: 实现依赖解析逻辑
-	return &DependencyGraph{
-		Nodes: make(map[string]*DependencyNode),
-		Order: []string{},
-	}, nil
+	return graph, nil
 }
 
 // CheckConflicts 检查依赖冲突
 func (m *DependencyManager) CheckConflicts(ctx context.Context, deps *manifest.Dependencies) ([]Conflict, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	var conflicts []Conflict
 
 	// 检查 conflicts 字段
@@ -106,53 +132,51 @@ func (m *DependencyManager) CheckConflicts(ctx context.Context, deps *manifest.D
 	return conflicts, nil
 }
 
+// CheckCircular 检测循环依赖
+func (m *DependencyManager) CheckCircular(ctx context.Context, deps []string) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.resolver.CheckCircular(ctx, deps)
+}
+
 // InstallRuntime 安装运行时库
-func (m *DependencyManager) InstallRuntime(ctx context.Context, dep, version, appName string) error {
-	// 加载运行时索引
-	if err := m.runtimeIndex.Load(); err != nil {
-		return fmt.Errorf("failed to load runtime index: %w", err)
-	}
+func (m *DependencyManager) InstallRuntime(ctx context.Context, dep, version, appName string, size int64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	// 添加或更新运行时库，增加引用计数
-	if err := m.runtimeIndex.Add(dep, version, 1); err != nil {
-		return err
-	}
-
-	return nil
+	return m.runtimeMgr.Install(ctx, dep, version, appName, size)
 }
 
 // UninstallRuntime 卸载运行时库
 func (m *DependencyManager) UninstallRuntime(ctx context.Context, dep, appName string) error {
-	// 加载运行时索引
-	if err := m.runtimeIndex.Load(); err != nil {
-		return fmt.Errorf("failed to load runtime index: %w", err)
-	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	// 减少引用计数
-	if err := m.runtimeIndex.Remove(dep, appName); err != nil {
-		return err
-	}
-
-	return nil
+	return m.runtimeMgr.Uninstall(ctx, dep, appName)
 }
 
 // GetRuntimeInfo 获取运行时库信息
 func (m *DependencyManager) GetRuntimeInfo(ctx context.Context, dep string) (*manifest.RuntimeInfo, error) {
-	// 加载运行时索引
-	if err := m.runtimeIndex.Load(); err != nil {
-		return nil, fmt.Errorf("failed to load runtime index: %w", err)
-	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
-	info, ok := m.runtimeIndex.Get(dep)
-	if !ok {
-		return nil, errors.Newf(errors.KindNotFound, "runtime %s not found", dep)
-	}
+	return m.runtimeMgr.GetInfo(ctx, dep)
+}
 
-	return info, nil
+// ListRuntimes 列出所有运行时库
+func (m *DependencyManager) ListRuntimes(ctx context.Context) map[string]*manifest.RuntimeInfo {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.runtimeMgr.List(ctx)
 }
 
 // GetDependents 获取反向依赖（谁依赖我）
 func (m *DependencyManager) GetDependents(ctx context.Context, appName string) ([]string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	// 加载依赖索引
 	if err := m.depsIndex.Load(); err != nil {
 		return nil, fmt.Errorf("failed to load deps index: %w", err)
@@ -162,100 +186,99 @@ func (m *DependencyManager) GetDependents(ctx context.Context, appName string) (
 	return dependents, nil
 }
 
+// GetAllDependents 获取所有反向依赖（包括间接依赖）
+func (m *DependencyManager) GetAllDependents(ctx context.Context, appName string) ([]string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.reverseDepsCalc.GetAllDependents(appName), nil
+}
+
+// GetDependentsTree 获取反向依赖树
+func (m *DependencyManager) GetDependentsTree(ctx context.Context, appName string) *DependentTree {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.reverseDepsCalc.GetDependentsTree(appName)
+}
+
 // FindOrphans 查找孤儿依赖
 func (m *DependencyManager) FindOrphans(ctx context.Context) (*manifest.Orphans, error) {
-	// 加载运行时索引
-	if err := m.runtimeIndex.Load(); err != nil {
-		return nil, fmt.Errorf("failed to load runtime index: %w", err)
-	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
-	// 加载依赖索引
-	if err := m.depsIndex.Load(); err != nil {
-		return nil, fmt.Errorf("failed to load deps index: %w", err)
-	}
-
-	// 查找孤儿运行时库
-	runtimeOrphans := m.runtimeIndex.FindOrphans()
-
-	// 查找孤儿工具软件
-	toolOrphans := m.depsIndex.FindOrphans()
-
-	return &manifest.Orphans{
-		Runtime: runtimeOrphans,
-		Tools:   toolOrphans,
-	}, nil
+	return m.orphanDetector.Detect(ctx)
 }
 
 // CleanupOrphans 清理孤儿依赖
 func (m *DependencyManager) CleanupOrphans(ctx context.Context, orphans *manifest.Orphans) error {
-	// 清理孤儿运行时库
-	if len(orphans.Runtime) > 0 {
-		fmt.Printf("清理 %d 个孤儿运行时库：\n", len(orphans.Runtime))
-		for _, runtime := range orphans.Runtime {
-			if err := m.runtimeIndex.Remove(runtime, ""); err != nil {
-				fmt.Printf("  ✗ 清理 %s 失败: %v\n", runtime, err)
-				continue
-			}
-			fmt.Printf("  ✓ 已清理: %s\n", runtime)
-		}
-		fmt.Println()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.orphanDetector.Cleanup(ctx, orphans)
+}
+
+// DryRunCleanup 预演清理孤儿依赖
+func (m *DependencyManager) DryRunCleanup(ctx context.Context, orphans *manifest.Orphans) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.orphanDetector.DryRun(ctx, orphans)
+}
+
+// RebuildIndex 重建依赖索引
+func (m *DependencyManager) RebuildIndex(ctx context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// 重建依赖索引
+	if err := m.depsIndex.Rebuild(ctx, m.rootPath); err != nil {
+		return fmt.Errorf("failed to rebuild deps index: %w", err)
 	}
 
-	// 清理孤儿工具软件
-	if len(orphans.Tools) > 0 {
-		fmt.Printf("清理 %d 个孤儿工具软件：\n", len(orphans.Tools))
-		for _, tool := range orphans.Tools {
-			if err := m.depsIndex.Remove(tool); err != nil {
-				fmt.Printf("  ✗ 清理 %s 失败: %v\n", tool, err)
-				continue
-			}
-			fmt.Printf("  ✓ 已清理: %s\n", tool)
-		}
-		fmt.Println()
+	// 计算反向依赖
+	if err := m.reverseDepsCalc.Calculate(ctx); err != nil {
+		return fmt.Errorf("failed to calculate reverse deps: %w", err)
 	}
 
-	fmt.Println("孤儿依赖清理完成")
 	return nil
+}
+
+// UpdateDepsIndex 更新依赖索引
+func (m *DependencyManager) UpdateDepsIndex(ctx context.Context, appName string, deps []string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// 加载依赖索引
+	if err := m.depsIndex.Load(); err != nil {
+		return fmt.Errorf("failed to load deps index: %w", err)
+	}
+
+	// 更新应用依赖信息
+	m.depsIndex.apps[appName] = &AppDeps{
+		Dependencies: deps,
+		Dependents:   []string{},
+	}
+
+	// 重新计算反向依赖
+	m.depsIndex.calculateDependents()
+
+	// 保存索引
+	return m.depsIndex.Save()
 }
 
 // CleanupRuntime 清理无用运行时库
 func (m *DependencyManager) CleanupRuntime(ctx context.Context) error {
-	// 加载运行时索引
-	if err := m.runtimeIndex.Load(); err != nil {
-		return fmt.Errorf("failed to load runtime index: %w", err)
-	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	// 获取所有孤儿运行时库
-	orphans := m.runtimeIndex.FindOrphans()
-
-	if len(orphans) == 0 {
-		fmt.Println("没有需要清理的运行时库")
-		return nil
-	}
-
-	fmt.Printf("找到 %d 个孤儿运行时库：\n", len(orphans))
-	for _, orphan := range orphans {
-		fmt.Printf("  - %s\n", orphan)
-	}
-	fmt.Println()
-
-	// 清理孤儿运行时库
-	for _, orphan := range orphans {
-		if err := m.runtimeIndex.Remove(orphan, ""); err != nil {
-			fmt.Printf("清理 %s 失败: %v\n", orphan, err)
-			continue
-		}
-		fmt.Printf("✓ 已清理: %s\n", orphan)
-	}
-
-	fmt.Println("\n运行时库清理完成")
-	return nil
+	return m.runtimeMgr.Cleanup(ctx)
 }
 
 // isAppInstalled 检查应用是否已安装
-func (m *DependencyManager) isAppInstalled(_ context.Context, _ string) bool {
-	// TODO: 实现检查逻辑
-	return false
+func (m *DependencyManager) isAppInstalled(ctx context.Context, name string) bool {
+	_, err := m.storage.GetInstalledApp(ctx, name)
+	return err == nil
 }
 
 // Conflict 表示依赖冲突

@@ -40,7 +40,14 @@ func runAutoremove(cmd *cobra.Command, args []string) error {
 	}
 
 	// 创建依赖管理器
-	depMgr := dep.NewDependencyManager(application.BucketManager(), application.Config().PersistPath)
+	depMgr, err := dep.NewDependencyManager(
+		application.BucketManager(),
+		application.Storage(),
+		application.Config().PersistDir,
+	)
+	if err != nil {
+		return fmt.Errorf("创建依赖管理器失败：%w", err)
+	}
 
 	// 查找孤儿依赖
 	orphans, err := depMgr.FindOrphans(ctx)

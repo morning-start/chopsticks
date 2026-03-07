@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"chopsticks/core/conflict"
+	"chopsticks/core/store"
 	"chopsticks/pkg/output"
 
 	"github.com/spf13/cobra"
@@ -81,8 +82,8 @@ func runConflict(cmd *cobra.Command, args []string) error {
 	}
 
 	// 创建冲突检测器
-	storage := application.Storage()
-	installDir := application.Config().AppsPath
+	var storage store.LegacyStorage = application.Storage()
+	installDir := application.Config().AppsDir
 	detector := conflict.NewDetector(storage, installDir)
 
 	// 执行检测

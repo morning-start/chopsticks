@@ -62,12 +62,12 @@ type Detector interface {
 
 // detector 是 Detector 的实现。
 type detector struct {
-	storage     store.Storage
+	storage     store.LegacyStorage
 	installBase string
 }
 
 // NewDetector 创建新的冲突检测器。
-func NewDetector(storage store.Storage, installBase string) Detector {
+func NewDetector(storage store.LegacyStorage, installBase string) Detector {
 	return &detector{
 		storage:     storage,
 		installBase: installBase,

@@ -14,11 +14,11 @@ import (
 )
 
 var (
-	bucketInitJS     bool
-	bucketInitLua    bool
-	bucketInitDir    string
-	bucketCreateDir  string
-	bucketAddBranch  string
+	bucketInitJS      bool
+	bucketInitLua     bool
+	bucketInitDir     string
+	bucketCreateDir   string
+	bucketAddBranch   string
 	bucketRemovePurge bool
 )
 

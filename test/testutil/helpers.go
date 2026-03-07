@@ -16,12 +16,13 @@ import (
 
 // TestComponents 集成测试组件集合。
 type TestComponents struct {
-	TmpDir    string
-	Storage   store.Storage
-	BucketMgr bucket.BucketManager
-	AppMgr    app.AppManager
-	Installer app.Installer
-	MockGit   *MockGit
+	TmpDir      string
+	Storage     store.Storage
+	LegacyStore store.LegacyStorage
+	BucketMgr   bucket.BucketManager
+	AppMgr      app.AppManager
+	Installer   app.Installer
+	MockGit     *MockGit
 }
 
 // SetupTestEnvironment 设置完整测试环境。
@@ -31,35 +32,39 @@ func SetupTestEnvironment(t *testing.T) *TestComponents {
 	tmpDir := t.TempDir()
 
 	// Setup storage
-	dbPath := filepath.Join(tmpDir, "test.db")
-	storage, err := store.New(dbPath)
+	storageDir := filepath.Join(tmpDir, "data")
+	storage, err := store.NewFSStorage(storageDir)
 	if err != nil {
-		t.Fatalf("创建存储失败: %v", err)
+		t.Fatalf("创建存储失败：%v", err)
 	}
+
+	// Setup adapter for legacy interface
+	adapter := store.NewStorageAdapter(storage, tmpDir)
 
 	// Setup bucket manager
 	bucketsDir := filepath.Join(tmpDir, "buckets")
 	mockGit := NewMockGit()
-	bucketMgr := bucket.NewManager(storage, nil, bucketsDir, mockGit)
+	bucketMgr := bucket.NewManager(adapter, nil, bucketsDir, mockGit)
 
 	// Setup installer with mocks
-	installer := NewMockInstaller(storage)
+	installer := NewMockInstaller(adapter)
 
 	// Setup app manager
 	appsDir := filepath.Join(tmpDir, "apps")
-	appMgr := app.NewManager(bucketMgr, storage, installer, nil, appsDir)
+	appMgr := app.NewManager(bucketMgr, adapter, installer, nil, appsDir)
 
 	t.Cleanup(func() {
 		storage.Close()
 	})
 
 	return &TestComponents{
-		TmpDir:    tmpDir,
-		Storage:   storage,
-		BucketMgr: bucketMgr,
-		AppMgr:    appMgr,
-		Installer: installer,
-		MockGit:   mockGit,
+		TmpDir:      tmpDir,
+		Storage:     storage,
+		LegacyStore: adapter,
+		BucketMgr:   bucketMgr,
+		AppMgr:      appMgr,
+		Installer:   installer,
+		MockGit:     mockGit,
 	}
 }
 
@@ -67,10 +72,10 @@ func SetupTestEnvironment(t *testing.T) *TestComponents {
 func SetupTestStorage(t *testing.T, tmpDir string) store.Storage {
 	t.Helper()
 
-	dbPath := filepath.Join(tmpDir, "test.db")
-	storage, err := store.New(dbPath)
+	storageDir := filepath.Join(tmpDir, "data")
+	storage, err := store.NewFSStorage(storageDir)
 	if err != nil {
-		t.Fatalf("创建存储失败: %v", err)
+		t.Fatalf("创建存储失败：%v", err)
 	}
 
 	return storage
@@ -184,8 +189,8 @@ func CreateTestAppWithDeps(t *testing.T, components *TestComponents, name string
 				Branch: "main",
 			},
 		}
-		if err := components.Storage.SaveBucket(ctx, bucketConfig); err != nil {
-			t.Fatalf("保存 bucket 配置失败: %v", err)
+		if err := components.LegacyStore.SaveBucket(ctx, bucketConfig); err != nil {
+			t.Fatalf("保存 bucket 配置失败：%v", err)
 		}
 		return
 	}
@@ -241,8 +246,8 @@ func AddTestBucketWithApps(t *testing.T, components *TestComponents, bucketName 
 			Branch: "main",
 		},
 	}
-	if err := components.Storage.SaveBucket(ctx, bucketConfig); err != nil {
-		t.Fatalf("保存 bucket 配置失败: %v", err)
+	if err := components.LegacyStore.SaveBucket(ctx, bucketConfig); err != nil {
+		t.Fatalf("保存 bucket 配置失败：%v", err)
 	}
 }
 
@@ -257,22 +262,22 @@ func contains(slice []string, item string) bool {
 }
 
 // AssertAppInstalled 断言应用已安装。
-func AssertAppInstalled(t *testing.T, storage store.Storage, name string) {
+func AssertAppInstalled(t *testing.T, storage store.LegacyStorage, name string) {
 	t.Helper()
 
 	ctx := context.Background()
 	installed, err := storage.GetInstalledApp(ctx, name)
 	if err != nil {
-		t.Errorf("应用 %s 未安装: %v", name, err)
+		t.Errorf("应用 %s 未安装：%v", name, err)
 		return
 	}
 	if installed.Name != name {
-		t.Errorf("应用名称不匹配: 期望 %s, 实际 %s", name, installed.Name)
+		t.Errorf("应用名称不匹配：期望 %s, 实际 %s", name, installed.Name)
 	}
 }
 
 // AssertAppNotInstalled 断言应用未安装。
-func AssertAppNotInstalled(t *testing.T, storage store.Storage, name string) {
+func AssertAppNotInstalled(t *testing.T, storage store.LegacyStorage, name string) {
 	t.Helper()
 
 	ctx := context.Background()

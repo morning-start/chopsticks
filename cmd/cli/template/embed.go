@@ -19,19 +19,19 @@ func GetTemplateFS() embed.FS {
 // CopyTemplateDir 将嵌入的模板目录复制到目标目录
 func CopyTemplateDir(templateType, dst string) error {
 	srcDir := fmt.Sprintf("bucket-%s", templateType)
-	
+
 	return fs.WalkDir(templates, srcDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		// 计算目标路径
 		relPath, err := filepath.Rel(srcDir, path)
 		if err != nil {
 			return err
 		}
 		dstPath := filepath.Join(dst, relPath)
-		
+
 		if d.IsDir() {
 			// 创建目录
 			if err := os.MkdirAll(dstPath, 0755); err != nil {
@@ -43,13 +43,13 @@ func CopyTemplateDir(templateType, dst string) error {
 			if err != nil {
 				return fmt.Errorf("read embedded file %s: %w", path, err)
 			}
-			
+
 			// 写入目标文件
 			if err := os.WriteFile(dstPath, data, 0644); err != nil {
 				return fmt.Errorf("write file %s: %w", dstPath, err)
 			}
 		}
-		
+
 		return nil
 	})
 }

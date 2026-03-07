@@ -38,7 +38,7 @@ type InstallOptions struct {
 	Force      bool    // 1 byte
 	Isolate    bool    // 1 byte
 	NoDeps     bool    // 1 byte
-	_           [7]byte // padding for alignment
+	_          [7]byte // padding for alignment
 }
 
 // UninstallOptions 卸载选项
@@ -60,16 +60,16 @@ type Installer interface {
 
 // installer 安装器 - 字段按大小从大到小排列
 type installer struct {
-	jsEngine    *engine.JSEngine // 8 bytes
-	storage     store.Storage    // 16 bytes (interface)
-	config      interface{}      // 16 bytes (interface)
-	downloadDir string           // 16 bytes (string header)
-	installBase string           // 16 bytes (string header)
+	jsEngine    *engine.JSEngine    // 8 bytes
+	storage     store.LegacyStorage // 16 bytes (interface)
+	config      interface{}         // 16 bytes (interface)
+	downloadDir string              // 16 bytes (string header)
+	installBase string              // 16 bytes (string header)
 }
 
 var _ Installer = (*installer)(nil)
 
-func NewInstaller(storage store.Storage, config interface{}, jsEngine *engine.JSEngine, installBase string) Installer {
+func NewInstaller(storage store.LegacyStorage, config interface{}, jsEngine *engine.JSEngine, installBase string) Installer {
 	return &installer{
 		storage:     storage,
 		config:      config,

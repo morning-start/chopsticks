@@ -46,7 +46,14 @@ func runDeps(cmd *cobra.Command, args []string) error {
 	appName := args[0]
 
 	// 创建依赖管理器
-	depMgr := dep.NewDependencyManager(application.BucketManager(), application.Config().PersistPath)
+	depMgr, err := dep.NewDependencyManager(
+		application.BucketManager(),
+		application.Storage(),
+		application.Config().PersistDir,
+	)
+	if err != nil {
+		return fmt.Errorf("创建依赖管理器失败：%w", err)
+	}
 
 	// 查看依赖树
 	if depsTree {

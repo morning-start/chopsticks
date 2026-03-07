@@ -121,27 +121,15 @@ func (s *mockStorage) ListBuckets(ctx context.Context) ([]*manifest.BucketConfig
 	return nil, nil
 }
 
-func (s *mockStorage) SaveInstallOperation(ctx context.Context, op *store.InstallOperation) error {
+func (s *mockStorage) SaveOperation(ctx context.Context, appName string, op *store.Operation) error {
 	return nil
 }
 
-func (s *mockStorage) GetInstallOperations(ctx context.Context, installedID string) ([]*store.InstallOperation, error) {
+func (s *mockStorage) GetOperations(ctx context.Context, appName string) ([]store.Operation, error) {
 	return nil, nil
 }
 
-func (s *mockStorage) DeleteInstallOperations(ctx context.Context, installedID string) error {
-	return nil
-}
-
-func (s *mockStorage) SaveSystemOperation(ctx context.Context, op *store.SystemOperation) error {
-	return nil
-}
-
-func (s *mockStorage) GetSystemOperations(ctx context.Context, installedID string) ([]*store.SystemOperation, error) {
-	return nil, nil
-}
-
-func (s *mockStorage) DeleteSystemOperations(ctx context.Context, installedID string) error {
+func (s *mockStorage) DeleteOperations(ctx context.Context, appName string) error {
 	return nil
 }
 

@@ -6,40 +6,43 @@ import (
 	"path/filepath"
 	"testing"
 
+	"chopsticks/core/bucket"
 	"chopsticks/core/manifest"
 	"chopsticks/core/store"
+	"chopsticks/pkg/config"
 )
 
 func TestDefaultConfig(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := config.DefaultConfig()
 	if cfg == nil {
 		t.Fatal("DefaultConfig() returned nil")
 	}
 
-	if cfg.AppsPath == "" {
-		t.Error("AppsPath should not be empty")
+	if cfg.AppsDir == "" {
+		t.Error("AppsDir should not be empty")
 	}
 
-	if cfg.BucketsPath == "" {
-		t.Error("BucketsPath should not be empty")
+	if cfg.BucketsDir == "" {
+		t.Error("BucketsDir should not be empty")
 	}
 
-	if cfg.CachePath == "" {
-		t.Error("CachePath should not be empty")
+	if cfg.CacheDir == "" {
+		t.Error("CacheDir should not be empty")
 	}
 
-	if cfg.StoragePath == "" {
-		t.Error("StoragePath should not be empty")
+	if cfg.StorageDir == "" {
+		t.Error("StorageDir should not be empty")
 	}
 }
 
 func TestNew(t *testing.T) {
 	tmpDir := t.TempDir()
-	cfg := &Config{
-		AppsPath:    filepath.Join(tmpDir, "apps"),
-		BucketsPath: filepath.Join(tmpDir, "buckets"),
-		CachePath:   filepath.Join(tmpDir, "cache"),
-		StoragePath: filepath.Join(tmpDir, "data.db"),
+	cfg := &config.Config{
+		RootDir:    tmpDir,
+		AppsDir:    filepath.Join(tmpDir, "apps"),
+		BucketsDir: filepath.Join(tmpDir, "buckets"),
+		CacheDir:   filepath.Join(tmpDir, "cache"),
+		StorageDir: filepath.Join(tmpDir, "data"),
 	}
 
 	app, err := New(cfg)
@@ -79,11 +82,12 @@ func TestNew(t *testing.T) {
 
 func TestAppRun(t *testing.T) {
 	tmpDir := t.TempDir()
-	cfg := &Config{
-		AppsPath:    filepath.Join(tmpDir, "apps"),
-		BucketsPath: filepath.Join(tmpDir, "buckets"),
-		CachePath:   filepath.Join(tmpDir, "cache"),
-		StoragePath: filepath.Join(tmpDir, "data.db"),
+	cfg := &config.Config{
+		RootDir:    tmpDir,
+		AppsDir:    filepath.Join(tmpDir, "apps"),
+		BucketsDir: filepath.Join(tmpDir, "buckets"),
+		CacheDir:   filepath.Join(tmpDir, "cache"),
+		StorageDir: filepath.Join(tmpDir, "data"),
 	}
 
 	app, err := New(cfg)
@@ -102,11 +106,12 @@ func TestAppRun(t *testing.T) {
 
 func TestAppCreatesDirectories(t *testing.T) {
 	tmpDir := t.TempDir()
-	cfg := &Config{
-		AppsPath:    filepath.Join(tmpDir, "apps"),
-		BucketsPath: filepath.Join(tmpDir, "buckets"),
-		CachePath:   filepath.Join(tmpDir, "cache"),
-		StoragePath: filepath.Join(tmpDir, "data.db"),
+	cfg := &config.Config{
+		RootDir:    tmpDir,
+		AppsDir:    filepath.Join(tmpDir, "apps"),
+		BucketsDir: filepath.Join(tmpDir, "buckets"),
+		CacheDir:   filepath.Join(tmpDir, "cache"),
+		StorageDir: filepath.Join(tmpDir, "data"),
 	}
 
 	app, err := New(cfg)
@@ -115,12 +120,12 @@ func TestAppCreatesDirectories(t *testing.T) {
 	}
 	defer app.Shutdown(context.Background())
 
-	if _, err := os.Stat(cfg.AppsPath); os.IsNotExist(err) {
-		t.Error("AppsPath directory was not created")
+	if _, err := os.Stat(cfg.AppsDir); os.IsNotExist(err) {
+		t.Error("AppsDir directory was not created")
 	}
 
-	if _, err := os.Stat(cfg.BucketsPath); os.IsNotExist(err) {
-		t.Error("BucketsPath directory was not created")
+	if _, err := os.Stat(cfg.BucketsDir); os.IsNotExist(err) {
+		t.Error("BucketsDir directory was not created")
 	}
 }
 
@@ -190,14 +195,22 @@ func TestMatchesQuery(t *testing.T) {
 
 func TestManagerListInstalled(t *testing.T) {
 	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "test.db")
-	storage, err := store.New(dbPath)
+	storageDir := filepath.Join(tmpDir, "data")
+	storage, err := store.NewFSStorage(storageDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer storage.Close()
 
-	mgr := NewManager(nil, storage, nil, nil, tmpDir)
+	// 创建适配器和 bucket manager
+	adapter := store.NewStorageAdapter(storage, tmpDir)
+	bucketsDir := filepath.Join(tmpDir, "buckets")
+	if err := os.MkdirAll(bucketsDir, 0755); err != nil {
+		t.Fatalf("Failed to create buckets dir: %v", err)
+	}
+	bucketMgr := bucket.NewManager(adapter, nil, bucketsDir, nil)
+	
+	mgr := NewManager(bucketMgr, adapter, nil, nil, tmpDir)
 
 	apps, err := mgr.ListInstalled()
 	if err != nil {

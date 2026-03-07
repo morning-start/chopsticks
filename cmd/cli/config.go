@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"chopsticks/pkg/config"
 	"chopsticks/pkg/output"
@@ -32,31 +31,32 @@ var configGetCmd = &cobra.Command{
 	Long: `获取指定配置项的值。
 
 支持的配置项:
-  global.apps_path      - 应用安装路径
-  global.buckets_path   - 软件源路径
-  global.cache_path     - 缓存路径
-  global.persist_path   - 持久化数据路径
-  global.shim_path      - 可执行文件shim路径
-  global.storage_path   - 数据库路径
-  global.parallel       - 并行下载数
-  global.timeout        - 超时时间(秒)
-  global.retry          - 重试次数
-  global.no_confirm     - 是否禁用确认提示
-  global.color          - 是否启用彩色输出
-  global.verbose        - 是否启用详细输出
-  buckets.default       - 默认软件源
-  buckets.auto_update   - 是否自动更新软件源
-  proxy.enable          - 是否启用代理
-  proxy.system          - 是否使用系统代理
-  proxy.http            - HTTP 代理地址
-  proxy.https           - HTTPS 代理地址
-  proxy.no_proxy        - 不代理的地址列表
-  log.level             - 日志级别
-  log.file              - 日志文件路径
-  log.max_size          - 日志文件最大大小(MB)
-  log.max_backups       - 日志文件备份数量
-  log.max_age           - 日志文件保留天数
-  log.compress          - 是否压缩日志`,
+  root_dir            - 根目录
+  apps_dir            - 应用安装目录
+  buckets_dir         - 软件源目录
+  cache_dir           - 缓存目录
+  persist_dir         - 持久化数据目录
+  shim_dir            - 可执行文件 shim 目录
+  storage_dir         - 数据存储目录
+  parallel            - 并行下载数
+  timeout             - 超时时间 (秒)
+  retry               - 重试次数
+  no_confirm          - 是否禁用确认提示
+  color               - 是否启用彩色输出
+  verbose             - 是否启用详细输出
+  default_bucket      - 默认软件源
+  auto_update         - 是否自动更新软件源
+  proxy_enable        - 是否启用代理
+  proxy_system        - 是否使用系统代理
+  proxy_http          - HTTP 代理地址
+  proxy_https         - HTTPS 代理地址
+  proxy_no_proxy      - 不代理的地址列表
+  log_level           - 日志级别
+  log_file            - 日志文件路径
+  log_max_size        - 日志文件最大大小 (MB)
+  log_max_backups     - 日志文件备份数量
+  log_max_age         - 日志文件保留天数
+  log_compress        - 是否压缩日志`,
 	Args: cobra.ExactArgs(1),
 	RunE: runConfigGet,
 }
@@ -68,12 +68,12 @@ var configSetCmd = &cobra.Command{
 	Long: `设置指定配置项的值。
 
 示例:
-  chopsticks config set global.parallel 5
-  chopsticks config set global.timeout 600
-  chopsticks config set buckets.default extras
-  chopsticks config set proxy.enable true
-  chopsticks config set proxy.http http://127.0.0.1:7890
-  chopsticks config set log.level debug
+  chopsticks config set parallel 5
+  chopsticks config set timeout 600
+  chopsticks config set default_bucket extras
+  chopsticks config set proxy_enable true
+  chopsticks config set proxy_http http://127.0.0.1:7890
+  chopsticks config set log_level debug
 
 布尔值使用 true/false，多个值使用逗号分隔。`,
 	Args: cobra.ExactArgs(2),
@@ -115,167 +115,153 @@ type configValueGetter func(*config.Config) (string, error)
 type configValueSetter func(*config.Config, string) error
 
 // configGetters 配置获取器映射
-var configGetters = map[string]map[string]configValueGetter{
-	"global": {
-		"apps_path":    func(cfg *config.Config) (string, error) { return cfg.Global.AppsPath, nil },
-		"buckets_path": func(cfg *config.Config) (string, error) { return cfg.Global.BucketsPath, nil },
-		"cache_path":   func(cfg *config.Config) (string, error) { return cfg.Global.CachePath, nil },
-		"persist_path": func(cfg *config.Config) (string, error) { return cfg.Global.PersistPath, nil },
-		"shim_path":    func(cfg *config.Config) (string, error) { return cfg.Global.ShimPath, nil },
-		"storage_path": func(cfg *config.Config) (string, error) { return cfg.Global.StoragePath, nil },
-		"parallel":     func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Global.Parallel), nil },
-		"timeout":      func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Global.Timeout), nil },
-		"retry":        func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Global.Retry), nil },
-		"no_confirm":   func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Global.NoConfirm), nil },
-		"color":        func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Global.Color), nil },
-		"verbose":      func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Global.Verbose), nil },
-	},
-	"buckets": {
-		"default":     func(cfg *config.Config) (string, error) { return cfg.Buckets.Default, nil },
-		"auto_update": func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Buckets.AutoUpdate), nil },
-	},
-	"proxy": {
-		"enable":   func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Proxy.Enable), nil },
-		"system":   func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Proxy.System), nil },
-		"http":     func(cfg *config.Config) (string, error) { return cfg.Proxy.HTTP, nil },
-		"https":    func(cfg *config.Config) (string, error) { return cfg.Proxy.HTTPS, nil },
-		"no_proxy": func(cfg *config.Config) (string, error) { return cfg.Proxy.NoProxy, nil },
-	},
-	"log": {
-		"level":       func(cfg *config.Config) (string, error) { return cfg.Log.Level, nil },
-		"file":        func(cfg *config.Config) (string, error) { return cfg.Log.File, nil },
-		"max_size":    func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Log.MaxSize), nil },
-		"max_backups": func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Log.MaxBackups), nil },
-		"max_age":     func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Log.MaxAge), nil },
-		"compress":    func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Log.Compress), nil },
-	},
+var configGetters = map[string]configValueGetter{
+	"root_dir":        func(cfg *config.Config) (string, error) { return cfg.RootDir, nil },
+	"apps_dir":        func(cfg *config.Config) (string, error) { return cfg.AppsDir, nil },
+	"buckets_dir":     func(cfg *config.Config) (string, error) { return cfg.BucketsDir, nil },
+	"cache_dir":       func(cfg *config.Config) (string, error) { return cfg.CacheDir, nil },
+	"persist_dir":     func(cfg *config.Config) (string, error) { return cfg.PersistDir, nil },
+	"shim_dir":        func(cfg *config.Config) (string, error) { return cfg.ShimDir, nil },
+	"storage_dir":     func(cfg *config.Config) (string, error) { return cfg.StorageDir, nil },
+	"parallel":        func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Parallel), nil },
+	"timeout":         func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Timeout), nil },
+	"retry":           func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.Retry), nil },
+	"no_confirm":      func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.NoConfirm), nil },
+	"color":           func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Color), nil },
+	"verbose":         func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.Verbose), nil },
+	"default_bucket":  func(cfg *config.Config) (string, error) { return cfg.DefaultBucket, nil },
+	"auto_update":     func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.AutoUpdate), nil },
+	"proxy_enable":    func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.ProxyEnable), nil },
+	"proxy_system":    func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.ProxySystem), nil },
+	"proxy_http":      func(cfg *config.Config) (string, error) { return cfg.ProxyHTTP, nil },
+	"proxy_https":     func(cfg *config.Config) (string, error) { return cfg.ProxyHTTPS, nil },
+	"proxy_no_proxy":  func(cfg *config.Config) (string, error) { return cfg.ProxyNoProxy, nil },
+	"log_level":       func(cfg *config.Config) (string, error) { return cfg.LogLevel, nil },
+	"log_file":        func(cfg *config.Config) (string, error) { return cfg.LogFile, nil },
+	"log_max_size":    func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.LogMaxSize), nil },
+	"log_max_backups": func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.LogMaxBackups), nil },
+	"log_max_age":     func(cfg *config.Config) (string, error) { return strconv.Itoa(cfg.LogMaxAge), nil },
+	"log_compress":    func(cfg *config.Config) (string, error) { return strconv.FormatBool(cfg.LogCompress), nil },
 }
 
 // configSetters 配置设置器映射
-var configSetters = map[string]map[string]configValueSetter{
-	"global": {
-		"apps_path":    func(cfg *config.Config, v string) error { cfg.Global.AppsPath = v; return nil },
-		"buckets_path": func(cfg *config.Config, v string) error { cfg.Global.BucketsPath = v; return nil },
-		"cache_path":   func(cfg *config.Config, v string) error { cfg.Global.CachePath = v; return nil },
-		"persist_path": func(cfg *config.Config, v string) error { cfg.Global.PersistPath = v; return nil },
-		"shim_path":    func(cfg *config.Config, v string) error { cfg.Global.ShimPath = v; return nil },
-		"storage_path": func(cfg *config.Config, v string) error { cfg.Global.StoragePath = v; return nil },
-		"parallel": func(cfg *config.Config, v string) error {
-			i, err := strconv.Atoi(v)
-			if err != nil {
-				return fmt.Errorf("parallel must be an integer")
-			}
-			cfg.Global.Parallel = i
-			return nil
-		},
-		"timeout": func(cfg *config.Config, v string) error {
-			i, err := strconv.Atoi(v)
-			if err != nil {
-				return fmt.Errorf("timeout must be an integer")
-			}
-			cfg.Global.Timeout = i
-			return nil
-		},
-		"retry": func(cfg *config.Config, v string) error {
-			i, err := strconv.Atoi(v)
-			if err != nil {
-				return fmt.Errorf("retry must be an integer")
-			}
-			cfg.Global.Retry = i
-			return nil
-		},
-		"no_confirm": func(cfg *config.Config, v string) error {
-			b, err := strconv.ParseBool(v)
-			if err != nil {
-				return fmt.Errorf("no_confirm must be true or false")
-			}
-			cfg.Global.NoConfirm = b
-			return nil
-		},
-		"color": func(cfg *config.Config, v string) error {
-			b, err := strconv.ParseBool(v)
-			if err != nil {
-				return fmt.Errorf("color must be true or false")
-			}
-			cfg.Global.Color = b
-			return nil
-		},
-		"verbose": func(cfg *config.Config, v string) error {
-			b, err := strconv.ParseBool(v)
-			if err != nil {
-				return fmt.Errorf("verbose must be true or false")
-			}
-			cfg.Global.Verbose = b
-			return nil
-		},
+var configSetters = map[string]configValueSetter{
+	"root_dir":    func(cfg *config.Config, v string) error { cfg.RootDir = v; return nil },
+	"apps_dir":    func(cfg *config.Config, v string) error { cfg.AppsDir = v; return nil },
+	"buckets_dir": func(cfg *config.Config, v string) error { cfg.BucketsDir = v; return nil },
+	"cache_dir":   func(cfg *config.Config, v string) error { cfg.CacheDir = v; return nil },
+	"persist_dir": func(cfg *config.Config, v string) error { cfg.PersistDir = v; return nil },
+	"shim_dir":    func(cfg *config.Config, v string) error { cfg.ShimDir = v; return nil },
+	"storage_dir": func(cfg *config.Config, v string) error { cfg.StorageDir = v; return nil },
+	"parallel": func(cfg *config.Config, v string) error {
+		i, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("parallel must be an integer")
+		}
+		cfg.Parallel = i
+		return nil
 	},
-	"buckets": {
-		"default": func(cfg *config.Config, v string) error { cfg.Buckets.Default = v; return nil },
-		"auto_update": func(cfg *config.Config, v string) error {
-			b, err := strconv.ParseBool(v)
-			if err != nil {
-				return fmt.Errorf("auto_update must be true or false")
-			}
-			cfg.Buckets.AutoUpdate = b
-			return nil
-		},
+	"timeout": func(cfg *config.Config, v string) error {
+		i, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("timeout must be an integer")
+		}
+		cfg.Timeout = i
+		return nil
 	},
-	"proxy": {
-		"enable": func(cfg *config.Config, v string) error {
-			b, err := strconv.ParseBool(v)
-			if err != nil {
-				return fmt.Errorf("enable must be true or false")
-			}
-			cfg.Proxy.Enable = b
-			return nil
-		},
-		"system": func(cfg *config.Config, v string) error {
-			b, err := strconv.ParseBool(v)
-			if err != nil {
-				return fmt.Errorf("system must be true or false")
-			}
-			cfg.Proxy.System = b
-			return nil
-		},
-		"http":     func(cfg *config.Config, v string) error { cfg.Proxy.HTTP = v; return nil },
-		"https":    func(cfg *config.Config, v string) error { cfg.Proxy.HTTPS = v; return nil },
-		"no_proxy": func(cfg *config.Config, v string) error { cfg.Proxy.NoProxy = v; return nil },
+	"retry": func(cfg *config.Config, v string) error {
+		i, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("retry must be an integer")
+		}
+		cfg.Retry = i
+		return nil
 	},
-	"log": {
-		"level": func(cfg *config.Config, v string) error { cfg.Log.Level = v; return nil },
-		"file":  func(cfg *config.Config, v string) error { cfg.Log.File = v; return nil },
-		"max_size": func(cfg *config.Config, v string) error {
-			i, err := strconv.Atoi(v)
-			if err != nil {
-				return fmt.Errorf("max_size must be an integer")
-			}
-			cfg.Log.MaxSize = i
-			return nil
-		},
-		"max_backups": func(cfg *config.Config, v string) error {
-			i, err := strconv.Atoi(v)
-			if err != nil {
-				return fmt.Errorf("max_backups must be an integer")
-			}
-			cfg.Log.MaxBackups = i
-			return nil
-		},
-		"max_age": func(cfg *config.Config, v string) error {
-			i, err := strconv.Atoi(v)
-			if err != nil {
-				return fmt.Errorf("max_age must be an integer")
-			}
-			cfg.Log.MaxAge = i
-			return nil
-		},
-		"compress": func(cfg *config.Config, v string) error {
-			b, err := strconv.ParseBool(v)
-			if err != nil {
-				return fmt.Errorf("compress must be true or false")
-			}
-			cfg.Log.Compress = b
-			return nil
-		},
+	"no_confirm": func(cfg *config.Config, v string) error {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("no_confirm must be true or false")
+		}
+		cfg.NoConfirm = b
+		return nil
+	},
+	"color": func(cfg *config.Config, v string) error {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("color must be true or false")
+		}
+		cfg.Color = b
+		return nil
+	},
+	"verbose": func(cfg *config.Config, v string) error {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("verbose must be true or false")
+		}
+		cfg.Verbose = b
+		return nil
+	},
+	"default_bucket": func(cfg *config.Config, v string) error { cfg.DefaultBucket = v; return nil },
+	"auto_update": func(cfg *config.Config, v string) error {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("auto_update must be true or false")
+		}
+		cfg.AutoUpdate = b
+		return nil
+	},
+	"proxy_enable": func(cfg *config.Config, v string) error {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("proxy_enable must be true or false")
+		}
+		cfg.ProxyEnable = b
+		return nil
+	},
+	"proxy_system": func(cfg *config.Config, v string) error {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("proxy_system must be true or false")
+		}
+		cfg.ProxySystem = b
+		return nil
+	},
+	"proxy_http":     func(cfg *config.Config, v string) error { cfg.ProxyHTTP = v; return nil },
+	"proxy_https":    func(cfg *config.Config, v string) error { cfg.ProxyHTTPS = v; return nil },
+	"proxy_no_proxy": func(cfg *config.Config, v string) error { cfg.ProxyNoProxy = v; return nil },
+	"log_level":      func(cfg *config.Config, v string) error { cfg.LogLevel = v; return nil },
+	"log_file":       func(cfg *config.Config, v string) error { cfg.LogFile = v; return nil },
+	"log_max_size": func(cfg *config.Config, v string) error {
+		i, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("log_max_size must be an integer")
+		}
+		cfg.LogMaxSize = i
+		return nil
+	},
+	"log_max_backups": func(cfg *config.Config, v string) error {
+		i, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("log_max_backups must be an integer")
+		}
+		cfg.LogMaxBackups = i
+		return nil
+	},
+	"log_max_age": func(cfg *config.Config, v string) error {
+		i, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("log_max_age must be an integer")
+		}
+		cfg.LogMaxAge = i
+		return nil
+	},
+	"log_compress": func(cfg *config.Config, v string) error {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("log_compress must be true or false")
+		}
+		cfg.LogCompress = b
+		return nil
 	},
 }
 
@@ -330,35 +316,36 @@ func runConfigList(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println("Global Config:")
-	fmt.Printf("  apps_path:      %s\n", cfg.Global.AppsPath)
-	fmt.Printf("  buckets_path:   %s\n", cfg.Global.BucketsPath)
-	fmt.Printf("  cache_path:     %s\n", cfg.Global.CachePath)
-	fmt.Printf("  storage_path:   %s\n", cfg.Global.StoragePath)
-	fmt.Printf("  parallel:       %d\n", cfg.Global.Parallel)
-	fmt.Printf("  timeout:        %d\n", cfg.Global.Timeout)
-	fmt.Printf("  retry:          %d\n", cfg.Global.Retry)
-	fmt.Printf("  no_confirm:     %t\n", cfg.Global.NoConfirm)
-	fmt.Printf("  color:          %t\n", cfg.Global.Color)
-	fmt.Printf("  verbose:        %t\n", cfg.Global.Verbose)
+	fmt.Printf("  root_dir:         %s\n", cfg.RootDir)
+	fmt.Printf("  apps_dir:         %s\n", cfg.AppsDir)
+	fmt.Printf("  buckets_dir:      %s\n", cfg.BucketsDir)
+	fmt.Printf("  cache_dir:        %s\n", cfg.CacheDir)
+	fmt.Printf("  storage_dir:      %s\n", cfg.StorageDir)
+	fmt.Printf("  parallel:         %d\n", cfg.Parallel)
+	fmt.Printf("  timeout:          %d\n", cfg.Timeout)
+	fmt.Printf("  retry:            %d\n", cfg.Retry)
+	fmt.Printf("  no_confirm:       %t\n", cfg.NoConfirm)
+	fmt.Printf("  color:            %t\n", cfg.Color)
+	fmt.Printf("  verbose:          %t\n", cfg.Verbose)
 
 	fmt.Println("\nBucket Config:")
-	fmt.Printf("  default:        %s\n", cfg.Buckets.Default)
-	fmt.Printf("  auto_update:    %t\n", cfg.Buckets.AutoUpdate)
-	if len(cfg.Buckets.Mirrors) > 0 {
-		fmt.Println("  mirrors:")
-		for name, url := range cfg.Buckets.Mirrors {
+	fmt.Printf("  default_bucket:   %s\n", cfg.DefaultBucket)
+	fmt.Printf("  auto_update:      %t\n", cfg.AutoUpdate)
+	if len(cfg.BucketMirrors) > 0 {
+		fmt.Println("  bucket_mirrors:")
+		for name, url := range cfg.BucketMirrors {
 			fmt.Printf("    %s: %s\n", name, url)
 		}
 	}
 
 	fmt.Println("\nProxy Config:")
-	fmt.Printf("  enable:         %t\n", cfg.Proxy.Enable)
-	fmt.Printf("  system:         %t\n", cfg.Proxy.System)
-	fmt.Printf("  http:           %s\n", cfg.Proxy.HTTP)
-	fmt.Printf("  https:          %s\n", cfg.Proxy.HTTPS)
-	fmt.Printf("  no_proxy:       %s\n", cfg.Proxy.NoProxy)
-	if cfg.Proxy.Enable && cfg.Proxy.System {
-		httpProxy, httpsProxy, noProxy := cfg.Proxy.GetEffectiveProxy()
+	fmt.Printf("  proxy_enable:     %t\n", cfg.ProxyEnable)
+	fmt.Printf("  proxy_system:     %t\n", cfg.ProxySystem)
+	fmt.Printf("  proxy_http:       %s\n", cfg.ProxyHTTP)
+	fmt.Printf("  proxy_https:      %s\n", cfg.ProxyHTTPS)
+	fmt.Printf("  proxy_no_proxy:   %s\n", cfg.ProxyNoProxy)
+	if cfg.ProxyEnable && cfg.ProxySystem {
+		httpProxy, httpsProxy, noProxy := cfg.GetEffectiveProxy()
 		fmt.Println("  effective:")
 		fmt.Printf("    http:         %s\n", httpProxy)
 		fmt.Printf("    https:        %s\n", httpsProxy)
@@ -366,12 +353,12 @@ func runConfigList(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println("\nLog Config:")
-	fmt.Printf("  level:          %s\n", cfg.Log.Level)
-	fmt.Printf("  file:           %s\n", cfg.Log.File)
-	fmt.Printf("  max_size:       %d MB\n", cfg.Log.MaxSize)
-	fmt.Printf("  max_backups:    %d\n", cfg.Log.MaxBackups)
-	fmt.Printf("  max_age:        %d days\n", cfg.Log.MaxAge)
-	fmt.Printf("  compress:       %t\n", cfg.Log.Compress)
+	fmt.Printf("  log_level:        %s\n", cfg.LogLevel)
+	fmt.Printf("  log_file:         %s\n", cfg.LogFile)
+	fmt.Printf("  log_max_size:     %d MB\n", cfg.LogMaxSize)
+	fmt.Printf("  log_max_backups:  %d\n", cfg.LogMaxBackups)
+	fmt.Printf("  log_max_age:      %d days\n", cfg.LogMaxAge)
+	fmt.Printf("  log_compress:     %t\n", cfg.LogCompress)
 
 	return nil
 }
@@ -407,21 +394,9 @@ func runConfigPath(cmd *cobra.Command, args []string) error {
 
 // getConfigValue 获取配置项的值
 func getConfigValue(cfg *config.Config, key string) (string, error) {
-	parts := strings.Split(key, ".")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid config key format, expected: section.key")
-	}
-
-	section, name := parts[0], parts[1]
-
-	sectionMap, ok := configGetters[section]
+	getter, ok := configGetters[key]
 	if !ok {
-		return "", fmt.Errorf("unknown config section: %s", section)
-	}
-
-	getter, ok := sectionMap[name]
-	if !ok {
-		return "", fmt.Errorf("unknown config key: %s.%s", section, name)
+		return "", fmt.Errorf("unknown config key: %s", key)
 	}
 
 	return getter(cfg)
@@ -429,21 +404,9 @@ func getConfigValue(cfg *config.Config, key string) (string, error) {
 
 // setConfigValue 设置配置项的值
 func setConfigValue(cfg *config.Config, key, value string) error {
-	parts := strings.Split(key, ".")
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid config key format, expected: section.key")
-	}
-
-	section, name := parts[0], parts[1]
-
-	sectionMap, ok := configSetters[section]
+	setter, ok := configSetters[key]
 	if !ok {
-		return fmt.Errorf("unknown config section: %s", section)
-	}
-
-	setter, ok := sectionMap[name]
-	if !ok {
-		return fmt.Errorf("unknown config key: %s.%s", section, name)
+		return fmt.Errorf("unknown config key: %s", key)
 	}
 
 	return setter(cfg, value)

@@ -269,6 +269,18 @@ func printMetricsDetail(m metrics.PerformanceMetrics) {
 	output.Highlightln("Install Metrics:")
 	output.Dimf("  Active installs: %d\n", m.ActiveInstalls)
 	output.Dimf("  Queue size: %d\n", m.InstallQueueSize)
+	fmt.Println()
+
+	// 新增：缓存指标
+	output.Highlightln("Cache Metrics:")
+	output.Dimf("  App cache hit rate: %.1f%%\n", m.AppCacheHitRate)
+	output.Dimf("  App cache size: %d\n", m.AppCacheSize)
+	output.Dimf("  Bucket cache hit rate: %.1f%%\n", m.BucketCacheHitRate)
+	output.Dimf("  Bucket cache size: %d\n", m.BucketCacheSize)
+	output.Dimf("  Index cache hit rate: %.1f%%\n", m.IndexCacheHitRate)
+	output.Dimf("  Index cache size: %d\n", m.IndexCacheSize)
+	output.Dimf("  Cache evictions: %d\n", m.CacheEvictions)
+	output.Dimf("  Batch read efficiency: %.1f%%\n", m.BatchReadEfficiency)
 }
 
 // clearScreen 清屏

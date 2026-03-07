@@ -20,7 +20,7 @@ type MockInstaller struct {
 	UninstalledApps map[string]*UninstallRecord
 	RefreshedApps   map[string]*RefreshRecord
 	SwitchedApps    map[string]*SwitchRecord
-	storage         store.Storage
+	storage         store.LegacyStorage
 
 	// InstallError 模拟安装错误
 	InstallError error
@@ -58,7 +58,7 @@ type SwitchRecord struct {
 }
 
 // NewMockInstaller 创建新的 MockInstaller。
-func NewMockInstaller(storage store.Storage) *MockInstaller {
+func NewMockInstaller(storage store.LegacyStorage) *MockInstaller {
 	return &MockInstaller{
 		InstalledApps:   make(map[string]*InstallRecord),
 		UninstalledApps: make(map[string]*UninstallRecord),

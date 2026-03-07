@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"chopsticks/core/bucket"
+	"chopsticks/core/dep"
 	"chopsticks/core/manifest"
 	"chopsticks/core/store"
 	"chopsticks/pkg/errors"
@@ -62,8 +63,9 @@ type SearchResult struct {
 // manager 管理器 - 字段按大小从大到小排列
 type manager struct {
 	bucketMgr  bucket.BucketManager // 16 bytes (interface)
-	storage    store.Storage        // 16 bytes (interface)
+	storage    store.LegacyStorage  // 16 bytes (interface)
 	installer  Installer            // 16 bytes (interface)
+	depMgr     dep.Manager          // 16 bytes (interface)
 	config     interface{}          // 16 bytes (interface)
 	installDir string               // 16 bytes (string header)
 }
@@ -71,11 +73,18 @@ type manager struct {
 var _ AppManager = (*manager)(nil)
 
 // NewManager 创建应用管理器
-func NewManager(bucketMgr bucket.BucketManager, storage store.Storage, installer Installer, config interface{}, installDir string) AppManager {
+func NewManager(bucketMgr bucket.BucketManager, storage store.LegacyStorage, installer Installer, config interface{}, installDir string) AppManager {
+	// 创建依赖管理器
+	depMgr, err := dep.NewDependencyManager(bucketMgr, storage, installDir)
+	if err != nil {
+		fmt.Printf("warning: failed to create dependency manager: %v\n", err)
+	}
+
 	return &manager{
 		bucketMgr:  bucketMgr,
 		storage:    storage,
 		installer:  installer,
+		depMgr:     depMgr,
 		config:     config,
 		installDir: installDir,
 	}
@@ -97,44 +106,55 @@ func (m *manager) Install(ctx context.Context, spec InstallSpec, opts InstallOpt
 		return errors.Wrap(err, "get app info")
 	}
 
-	// Resolve dependencies
-	resolver := NewDependencyResolver(m.bucketMgr, m.storage)
-	depGraph, err := resolver.Resolve(ctx, app)
-	if err != nil {
-		return errors.Wrap(err, "resolve dependencies")
-	}
-
-	// Install dependencies in order
-	if len(depGraph.Order) > 1 {
-		fmt.Printf("Installing dependencies for %s (%d packages)...\n", spec.Name, len(depGraph.Order)-1)
-		for _, depName := range depGraph.Order {
-			if depName == spec.Name {
-				continue // Skip main app
-			}
-
-			// Check if already installed
-			if _, err := m.storage.GetInstalledApp(ctx, depName); err == nil {
-				fmt.Printf("  ✓ %s already installed\n", depName)
-				continue
-			}
-
-			// Install dependency
-			depNode := depGraph.Nodes[depName]
-			if depNode == nil || depNode.App == nil {
-				continue
-			}
-
-			fmt.Printf("  → Installing %s...\n", depName)
-			depOpts := InstallOptions{
-				Arch:       opts.Arch,
-				Force:      false,
-				InstallDir: filepath.Join(m.installDir, depName),
-			}
-			if err := m.installer.Install(ctx, depNode.App, depOpts); err != nil {
-				return errors.Wrapf(err, "install dependency %s", depName)
-			}
+	// 使用依赖管理器解析依赖
+	var depGraph *dep.DependencyGraph
+	if m.depMgr != nil && !opts.NoDeps {
+		depGraph, err = m.depMgr.Resolve(ctx, app)
+		if err != nil {
+			return errors.Wrap(err, "resolve dependencies")
 		}
-		fmt.Println()
+
+		// 安装依赖（按拓扑排序顺序）
+		if len(depGraph.Order) > 1 {
+			fmt.Printf("Installing dependencies for %s (%d packages)...\n", spec.Name, len(depGraph.Order)-1)
+			for _, depName := range depGraph.Order {
+				if depName == spec.Name {
+					continue // 跳过主应用
+				}
+
+				// 检查是否已安装
+				if _, err := m.storage.GetInstalledApp(ctx, depName); err == nil {
+					fmt.Printf("  ✓ %s already installed\n", depName)
+					continue
+				}
+
+				// 安装依赖
+				depNode := depGraph.Nodes[depName]
+				if depNode == nil || depNode.App == nil {
+					continue
+				}
+
+				fmt.Printf("  → Installing %s...\n", depName)
+				depOpts := InstallOptions{
+					Arch:       opts.Arch,
+					Force:      false,
+					InstallDir: filepath.Join(m.installDir, depName),
+					NoDeps:     true, // 依赖不再递归安装依赖
+				}
+				if err := m.installer.Install(ctx, depNode.App, depOpts); err != nil {
+					return errors.Wrapf(err, "install dependency %s", depName)
+				}
+
+				// 更新依赖索引
+				if m.depMgr != nil {
+					deps := extractDependencyNames(depNode.App)
+					if err := m.depMgr.UpdateDepsIndex(ctx, depName, deps); err != nil {
+						fmt.Printf("warning: failed to update deps index for %s: %v\n", depName, err)
+					}
+				}
+			}
+			fmt.Println()
+		}
 	}
 
 	installDir := opts.InstallDir
@@ -146,9 +166,35 @@ func (m *manager) Install(ctx context.Context, spec InstallSpec, opts InstallOpt
 		Arch:       opts.Arch,
 		Force:      opts.Force,
 		InstallDir: installDir,
+		NoDeps:     true, // 主应用不再递归安装依赖
 	}
 
-	return m.installer.Install(ctx, app, installOpts)
+	if err := m.installer.Install(ctx, app, installOpts); err != nil {
+		return err
+	}
+
+	// 更新依赖索引
+	if m.depMgr != nil {
+		deps := extractDependencyNames(app)
+		if err := m.depMgr.UpdateDepsIndex(ctx, spec.Name, deps); err != nil {
+			fmt.Printf("warning: failed to update deps index for %s: %v\n", spec.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// extractDependencyNames 提取依赖名称列表
+func extractDependencyNames(app *manifest.App) []string {
+	if app == nil || app.Script == nil {
+		return nil
+	}
+
+	var deps []string
+	for _, dep := range app.Script.Dependencies {
+		deps = append(deps, dep.Name)
+	}
+	return deps
 }
 
 func (m *manager) Remove(ctx context.Context, name string, opts RemoveOptions) error {
@@ -157,60 +203,37 @@ func (m *manager) Remove(ctx context.Context, name string, opts RemoveOptions) e
 		return errors.NewAppNotInstalled(name)
 	}
 
-	// Check if other apps depend on this app
-	dependents, err := m.findDependents(ctx, name)
-	if err != nil {
-		return errors.Wrap(err, "check dependents")
-	}
+	// 使用依赖管理器检查反向依赖
+	if m.depMgr != nil {
+		dependents, err := m.depMgr.GetDependents(ctx, name)
+		if err != nil {
+			return errors.Wrap(err, "check dependents")
+		}
 
-	if len(dependents) > 0 {
-		return errors.NewDependencyConflict(
-			name,
-			fmt.Sprintf("the following apps depend on %s: %s", name, strings.Join(dependents, ", ")),
-		)
+		if len(dependents) > 0 {
+			return errors.NewDependencyConflict(
+				name,
+				fmt.Sprintf("the following apps depend on %s: %s", name, strings.Join(dependents, ", ")),
+			)
+		}
 	}
 
 	uninstallOpts := UninstallOptions{
 		Purge: opts.Purge,
 	}
 
-	return m.installer.Uninstall(ctx, name, uninstallOpts)
-}
-
-// findDependents finds all installed apps that depend on the specified app
-func (m *manager) findDependents(ctx context.Context, appName string) ([]string, error) {
-	installedApps, err := m.storage.ListInstalledApps(ctx)
-	if err != nil {
-		return nil, err
+	if err := m.installer.Uninstall(ctx, name, uninstallOpts); err != nil {
+		return err
 	}
 
-	var dependents []string
-	resolver := NewDependencyResolver(m.bucketMgr, m.storage)
-
-	for _, installed := range installedApps {
-		if installed.Name == appName {
-			continue
-		}
-
-		// Get app info
-		app, err := m.bucketMgr.GetApp(ctx, installed.Bucket, installed.Name)
-		if err != nil {
-			continue
-		}
-
-		// Resolve dependencies
-		depGraph, err := resolver.Resolve(ctx, app)
-		if err != nil {
-			continue
-		}
-
-		// Check if depends on target app
-		if _, ok := depGraph.Nodes[appName]; ok {
-			dependents = append(dependents, installed.Name)
+	// 更新依赖索引
+	if m.depMgr != nil {
+		if err := m.depMgr.UpdateDepsIndex(ctx, name, []string{}); err != nil {
+			fmt.Printf("warning: failed to update deps index for %s: %v\n", name, err)
 		}
 	}
 
-	return dependents, nil
+	return nil
 }
 
 func (m *manager) Update(ctx context.Context, name string, opts UpdateOptions) error {

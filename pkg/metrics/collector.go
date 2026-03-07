@@ -37,6 +37,17 @@ type MetricsCollector struct {
 	jsCacheHits   int64
 	jsCacheMisses int64
 
+	// 缓存指标
+	appCacheHits    int64
+	appCacheMisses  int64
+	bucketCacheHits int64
+	bucketCacheMisses int64
+	indexCacheHits  int64
+	indexCacheMisses int64
+	cacheEvictions  int64
+	batchReadHits   int64
+	batchReadMisses int64
+
 	// 历史记录
 	history *MetricsHistory
 
@@ -157,6 +168,35 @@ func (c *MetricsCollector) Collect() PerformanceMetrics {
 		jsPoolUtilization = float64(poolActive) / float64(poolSize) * 100
 	}
 
+	// 计算缓存命中率
+	appCacheHitRate := float64(0)
+	appHits := atomic.LoadInt64(&c.appCacheHits)
+	appMisses := atomic.LoadInt64(&c.appCacheMisses)
+	if appHits+appMisses > 0 {
+		appCacheHitRate = float64(appHits) / float64(appHits+appMisses) * 100
+	}
+
+	bucketCacheHitRate := float64(0)
+	bucketHits := atomic.LoadInt64(&c.bucketCacheHits)
+	bucketMisses := atomic.LoadInt64(&c.bucketCacheMisses)
+	if bucketHits+bucketMisses > 0 {
+		bucketCacheHitRate = float64(bucketHits) / float64(bucketHits+bucketMisses) * 100
+	}
+
+	indexCacheHitRate := float64(0)
+	indexHits := atomic.LoadInt64(&c.indexCacheHits)
+	indexMisses := atomic.LoadInt64(&c.indexCacheMisses)
+	if indexHits+indexMisses > 0 {
+		indexCacheHitRate = float64(indexHits) / float64(indexHits+indexMisses) * 100
+	}
+
+	batchReadEfficiency := float64(0)
+	batchHits := atomic.LoadInt64(&c.batchReadHits)
+	batchMisses := atomic.LoadInt64(&c.batchReadMisses)
+	if batchHits+batchMisses > 0 {
+		batchReadEfficiency = float64(batchHits) / float64(batchHits+batchMisses) * 100
+	}
+
 	return PerformanceMetrics{
 		Timestamp:          now,
 		TaskSubmitRate:     taskSubmitRate,
@@ -175,18 +215,26 @@ func (c *MetricsCollector) Collect() PerformanceMetrics {
 		JSPoolSize:         int(poolSize),
 		JSPoolActive:       int(poolActive),
 		JSPoolUtilization:  jsPoolUtilization,
-		JSCacheHitRate:     jsCacheHitRate,
-		JSCacheSize:        int(jsHits + jsMisses),
-		DownloadSpeed:      avgDownloadSpeed,
-		ActiveDownloads:    int(atomic.LoadInt64(&c.downloadActive)),
-		DownloadErrors:     atomic.LoadInt64(&c.downloadErrors),
-		TotalDownloaded:    atomic.LoadInt64(&c.downloadTotal),
-		AvgDownloadSpeed:   avgDownloadSpeed,
-		SearchCacheHitRate: searchCacheHitRate,
-		SearchCacheSize:    int(searchHits + searchMisses),
-		ActiveSearches:     int(atomic.LoadInt64(&c.searchActive)),
-		ActiveInstalls:     int(atomic.LoadInt64(&c.installActive)),
-		InstallQueueSize:   int(atomic.LoadInt64(&c.installQueue)),
+		JSCacheHitRate:      jsCacheHitRate,
+		JSCacheSize:         int(jsHits + jsMisses),
+		DownloadSpeed:       avgDownloadSpeed,
+		ActiveDownloads:     int(atomic.LoadInt64(&c.downloadActive)),
+		DownloadErrors:      atomic.LoadInt64(&c.downloadErrors),
+		TotalDownloaded:     atomic.LoadInt64(&c.downloadTotal),
+		AvgDownloadSpeed:    avgDownloadSpeed,
+		SearchCacheHitRate:  searchCacheHitRate,
+		SearchCacheSize:     int(searchHits + searchMisses),
+		ActiveSearches:      int(atomic.LoadInt64(&c.searchActive)),
+		ActiveInstalls:      int(atomic.LoadInt64(&c.installActive)),
+		InstallQueueSize:    int(atomic.LoadInt64(&c.installQueue)),
+		AppCacheHitRate:     appCacheHitRate,
+		AppCacheSize:        int(appHits + appMisses),
+		BucketCacheHitRate:  bucketCacheHitRate,
+		BucketCacheSize:     int(bucketHits + bucketMisses),
+		IndexCacheHitRate:   indexCacheHitRate,
+		IndexCacheSize:      int(indexHits + indexMisses),
+		CacheEvictions:      atomic.LoadInt64(&c.cacheEvictions),
+		BatchReadEfficiency: batchReadEfficiency,
 	}
 }
 
@@ -295,6 +343,53 @@ func (c *MetricsCollector) RecordJSCacheHit() {
 // RecordJSCacheMiss 记录 JS 缓存未命中
 func (c *MetricsCollector) RecordJSCacheMiss() {
 	atomic.AddInt64(&c.jsCacheMisses, 1)
+}
+
+// Cache 相关方法
+
+// RecordAppCacheHit 记录应用缓存命中
+func (c *MetricsCollector) RecordAppCacheHit() {
+	atomic.AddInt64(&c.appCacheHits, 1)
+}
+
+// RecordAppCacheMiss 记录应用缓存未命中
+func (c *MetricsCollector) RecordAppCacheMiss() {
+	atomic.AddInt64(&c.appCacheMisses, 1)
+}
+
+// RecordBucketCacheHit 记录 Bucket 缓存命中
+func (c *MetricsCollector) RecordBucketCacheHit() {
+	atomic.AddInt64(&c.bucketCacheHits, 1)
+}
+
+// RecordBucketCacheMiss 记录 Bucket 缓存未命中
+func (c *MetricsCollector) RecordBucketCacheMiss() {
+	atomic.AddInt64(&c.bucketCacheMisses, 1)
+}
+
+// RecordIndexCacheHit 记录索引缓存命中
+func (c *MetricsCollector) RecordIndexCacheHit() {
+	atomic.AddInt64(&c.indexCacheHits, 1)
+}
+
+// RecordIndexCacheMiss 记录索引缓存未命中
+func (c *MetricsCollector) RecordIndexCacheMiss() {
+	atomic.AddInt64(&c.indexCacheMisses, 1)
+}
+
+// RecordCacheEviction 记录缓存淘汰
+func (c *MetricsCollector) RecordCacheEviction() {
+	atomic.AddInt64(&c.cacheEvictions, 1)
+}
+
+// RecordBatchReadHit 记录批量读取命中
+func (c *MetricsCollector) RecordBatchReadHit() {
+	atomic.AddInt64(&c.batchReadHits, 1)
+}
+
+// RecordBatchReadMiss 记录批量读取未命中
+func (c *MetricsCollector) RecordBatchReadMiss() {
+	atomic.AddInt64(&c.batchReadMisses, 1)
 }
 
 // GlobalCollector 全局指标收集器

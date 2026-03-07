@@ -14,71 +14,71 @@ func TestDefaultConfig(t *testing.T) {
 	}
 
 	// Test Global config
-	if cfg.Global.AppsPath == "" {
-		t.Error("DefaultConfig().Global.AppsPath is empty")
+	if cfg.AppsDir == "" {
+		t.Error("DefaultConfig().AppsDir is empty")
 	}
-	if cfg.Global.BucketsPath == "" {
-		t.Error("DefaultConfig().Global.BucketsPath is empty")
+	if cfg.BucketsDir == "" {
+		t.Error("DefaultConfig().BucketsDir is empty")
 	}
-	if cfg.Global.CachePath == "" {
-		t.Error("DefaultConfig().Global.CachePath is empty")
+	if cfg.CacheDir == "" {
+		t.Error("DefaultConfig().CacheDir is empty")
 	}
-	if cfg.Global.StoragePath == "" {
-		t.Error("DefaultConfig().Global.StoragePath is empty")
+	if cfg.StorageDir == "" {
+		t.Error("DefaultConfig().StorageDir is empty")
 	}
-	if cfg.Global.Parallel != 3 {
-		t.Errorf("DefaultConfig().Global.Parallel = %d, want 3", cfg.Global.Parallel)
+	if cfg.Parallel != 3 {
+		t.Errorf("DefaultConfig().Parallel = %d, want 3", cfg.Parallel)
 	}
-	if cfg.Global.Timeout != 300 {
-		t.Errorf("DefaultConfig().Global.Timeout = %d, want 300", cfg.Global.Timeout)
+	if cfg.Timeout != 300 {
+		t.Errorf("DefaultConfig().Timeout = %d, want 300", cfg.Timeout)
 	}
-	if cfg.Global.Retry != 3 {
-		t.Errorf("DefaultConfig().Global.Retry = %d, want 3", cfg.Global.Retry)
+	if cfg.Retry != 3 {
+		t.Errorf("DefaultConfig().Retry = %d, want 3", cfg.Retry)
 	}
-	if cfg.Global.NoConfirm != false {
-		t.Error("DefaultConfig().Global.NoConfirm = true, want false")
+	if cfg.NoConfirm != false {
+		t.Error("DefaultConfig().NoConfirm = true, want false")
 	}
-	if cfg.Global.Color != true {
-		t.Error("DefaultConfig().Global.Color = false, want true")
+	if cfg.Color != true {
+		t.Error("DefaultConfig().Color = false, want true")
 	}
-	if cfg.Global.Verbose != false {
-		t.Error("DefaultConfig().Global.Verbose = true, want false")
+	if cfg.Verbose != false {
+		t.Error("DefaultConfig().Verbose = true, want false")
 	}
 
 	// Test Bucket config
-	if cfg.Buckets.Default != "main" {
-		t.Errorf("DefaultConfig().Buckets.Default = %s, want main", cfg.Buckets.Default)
+	if cfg.DefaultBucket != "main" {
+		t.Errorf("DefaultConfig().DefaultBucket = %s, want main", cfg.DefaultBucket)
 	}
-	if cfg.Buckets.AutoUpdate != false {
-		t.Error("DefaultConfig().Buckets.AutoUpdate = true, want false")
+	if cfg.AutoUpdate != false {
+		t.Error("DefaultConfig().AutoUpdate = true, want false")
 	}
-	if cfg.Buckets.Mirrors == nil {
-		t.Error("DefaultConfig().Buckets.Mirrors is nil")
+	if cfg.BucketMirrors == nil {
+		t.Error("DefaultConfig().BucketMirrors is nil")
 	}
 
 	// Test Proxy config
-	if cfg.Proxy.Enable != true {
-		t.Error("DefaultConfig().Proxy.Enable = false, want true")
+	if cfg.ProxyEnable != true {
+		t.Error("DefaultConfig().ProxyEnable = false, want true")
 	}
-	if cfg.Proxy.System != true {
-		t.Error("DefaultConfig().Proxy.System = false, want true")
+	if cfg.ProxySystem != true {
+		t.Error("DefaultConfig().ProxySystem = false, want true")
 	}
 
 	// Test Log config
-	if cfg.Log.Level != "info" {
-		t.Errorf("DefaultConfig().Log.Level = %s, want info", cfg.Log.Level)
+	if cfg.LogLevel != "info" {
+		t.Errorf("DefaultConfig().LogLevel = %s, want info", cfg.LogLevel)
 	}
-	if cfg.Log.MaxSize != 10 {
-		t.Errorf("DefaultConfig().Log.MaxSize = %d, want 10", cfg.Log.MaxSize)
+	if cfg.LogMaxSize != 10 {
+		t.Errorf("DefaultConfig().LogMaxSize = %d, want 10", cfg.LogMaxSize)
 	}
-	if cfg.Log.MaxBackups != 3 {
-		t.Errorf("DefaultConfig().Log.MaxBackups = %d, want 3", cfg.Log.MaxBackups)
+	if cfg.LogMaxBackups != 3 {
+		t.Errorf("DefaultConfig().LogMaxBackups = %d, want 3", cfg.LogMaxBackups)
 	}
-	if cfg.Log.MaxAge != 7 {
-		t.Errorf("DefaultConfig().Log.MaxAge = %d, want 7", cfg.Log.MaxAge)
+	if cfg.LogMaxAge != 7 {
+		t.Errorf("DefaultConfig().LogMaxAge = %d, want 7", cfg.LogMaxAge)
 	}
-	if cfg.Log.Compress != true {
-		t.Error("DefaultConfig().Log.Compress = false, want true")
+	if cfg.LogCompress != true {
+		t.Error("DefaultConfig().LogCompress = false, want true")
 	}
 }
 
@@ -91,83 +91,56 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "valid config",
 			cfg: &Config{
-				Global: GlobalConfig{
-					AppsPath:    "/apps",
-					BucketsPath: "/buckets",
-					StoragePath: "/data.db",
-					Parallel:    3,
-					Timeout:     300,
-					Retry:       3,
-				},
+				RootDir:    "/chopsticks",
+				AppsDir:    "/apps",
+				BucketsDir: "/buckets",
+				StorageDir: "/data",
+				Parallel:   3,
+				Timeout:    300,
+				Retry:      3,
 			},
 			wantErr: false,
 		},
 		{
-			name: "empty apps_path",
+			name: "empty root_dir",
 			cfg: &Config{
-				Global: GlobalConfig{
-					AppsPath:    "",
-					BucketsPath: "/buckets",
-					StoragePath: "/data.db",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "empty buckets_path",
-			cfg: &Config{
-				Global: GlobalConfig{
-					AppsPath:    "/apps",
-					BucketsPath: "",
-					StoragePath: "/data.db",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "empty storage_path",
-			cfg: &Config{
-				Global: GlobalConfig{
-					AppsPath:    "/apps",
-					BucketsPath: "/buckets",
-					StoragePath: "",
-				},
+				RootDir:    "",
+				AppsDir:    "/apps",
+				BucketsDir: "/buckets",
+				StorageDir: "/data",
 			},
 			wantErr: true,
 		},
 		{
 			name: "zero parallel sets to 1",
 			cfg: &Config{
-				Global: GlobalConfig{
-					AppsPath:    "/apps",
-					BucketsPath: "/buckets",
-					StoragePath: "/data.db",
-					Parallel:    0,
-				},
+				RootDir:    "/chopsticks",
+				AppsDir:    "/apps",
+				BucketsDir: "/buckets",
+				StorageDir: "/data",
+				Parallel:   0,
 			},
 			wantErr: false,
 		},
 		{
 			name: "negative timeout sets to 300",
 			cfg: &Config{
-				Global: GlobalConfig{
-					AppsPath:    "/apps",
-					BucketsPath: "/buckets",
-					StoragePath: "/data.db",
-					Timeout:     -1,
-				},
+				RootDir:    "/chopsticks",
+				AppsDir:    "/apps",
+				BucketsDir: "/buckets",
+				StorageDir: "/data",
+				Timeout:    -1,
 			},
 			wantErr: false,
 		},
 		{
 			name: "negative retry sets to 3",
 			cfg: &Config{
-				Global: GlobalConfig{
-					AppsPath:    "/apps",
-					BucketsPath: "/buckets",
-					StoragePath: "/data.db",
-					Retry:       -1,
-				},
+				RootDir:    "/chopsticks",
+				AppsDir:    "/apps",
+				BucketsDir: "/buckets",
+				StorageDir: "/data",
+				Retry:      -1,
 			},
 			wantErr: false,
 		},
@@ -185,14 +158,13 @@ func TestConfigValidate(t *testing.T) {
 
 func TestConfigValidateSetsDefaults(t *testing.T) {
 	cfg := &Config{
-		Global: GlobalConfig{
-			AppsPath:    "/apps",
-			BucketsPath: "/buckets",
-			StoragePath: "/data.db",
-			Parallel:    0,
-			Timeout:     -1,
-			Retry:       -1,
-		},
+		RootDir:    "/chopsticks",
+		AppsDir:    "/apps",
+		BucketsDir: "/buckets",
+		StorageDir: "/data",
+		Parallel:   0,
+		Timeout:    -1,
+		Retry:      -1,
 	}
 
 	err := cfg.Validate()
@@ -200,14 +172,14 @@ func TestConfigValidateSetsDefaults(t *testing.T) {
 		t.Fatalf("Validate() returned error: %v", err)
 	}
 
-	if cfg.Global.Parallel != 1 {
-		t.Errorf("Parallel = %d, want 1", cfg.Global.Parallel)
+	if cfg.Parallel != 1 {
+		t.Errorf("Parallel = %d, want 1", cfg.Parallel)
 	}
-	if cfg.Global.Timeout != 300 {
-		t.Errorf("Timeout = %d, want 300", cfg.Global.Timeout)
+	if cfg.Timeout != 300 {
+		t.Errorf("Timeout = %d, want 300", cfg.Timeout)
 	}
-	if cfg.Global.Retry != 3 {
-		t.Errorf("Retry = %d, want 3", cfg.Global.Retry)
+	if cfg.Retry != 3 {
+		t.Errorf("Retry = %d, want 3", cfg.Retry)
 	}
 }
 
@@ -271,34 +243,31 @@ func TestLoadValidConfig(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "config.yaml")
 
 	content := `
-global:
-  apps_path: /custom/apps
-  buckets_path: /custom/buckets
-  cache_path: /custom/cache
-  storage_path: /custom/data.db
-  parallel: 5
-  timeout: 600
-  retry: 5
-  no_confirm: true
-  color: false
-  verbose: true
-buckets:
-  default: custom
-  auto_update: true
-  mirrors:
-    main: https://mirror.example.com
-proxy:
-  enable: true
-  http: http://proxy.example.com:8080
-  https: https://proxy.example.com:8080
-  no_proxy: localhost,127.0.0.1
-log:
-  level: debug
-  file: /var/log/chopsticks.log
-  max_size: 100
-  max_backups: 10
-  max_age: 30
-  compress: false
+root_dir: /custom/chopsticks
+apps_dir: /custom/apps
+buckets_dir: /custom/buckets
+cache_dir: /custom/cache
+storage_dir: /custom/data
+parallel: 5
+timeout: 600
+retry: 5
+no_confirm: true
+color: false
+verbose: true
+default_bucket: custom
+auto_update: true
+bucket_mirrors:
+  main: https://mirror.example.com
+proxy_enable: true
+proxy_http: http://proxy.example.com:8080
+proxy_https: https://proxy.example.com:8080
+proxy_no_proxy: localhost,127.0.0.1
+log_level: debug
+log_file: /var/log/chopsticks.log
+log_max_size: 100
+log_max_backups: 10
+log_max_age: 30
+log_compress: false
 `
 	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
@@ -310,38 +279,38 @@ log:
 	}
 
 	// Check global config
-	if cfg.Global.AppsPath != "/custom/apps" {
-		t.Errorf("AppsPath = %s, want /custom/apps", cfg.Global.AppsPath)
+	if cfg.AppsDir != "/custom/apps" {
+		t.Errorf("AppsDir = %s, want /custom/apps", cfg.AppsDir)
 	}
-	if cfg.Global.Parallel != 5 {
-		t.Errorf("Parallel = %d, want 5", cfg.Global.Parallel)
+	if cfg.Parallel != 5 {
+		t.Errorf("Parallel = %d, want 5", cfg.Parallel)
 	}
-	if cfg.Global.Timeout != 600 {
-		t.Errorf("Timeout = %d, want 600", cfg.Global.Timeout)
+	if cfg.Timeout != 600 {
+		t.Errorf("Timeout = %d, want 600", cfg.Timeout)
 	}
-	if cfg.Global.NoConfirm != true {
+	if cfg.NoConfirm != true {
 		t.Error("NoConfirm = false, want true")
 	}
 
 	// Check bucket config
-	if cfg.Buckets.Default != "custom" {
-		t.Errorf("Default = %s, want custom", cfg.Buckets.Default)
+	if cfg.DefaultBucket != "custom" {
+		t.Errorf("DefaultBucket = %s, want custom", cfg.DefaultBucket)
 	}
-	if cfg.Buckets.AutoUpdate != true {
+	if cfg.AutoUpdate != true {
 		t.Error("AutoUpdate = false, want true")
 	}
-	if cfg.Buckets.Mirrors["main"] != "https://mirror.example.com" {
-		t.Errorf("Mirrors[main] = %s, want https://mirror.example.com", cfg.Buckets.Mirrors["main"])
+	if cfg.BucketMirrors["main"] != "https://mirror.example.com" {
+		t.Errorf("BucketMirrors[main] = %s, want https://mirror.example.com", cfg.BucketMirrors["main"])
 	}
 
 	// Check proxy config
-	if cfg.Proxy.Enable != true {
-		t.Error("Enable = false, want true")
+	if cfg.ProxyEnable != true {
+		t.Error("ProxyEnable = false, want true")
 	}
 
 	// Check log config
-	if cfg.Log.Level != "debug" {
-		t.Errorf("Level = %s, want debug", cfg.Log.Level)
+	if cfg.LogLevel != "debug" {
+		t.Errorf("LogLevel = %s, want debug", cfg.LogLevel)
 	}
 }
 
@@ -350,7 +319,7 @@ func TestSave(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "config.yaml")
 
 	cfg := DefaultConfig()
-	cfg.Global.Parallel = 10
+	cfg.Parallel = 10
 
 	err := Save(cfg, configPath)
 	if err != nil {
@@ -368,8 +337,8 @@ func TestSave(t *testing.T) {
 		t.Fatalf("Load() returned error: %v", err)
 	}
 
-	if loaded.Global.Parallel != 10 {
-		t.Errorf("Parallel = %d, want 10", loaded.Global.Parallel)
+	if loaded.Parallel != 10 {
+		t.Errorf("Parallel = %d, want 10", loaded.Parallel)
 	}
 }
 

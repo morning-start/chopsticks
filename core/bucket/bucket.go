@@ -49,7 +49,7 @@ type SearchResult struct {
 
 type manager struct {
 	buckets    map[string]*manifest.Bucket
-	db         store.Storage
+	db         store.LegacyStorage
 	config     interface{}
 	bucketsDir string
 	git        git.Git
@@ -59,7 +59,7 @@ var _ BucketManager = (*manager)(nil)
 
 // NewManager 创建软件源管理器
 // gitClient 参数可选，如果为 nil 则使用默认的 git 客户端
-func NewManager(db store.Storage, config interface{}, bucketsDir string, gitClient git.Git) BucketManager {
+func NewManager(db store.LegacyStorage, config interface{}, bucketsDir string, gitClient git.Git) BucketManager {
 	if gitClient == nil {
 		gitClient = git.New()
 	}
@@ -237,9 +237,9 @@ func (m *manager) ListBuckets(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 
-	names := make([]string, len(buckets))
-	for i, b := range buckets {
-		names[i] = b.ID
+	names := make([]string, 0, len(buckets))
+	for _, b := range buckets {
+		names = append(names, b.ID)
 	}
 
 	if len(names) == 0 {

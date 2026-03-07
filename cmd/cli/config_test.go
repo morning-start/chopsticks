@@ -76,12 +76,12 @@ func TestConfigGetters(t *testing.T) {
 		expected string
 		wantErr  bool
 	}{
-		{"global.apps_path", "global.apps_path", cfg.Global.AppsPath, false},
-		{"global.parallel", "global.parallel", "3", false},
-		{"global.timeout", "global.timeout", "300", false},
-		{"buckets.default", "buckets.default", "main", false},
-		{"proxy.enable", "proxy.enable", "true", false},
-		{"log.level", "log.level", "info", false},
+		{"apps_dir", "apps_dir", cfg.AppsDir, false},
+		{"parallel", "parallel", "3", false},
+		{"timeout", "timeout", "300", false},
+		{"default_bucket", "default_bucket", "main", false},
+		{"proxy_enable", "proxy_enable", "true", false},
+		{"log_level", "log_level", "info", false},
 		{"invalid", "invalid.key", "", true},
 		{"invalid section", "invalidsection.key", "", true},
 	}
@@ -109,10 +109,10 @@ func TestConfigSetters(t *testing.T) {
 		value   string
 		wantErr bool
 	}{
-		{"set global.parallel", "global.parallel", "5", false},
-		{"set global.timeout", "global.timeout", "600", false},
-		{"set invalid bool", "global.no_confirm", "invalid", true},
-		{"set invalid int", "global.parallel", "not-a-number", true},
+		{"set parallel", "parallel", "5", false},
+		{"set timeout", "timeout", "600", false},
+		{"set invalid bool", "no_confirm", "invalid", true},
+		{"set invalid int", "parallel", "not-a-number", true},
 		{"set invalid key", "invalid.key", "value", true},
 	}
 
@@ -132,54 +132,54 @@ func TestConfigSettersBoolValues(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// 测试布尔值设置
-	err := setConfigValue(cfg, "global.no_confirm", "true")
+	err := setConfigValue(cfg, "no_confirm", "true")
 	assert.NoError(t, err)
-	assert.True(t, cfg.Global.NoConfirm)
+	assert.True(t, cfg.NoConfirm)
 
-	err = setConfigValue(cfg, "global.no_confirm", "false")
+	err = setConfigValue(cfg, "no_confirm", "false")
 	assert.NoError(t, err)
-	assert.False(t, cfg.Global.NoConfirm)
+	assert.False(t, cfg.NoConfirm)
 
 	// 测试 1/0
-	err = setConfigValue(cfg, "global.no_confirm", "1")
+	err = setConfigValue(cfg, "no_confirm", "1")
 	assert.NoError(t, err)
-	assert.True(t, cfg.Global.NoConfirm)
+	assert.True(t, cfg.NoConfirm)
 
-	err = setConfigValue(cfg, "global.no_confirm", "0")
+	err = setConfigValue(cfg, "no_confirm", "0")
 	assert.NoError(t, err)
-	assert.False(t, cfg.Global.NoConfirm)
+	assert.False(t, cfg.NoConfirm)
 }
 
 func TestConfigSettersIntValues(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// 测试整数值设置
-	err := setConfigValue(cfg, "global.parallel", "10")
+	err := setConfigValue(cfg, "parallel", "10")
 	assert.NoError(t, err)
-	assert.Equal(t, 10, cfg.Global.Parallel)
+	assert.Equal(t, 10, cfg.Parallel)
 
-	err = setConfigValue(cfg, "global.timeout", "600")
+	err = setConfigValue(cfg, "timeout", "600")
 	assert.NoError(t, err)
-	assert.Equal(t, 600, cfg.Global.Timeout)
+	assert.Equal(t, 600, cfg.Timeout)
 
-	err = setConfigValue(cfg, "global.retry", "5")
+	err = setConfigValue(cfg, "retry", "5")
 	assert.NoError(t, err)
-	assert.Equal(t, 5, cfg.Global.Retry)
+	assert.Equal(t, 5, cfg.Retry)
 }
 
 func TestConfigSettersStringValues(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	// 测试字符串值设置
-	err := setConfigValue(cfg, "global.apps_path", "/custom/apps")
+	err := setConfigValue(cfg, "apps_dir", "/custom/apps")
 	assert.NoError(t, err)
-	assert.Equal(t, "/custom/apps", cfg.Global.AppsPath)
+	assert.Equal(t, "/custom/apps", cfg.AppsDir)
 
-	err = setConfigValue(cfg, "buckets.default", "extras")
+	err = setConfigValue(cfg, "default_bucket", "extras")
 	assert.NoError(t, err)
-	assert.Equal(t, "extras", cfg.Buckets.Default)
+	assert.Equal(t, "extras", cfg.DefaultBucket)
 
-	err = setConfigValue(cfg, "proxy.http", "http://127.0.0.1:7890")
+	err = setConfigValue(cfg, "proxy_http", "http://127.0.0.1:7890")
 	assert.NoError(t, err)
-	assert.Equal(t, "http://127.0.0.1:7890", cfg.Proxy.HTTP)
+	assert.Equal(t, "http://127.0.0.1:7890", cfg.ProxyHTTP)
 }

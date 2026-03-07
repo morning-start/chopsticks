@@ -2,6 +2,7 @@ package bucket
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -89,7 +90,7 @@ func (m *mockManager) GetApp(ctx context.Context, bucket, name string) (*manifes
 func (m *mockManager) ListApps(ctx context.Context, bucket string) (map[string]*manifest.AppRef, error) {
 	apps, ok := m.buckets[bucket]
 	if !ok {
-		return nil, ErrBucketNotFound
+		return nil, fmt.Errorf("bucket not found: %s", bucket)
 	}
 	return apps, nil
 }

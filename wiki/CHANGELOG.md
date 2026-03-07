@@ -7,6 +7,55 @@
 
 ---
 
+## [未发布]
+
+### Changed
+
+- **存储架构重构** - 从 SQLite 迁移到纯文件系统存储
+  - 移除 `modernc.org/sqlite` 依赖
+  - 已安装应用数据从 `data.db` 迁移到 `apps/{name}/manifest.json`
+  - 操作记录从数据库表迁移到 `apps/{name}/operations.json`
+  - 软件源配置从数据库迁移到 `bucket-index.json`
+  - 依赖关系从数据库迁移到 `deps-index.json` 和 `runtime-index.json`
+
+- **配置系统简化** - 统一配置管理
+  - 使用 `RootDir` 作为核心配置项
+  - 其他目录自动基于 `RootDir` 推导
+  - 配置文件从 JSON 改为 YAML 格式
+  - 支持环境变量覆盖
+
+- **依赖管理完善** - 完整的依赖生命周期管理
+  - 依赖分类：runtime、tools、libraries、conflicts
+  - 引用计数机制：运行时库共享管理
+  - 反向依赖计算：动态计算，保证数据一致性
+  - 孤儿依赖检测：自动检测并提示清理
+
+### Added
+
+- **性能优化** - 缓存和懒加载机制
+  - 启动时懒加载索引文件到内存
+  - Bucket、Runtime、Deps 索引缓存
+  - 批量读取减少文件系统 IO
+  - RWMutex 并发控制
+
+- **错误处理增强** - 错误码系统
+  - 错误分类：NotFound、AlreadyExists、IO、Network 等
+  - 恢复建议：错误信息包含具体恢复步骤
+  - 优雅降级：索引损坏时自动重建
+
+- **存储接口** - 统一的文件系统存储接口
+  - `AppStorage` - 已安装应用存储
+  - `BucketStorage` - 软件源配置存储
+  - `OperationStorage` - 操作记录存储
+  - `DependencyStorage` - 依赖索引存储
+
+### Removed
+
+- **SQLite 依赖** - 完全移除数据库依赖
+- **数据库迁移代码** - 简化架构，减少维护成本
+
+---
+
 ## [v0.10.0-alpha] - 2026-03-01
 
 ### Changed

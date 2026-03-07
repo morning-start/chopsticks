@@ -9,10 +9,10 @@ import (
 
 func TestParseAppSpec(t *testing.T) {
 	tests := []struct {
-		name          string
-		spec          string
-		wantName      string
-		wantVersion   string
+		name        string
+		spec        string
+		wantName    string
+		wantVersion string
 	}{
 		{
 			name:        "只有名称",

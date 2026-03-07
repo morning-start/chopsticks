@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	uninstallPurge   bool
-	uninstallForce   bool
-	uninstallCascade bool
+	uninstallPurge      bool
+	uninstallForce      bool
+	uninstallCascade    bool
 	uninstallAutoRemove bool
 )
 

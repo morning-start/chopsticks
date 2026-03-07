@@ -12,14 +12,15 @@ import (
 
 func TestNewManager(t *testing.T) {
 	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "test.db")
-	storage, err := store.New(dbPath)
+	storageDir := filepath.Join(tmpDir, "data")
+	storage, err := store.NewFSStorage(storageDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer storage.Close()
 
-	mgr := NewManager(storage, nil, tmpDir, nil)
+	adapter := store.NewStorageAdapter(storage, tmpDir)
+	mgr := NewManager(adapter, nil, tmpDir, nil)
 	if mgr == nil {
 		t.Fatal("NewManager() returned nil")
 	}
@@ -223,14 +224,15 @@ func TestMatchesSearchQuery(t *testing.T) {
 
 func TestManagerListBuckets(t *testing.T) {
 	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "test.db")
-	storage, err := store.New(dbPath)
+	storageDir := filepath.Join(tmpDir, "data")
+	storage, err := store.NewFSStorage(storageDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer storage.Close()
 
-	mgr := NewManager(storage, nil, tmpDir, nil)
+	adapter := store.NewStorageAdapter(storage, tmpDir)
+	mgr := NewManager(adapter, nil, tmpDir, nil)
 
 	ctx := context.Background()
 	buckets, err := mgr.ListBuckets(ctx)
@@ -249,14 +251,15 @@ func TestManagerListBuckets(t *testing.T) {
 
 func TestManagerGetBucketNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "test.db")
-	storage, err := store.New(dbPath)
+	storageDir := filepath.Join(tmpDir, "data")
+	storage, err := store.NewFSStorage(storageDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer storage.Close()
 
-	mgr := NewManager(storage, nil, tmpDir, nil)
+	adapter := store.NewStorageAdapter(storage, tmpDir)
+	mgr := NewManager(adapter, nil, tmpDir, nil)
 
 	ctx := context.Background()
 	_, err = mgr.GetBucket(ctx, "nonexistent")
@@ -267,14 +270,15 @@ func TestManagerGetBucketNotFound(t *testing.T) {
 
 func TestManagerGetAppBucketNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "test.db")
-	storage, err := store.New(dbPath)
+	storageDir := filepath.Join(tmpDir, "data")
+	storage, err := store.NewFSStorage(storageDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer storage.Close()
 
-	mgr := NewManager(storage, nil, tmpDir, nil)
+	adapter := store.NewStorageAdapter(storage, tmpDir)
+	mgr := NewManager(adapter, nil, tmpDir, nil)
 
 	ctx := context.Background()
 	_, err = mgr.GetApp(ctx, "nonexistent", "app")
@@ -285,14 +289,15 @@ func TestManagerGetAppBucketNotFound(t *testing.T) {
 
 func TestManagerListAppsBucketNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "test.db")
-	storage, err := store.New(dbPath)
+	storageDir := filepath.Join(tmpDir, "data")
+	storage, err := store.NewFSStorage(storageDir)
 	if err != nil {
 		t.Fatalf("Failed to create storage: %v", err)
 	}
 	defer storage.Close()
 
-	mgr := NewManager(storage, nil, tmpDir, nil)
+	adapter := store.NewStorageAdapter(storage, tmpDir)
+	mgr := NewManager(adapter, nil, tmpDir, nil)
 
 	ctx := context.Background()
 	_, err = mgr.ListApps(ctx, "nonexistent")
