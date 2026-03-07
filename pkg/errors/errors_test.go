@@ -86,13 +86,13 @@ func TestStructuredError_Error(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "error without cause",
-			err:  NewStructured(ErrAppNotFound, "软件未找到"),
+			name:     "error without cause",
+			err:      NewStructured(ErrAppNotFound, "软件未找到"),
 			expected: "[CHP-4001] 软件未找到",
 		},
 		{
-			name: "error with cause",
-			err:  NewStructured(ErrDownloadFailed, "下载失败").WithCause(errors.New("network timeout")),
+			name:     "error with cause",
+			err:      NewStructured(ErrDownloadFailed, "下载失败").WithCause(errors.New("network timeout")),
 			expected: "CHP-2003",
 		},
 	}

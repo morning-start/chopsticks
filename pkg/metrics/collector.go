@@ -38,15 +38,15 @@ type MetricsCollector struct {
 	jsCacheMisses int64
 
 	// 缓存指标
-	appCacheHits    int64
-	appCacheMisses  int64
-	bucketCacheHits int64
+	appCacheHits      int64
+	appCacheMisses    int64
+	bucketCacheHits   int64
 	bucketCacheMisses int64
-	indexCacheHits  int64
-	indexCacheMisses int64
-	cacheEvictions  int64
-	batchReadHits   int64
-	batchReadMisses int64
+	indexCacheHits    int64
+	indexCacheMisses  int64
+	cacheEvictions    int64
+	batchReadHits     int64
+	batchReadMisses   int64
 
 	// 历史记录
 	history *MetricsHistory
@@ -198,23 +198,23 @@ func (c *MetricsCollector) Collect() PerformanceMetrics {
 	}
 
 	return PerformanceMetrics{
-		Timestamp:          now,
-		TaskSubmitRate:     taskSubmitRate,
-		TaskCompleteRate:   taskCompleteRate,
-		TaskInProgress:     int(atomic.LoadInt64(&c.taskInProgress)),
-		AvgTaskDuration:    avgTaskDuration,
-		TotalTasks:         atomic.LoadInt64(&c.taskSubmitted),
-		CompletedTasks:     completed,
-		FailedTasks:        atomic.LoadInt64(&c.taskFailed),
-		CPUUsage:           0, // 需要通过外部工具获取
-		MemoryUsage:        memoryMB,
-		MemoryAlloc:        memStats.Alloc,
-		MemorySys:          memStats.Sys,
-		GoroutineCount:     goroutines,
-		NumGC:              memStats.NumGC,
-		JSPoolSize:         int(poolSize),
-		JSPoolActive:       int(poolActive),
-		JSPoolUtilization:  jsPoolUtilization,
+		Timestamp:           now,
+		TaskSubmitRate:      taskSubmitRate,
+		TaskCompleteRate:    taskCompleteRate,
+		TaskInProgress:      int(atomic.LoadInt64(&c.taskInProgress)),
+		AvgTaskDuration:     avgTaskDuration,
+		TotalTasks:          atomic.LoadInt64(&c.taskSubmitted),
+		CompletedTasks:      completed,
+		FailedTasks:         atomic.LoadInt64(&c.taskFailed),
+		CPUUsage:            0, // 需要通过外部工具获取
+		MemoryUsage:         memoryMB,
+		MemoryAlloc:         memStats.Alloc,
+		MemorySys:           memStats.Sys,
+		GoroutineCount:      goroutines,
+		NumGC:               memStats.NumGC,
+		JSPoolSize:          int(poolSize),
+		JSPoolActive:        int(poolActive),
+		JSPoolUtilization:   jsPoolUtilization,
 		JSCacheHitRate:      jsCacheHitRate,
 		JSCacheSize:         int(jsHits + jsMisses),
 		DownloadSpeed:       avgDownloadSpeed,

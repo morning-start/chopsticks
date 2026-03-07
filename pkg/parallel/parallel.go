@@ -139,6 +139,7 @@ type ParallelDownloader struct {
 	workers    int
 	downloads  []DownloadTask
 	results    []DownloadResult
+	resultsMu  sync.Mutex
 	progress   func(completed, total int)
 	onComplete func(result DownloadResult)
 }
@@ -201,7 +202,9 @@ func (p *ParallelDownloader) Run(ctx context.Context) error {
 	}()
 
 	for result := range results {
+		p.resultsMu.Lock()
 		p.results = append(p.results, result)
+		p.resultsMu.Unlock()
 		if p.onComplete != nil {
 			p.onComplete(result)
 		}
@@ -248,11 +251,12 @@ type UpdateResult struct {
 }
 
 type ParallelUpdater struct {
-	workers  int
-	apps     []string
-	results  []UpdateResult
-	updateFn func(name string) error
-	progress func(completed, total int)
+	workers   int
+	apps      []string
+	results   []UpdateResult
+	resultsMu sync.Mutex
+	updateFn  func(name string) error
+	progress  func(completed, total int)
 }
 
 func NewParallelUpdater(workers int) *ParallelUpdater {
@@ -297,7 +301,9 @@ func (p *ParallelUpdater) Run(ctx context.Context) error {
 				Success: err == nil,
 				Error:   err,
 			}
+			p.resultsMu.Lock()
 			p.results = append(p.results, result)
+			p.resultsMu.Unlock()
 
 			completed := atomic.AddInt32(&completed, 1)
 			if p.progress != nil {

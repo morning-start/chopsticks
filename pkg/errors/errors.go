@@ -14,20 +14,20 @@ type ErrorCode string
 
 const (
 	// 1xxx - 系统错误
-	ErrPermissionDenied    ErrorCode = "CHP-1001" // 权限不足
-	ErrInsufficientDisk    ErrorCode = "CHP-1002" // 磁盘空间不足
-	ErrFileNotFound        ErrorCode = "CHP-1003" // 文件不存在
-	ErrFileAlreadyExists   ErrorCode = "CHP-1004" // 文件已存在
-	ErrInvalidPath         ErrorCode = "CHP-1005" // 路径无效
-	ErrDirectoryNotEmpty   ErrorCode = "CHP-1006" // 目录非空
+	ErrPermissionDenied  ErrorCode = "CHP-1001" // 权限不足
+	ErrInsufficientDisk  ErrorCode = "CHP-1002" // 磁盘空间不足
+	ErrFileNotFound      ErrorCode = "CHP-1003" // 文件不存在
+	ErrFileAlreadyExists ErrorCode = "CHP-1004" // 文件已存在
+	ErrInvalidPath       ErrorCode = "CHP-1005" // 路径无效
+	ErrDirectoryNotEmpty ErrorCode = "CHP-1006" // 目录非空
 
 	// 2xxx - 网络错误
-	ErrNetworkConnection   ErrorCode = "CHP-2001" // 网络连接失败
-	ErrDownloadTimeout     ErrorCode = "CHP-2002" // 下载超时
-	ErrDownloadFailed      ErrorCode = "CHP-2003" // 下载失败
-	ErrInvalidURL          ErrorCode = "CHP-2004" // URL 无效
-	ErrProxyError          ErrorCode = "CHP-2005" // 代理错误
-	ErrSSLVerification     ErrorCode = "CHP-2006" // SSL 验证失败
+	ErrNetworkConnection ErrorCode = "CHP-2001" // 网络连接失败
+	ErrDownloadTimeout   ErrorCode = "CHP-2002" // 下载超时
+	ErrDownloadFailed    ErrorCode = "CHP-2003" // 下载失败
+	ErrInvalidURL        ErrorCode = "CHP-2004" // URL 无效
+	ErrProxyError        ErrorCode = "CHP-2005" // 代理错误
+	ErrSSLVerification   ErrorCode = "CHP-2006" // SSL 验证失败
 
 	// 3xxx - 软件源错误
 	ErrBucketNotFound      ErrorCode = "CHP-3001" // 软件源不存在
@@ -38,41 +38,41 @@ const (
 	ErrManifestNotFound    ErrorCode = "CHP-3006" // 清单文件不存在
 
 	// 4xxx - 安装错误
-	ErrAppNotFound         ErrorCode = "CHP-4001" // 软件未找到
-	ErrAppAlreadyInstalled ErrorCode = "CHP-4002" // 软件已安装
-	ErrAppNotInstalled     ErrorCode = "CHP-4003" // 软件未安装
-	ErrInstallFailed       ErrorCode = "CHP-4004" // 安装失败
-	ErrUninstallFailed     ErrorCode = "CHP-4005" // 卸载失败
-	ErrUpdateFailed        ErrorCode = "CHP-4006" // 更新失败
-	ErrVersionNotFound     ErrorCode = "CHP-4007" // 版本未找到
+	ErrAppNotFound          ErrorCode = "CHP-4001" // 软件未找到
+	ErrAppAlreadyInstalled  ErrorCode = "CHP-4002" // 软件已安装
+	ErrAppNotInstalled      ErrorCode = "CHP-4003" // 软件未安装
+	ErrInstallFailed        ErrorCode = "CHP-4004" // 安装失败
+	ErrUninstallFailed      ErrorCode = "CHP-4005" // 卸载失败
+	ErrUpdateFailed         ErrorCode = "CHP-4006" // 更新失败
+	ErrVersionNotFound      ErrorCode = "CHP-4007" // 版本未找到
 	ErrVersionAlreadyExists ErrorCode = "CHP-4008" // 版本已存在
-	ErrChecksumMismatch    ErrorCode = "CHP-4009" // 校验和不匹配
+	ErrChecksumMismatch     ErrorCode = "CHP-4009" // 校验和不匹配
 	ErrArchiveExtractFailed ErrorCode = "CHP-4010" // 解压失败
-	ErrScriptFailed        ErrorCode = "CHP-4011" // 脚本执行失败
-	ErrHookFailed          ErrorCode = "CHP-4012" // 钩子执行失败
-	ErrInstallCancelled    ErrorCode = "CHP-4013" // 安装已取消
+	ErrScriptFailed         ErrorCode = "CHP-4011" // 脚本执行失败
+	ErrHookFailed           ErrorCode = "CHP-4012" // 钩子执行失败
+	ErrInstallCancelled     ErrorCode = "CHP-4013" // 安装已取消
 
 	// 5xxx - 依赖错误
-	ErrDependencyConflict  ErrorCode = "CHP-5001" // 依赖冲突
-	ErrDependencyNotFound  ErrorCode = "CHP-5002" // 依赖未找到
-	ErrCircularDependency  ErrorCode = "CHP-5003" // 循环依赖
-	ErrDependencyVersion   ErrorCode = "CHP-5004" // 依赖版本不匹配
-	ErrOrphanDependency    ErrorCode = "CHP-5005" // 孤立依赖
+	ErrDependencyConflict ErrorCode = "CHP-5001" // 依赖冲突
+	ErrDependencyNotFound ErrorCode = "CHP-5002" // 依赖未找到
+	ErrCircularDependency ErrorCode = "CHP-5003" // 循环依赖
+	ErrDependencyVersion  ErrorCode = "CHP-5004" // 依赖版本不匹配
+	ErrOrphanDependency   ErrorCode = "CHP-5005" // 孤立依赖
 
 	// 6xxx - 配置错误
-	ErrConfigNotFound      ErrorCode = "CHP-6001" // 配置文件不存在
-	ErrConfigInvalid       ErrorCode = "CHP-6002" // 配置文件无效
-	ErrConfigReadFailed    ErrorCode = "CHP-6003" // 读取配置失败
-	ErrConfigWriteFailed   ErrorCode = "CHP-6004" // 写入配置失败
-	ErrConfigValueInvalid  ErrorCode = "CHP-6005" // 配置值无效
+	ErrConfigNotFound     ErrorCode = "CHP-6001" // 配置文件不存在
+	ErrConfigInvalid      ErrorCode = "CHP-6002" // 配置文件无效
+	ErrConfigReadFailed   ErrorCode = "CHP-6003" // 读取配置失败
+	ErrConfigWriteFailed  ErrorCode = "CHP-6004" // 写入配置失败
+	ErrConfigValueInvalid ErrorCode = "CHP-6005" // 配置值无效
 
 	// 9xxx - 其他错误
-	ErrUnknown             ErrorCode = "CHP-9001" // 未知错误
-	ErrInternal            ErrorCode = "CHP-9002" // 内部错误
-	ErrCancelled           ErrorCode = "CHP-9003" // 操作已取消
-	ErrTimeout             ErrorCode = "CHP-9004" // 操作超时
-	ErrNotSupported        ErrorCode = "CHP-9005" // 不支持的操作
-	ErrInvalidInput        ErrorCode = "CHP-9006" // 输入无效
+	ErrUnknown      ErrorCode = "CHP-9001" // 未知错误
+	ErrInternal     ErrorCode = "CHP-9002" // 内部错误
+	ErrCancelled    ErrorCode = "CHP-9003" // 操作已取消
+	ErrTimeout      ErrorCode = "CHP-9004" // 操作超时
+	ErrNotSupported ErrorCode = "CHP-9005" // 不支持的操作
+	ErrInvalidInput ErrorCode = "CHP-9006" // 输入无效
 )
 
 // ErrorCategory 错误分类
@@ -108,15 +108,15 @@ type ErrorDetail struct {
 
 // StructuredError 结构化错误
 type StructuredError struct {
-	Code           ErrorCode         `json:"code"`            // 错误码
-	Message        string            `json:"message"`         // 错误消息
-	Category       ErrorCategory     `json:"category"`        // 错误分类
-	Cause          error             `json:"-"`               // 根本原因（不序列化）
-	Suggestions    []RecoverySuggestion `json:"suggestions"`  // 恢复建议
-	Details        ErrorDetail       `json:"details"`         // 详细信息
-	StackTrace     []string          `json:"stack_trace"`     // 堆栈跟踪
-	Recoverable    bool              `json:"recoverable"`     // 是否可恢复
-	Retryable      bool              `json:"retryable"`       // 是否可重试
+	Code        ErrorCode            `json:"code"`        // 错误码
+	Message     string               `json:"message"`     // 错误消息
+	Category    ErrorCategory        `json:"category"`    // 错误分类
+	Cause       error                `json:"-"`           // 根本原因（不序列化）
+	Suggestions []RecoverySuggestion `json:"suggestions"` // 恢复建议
+	Details     ErrorDetail          `json:"details"`     // 详细信息
+	StackTrace  []string             `json:"stack_trace"` // 堆栈跟踪
+	Recoverable bool                 `json:"recoverable"` // 是否可恢复
+	Retryable   bool                 `json:"retryable"`   // 是否可重试
 }
 
 // Error 实现 error 接口
@@ -283,7 +283,7 @@ func GetDefaultSuggestions(code ErrorCode) []RecoverySuggestion {
 			{
 				Title:       "配置代理",
 				Description: "如果公司网络需要代理，请配置代理设置",
-				Commands:    []string{
+				Commands: []string{
 					"chopsticks config set proxy.http http://proxy.company.com:8080",
 					"chopsticks config set proxy.https https://proxy.company.com:8080",
 				},
@@ -434,10 +434,10 @@ func NewStructured(code ErrorCode, message string) *StructuredError {
 // isRetryable 判断错误码是否可重试
 func isRetryable(code ErrorCode) bool {
 	retryableCodes := map[ErrorCode]bool{
-		ErrNetworkConnection: true,
-		ErrDownloadTimeout:   true,
-		ErrDownloadFailed:    true,
-		ErrProxyError:        true,
+		ErrNetworkConnection:  true,
+		ErrDownloadTimeout:    true,
+		ErrDownloadFailed:     true,
+		ErrProxyError:         true,
 		ErrBucketUpdateFailed: true,
 	}
 	return retryableCodes[code]
@@ -622,12 +622,12 @@ func FromJSON(data []byte) (*StructuredError, error) {
 
 // ErrorSummary 错误摘要信息
 type ErrorSummary struct {
-	TotalErrors   int                     `json:"total_errors"`
-	ByCategory    map[ErrorCategory]int   `json:"by_category"`
-	ByCode        map[ErrorCode]int       `json:"by_code"`
-	MostFrequent  []ErrorCode             `json:"most_frequent"`
-	Recoverable   int                     `json:"recoverable"`
-	Unrecoverable int                     `json:"unrecoverable"`
+	TotalErrors   int                   `json:"total_errors"`
+	ByCategory    map[ErrorCategory]int `json:"by_category"`
+	ByCode        map[ErrorCode]int     `json:"by_code"`
+	MostFrequent  []ErrorCode           `json:"most_frequent"`
+	Recoverable   int                   `json:"recoverable"`
+	Unrecoverable int                   `json:"unrecoverable"`
 }
 
 // AnalyzeErrors 分析错误列表
