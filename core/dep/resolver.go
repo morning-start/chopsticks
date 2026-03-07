@@ -122,7 +122,7 @@ func (r *resolver) resolveDependencies(
 			if dep.Optional {
 				continue // 可选依赖，未找到则跳过
 			}
-			return errors.Wrapf(err, "dependency not found: %s", dep.Name)
+			return errors.Wrapf(err, "find dependency app %q", dep.Name)
 		}
 
 		// 检查版本约束
@@ -151,7 +151,7 @@ func (r *resolver) resolveDependencies(
 			// 如果已存在，检查版本是否兼容
 			if existing.Version != depApp.Meta.Version {
 				// 版本冲突，尝试解决
-				if err := r.resolveVersionConflict(existing, node); err != nil {
+				if err := r.resolveVersionConflict(ctx, existing, node); err != nil {
 					return err
 				}
 			}
@@ -241,12 +241,12 @@ func (r *resolver) checkVersionConstraint(version, constraint string) error {
 }
 
 // resolveVersionConflict 解决版本冲突
-func (r *resolver) resolveVersionConflict(existing, new *DependencyNode) error {
+func (r *resolver) resolveVersionConflict(ctx context.Context, existing, new *DependencyNode) error {
 	// 简单策略：选择较新的版本
 	// TODO: 实现更复杂的版本冲突解决策略
 
 	// 如果已安装现有版本，优先保留
-	if r.isAppInstalled(existing.App.Script.Name) {
+	if r.isAppInstalled(ctx, existing.App.Script.Name) {
 		return nil
 	}
 
@@ -267,8 +267,8 @@ func (r *resolver) resolveVersionConflict(existing, new *DependencyNode) error {
 }
 
 // isAppInstalled 检查应用是否已安装
-func (r *resolver) isAppInstalled(name string) bool {
-	_, err := r.storage.GetInstalledApp(context.Background(), name)
+func (r *resolver) isAppInstalled(ctx context.Context, name string) bool {
+	_, err := r.storage.GetInstalledApp(ctx, name)
 	return err == nil
 }
 
@@ -332,44 +332,121 @@ func (r *resolver) TopologicalSort(graph *DependencyGraph) error {
 	return nil
 }
 
-// CheckCircular 检测循环依赖
+// CheckCircular 检测循环依赖（使用 DFS 算法）
 func (r *resolver) CheckCircular(ctx context.Context, deps []string) error {
-	// 构建依赖图
-	graph := &DependencyGraph{
-		Nodes: make(map[string]*DependencyNode),
-		Order: []string{},
+	if len(deps) == 0 {
+		return nil
 	}
 
-	// 加载所有依赖
+	// 构建邻接表表示依赖图
+	adjList := make(map[string][]string)
+	allApps := make(map[string]*manifest.App)
+
+	// 加载所有依赖应用并构建邻接表
 	for _, depName := range deps {
 		depApp, err := r.findApp(ctx, depName)
 		if err != nil {
-			return errors.Wrapf(err, "dependency not found: %s", depName)
+			return errors.Wrapf(err, "find dependency app %q", depName)
 		}
 
-		graph.Nodes[depName] = &DependencyNode{
-			App:     depApp,
-			Version: depApp.Meta.Version,
-			Depth:   0,
+		allApps[depName] = depApp
+		adjList[depName] = []string{}
+
+		// 提取依赖
+		app := &manifest.App{
+			Script: &manifest.AppScript{
+				Name:   depApp.Script.Name,
+				Bucket: depApp.Script.Bucket,
+			},
+			Meta: &manifest.AppMeta{
+				Version: depApp.Meta.Version,
+			},
+		}
+		appDeps := r.extractDependencies(app)
+		for _, dep := range appDeps {
+			adjList[depName] = append(adjList[depName], dep.Name)
 		}
 	}
 
-	// 解析依赖关系
-	resolving := make(map[string]bool)
-	visited := make(map[string]bool)
+	// 使用 DFS 检测循环依赖
+	visited := make(map[string]bool)  // 已访问节点
+	stack := make(map[string]bool)    // 当前 DFS 路径上的节点
+	path := []string{}                 // 当前路径
 
-	for name, node := range graph.Nodes {
-		if visited[name] {
-			continue
+	var dfs func(node string) error
+	dfs = func(node string) error {
+		visited[node] = true
+		stack[node] = true
+		path = append(path, node)
+
+		// 遍历所有邻居
+		for _, neighbor := range adjList[node] {
+			// 如果邻居在当前路径上，说明有循环依赖
+			if stack[neighbor] {
+				// 构建循环依赖链
+				cycleStart := -1
+				for i, n := range path {
+					if n == neighbor {
+						cycleStart = i
+						break
+					}
+				}
+				if cycleStart != -1 {
+					cycle := append(path[cycleStart:], neighbor)
+					return errors.NewDependencyConflict(
+						neighbor,
+						fmt.Sprintf("circular dependency detected: %s", strings.Join(cycle, " -> ")),
+					)
+				}
+			}
+
+			// 如果未访问，递归访问
+			if !visited[neighbor] {
+				// 确保邻居在邻接表中
+				if _, exists := adjList[neighbor]; !exists {
+					// 尝试加载邻居应用
+					neighborApp, err := r.findApp(ctx, neighbor)
+					if err != nil {
+						// 可选依赖可能不存在，跳过
+						continue
+					}
+					allApps[neighbor] = neighborApp
+					adjList[neighbor] = []string{}
+
+					app := &manifest.App{
+						Script: &manifest.AppScript{
+							Name:   neighborApp.Script.Name,
+							Bucket: neighborApp.Script.Bucket,
+						},
+						Meta: &manifest.AppMeta{
+							Version: neighborApp.Meta.Version,
+						},
+					}
+					neighborDeps := r.extractDependencies(app)
+					for _, d := range neighborDeps {
+						adjList[neighbor] = append(adjList[neighbor], d.Name)
+					}
+				}
+				if err := dfs(neighbor); err != nil {
+					return err
+				}
+			}
 		}
 
-		deps := r.extractDependencies(node.App)
-		resolving[name] = true
-		if err := r.resolveDependencies(ctx, node, deps, graph, visited, resolving); err != nil {
-			return err
+		// 回溯
+		path = path[:len(path)-1]
+		delete(stack, node)
+		return nil
+	}
+
+	// 对所有未访问的节点执行 DFS
+	for node := range adjList {
+		if !visited[node] {
+			path = []string{}
+			if err := dfs(node); err != nil {
+				return err
+			}
 		}
-		resolving[name] = false
-		visited[name] = true
 	}
 
 	return nil
