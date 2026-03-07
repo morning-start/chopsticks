@@ -16,10 +16,10 @@ var _ git.Git = (*MockGit)(nil)
 
 // MockGit 模拟 Git 操作。
 type MockGit struct {
-	ClonedRepos map[string]string // url -> dest
-	PulledRepos []string          // list of pulled repos
-	FetchedRepos []string         // list of fetched repos
-	
+	ClonedRepos  map[string]string // url -> dest
+	PulledRepos  []string          // list of pulled repos
+	FetchedRepos []string          // list of fetched repos
+
 	// FixturePath 用于指定测试数据目录
 	FixturePath string
 }

@@ -90,8 +90,8 @@ func buildBinary(t *testing.T) string {
 
 	// 优先使用已存在的二进制文件（检查多个可能的位置）
 	possiblePaths := []string{
-		filepath.Join(projectRoot, binaryName),          // 项目根目录
-		filepath.Join(projectRoot, "bin", binaryName),   // bin 目录
+		filepath.Join(projectRoot, binaryName),        // 项目根目录
+		filepath.Join(projectRoot, "bin", binaryName), // bin 目录
 	}
 
 	for _, existingBinary := range possiblePaths {
@@ -120,9 +120,9 @@ func buildBinary(t *testing.T) string {
 	// 设置环境变量以确保构建的二进制文件与当前系统兼容
 	// 使用 os.Environ() 作为基础，然后添加/覆盖需要的变量
 	env := os.Environ()
-	env = append(env, "CGO_ENABLED=0")                  // 禁用 CGO 避免兼容性问题
-	env = append(env, "GOOS="+runtime.GOOS)             // 使用当前操作系统
-	env = append(env, "GOARCH="+runtime.GOARCH)         // 使用当前架构
+	env = append(env, "CGO_ENABLED=0")          // 禁用 CGO 避免兼容性问题
+	env = append(env, "GOOS="+runtime.GOOS)     // 使用当前操作系统
+	env = append(env, "GOARCH="+runtime.GOARCH) // 使用当前架构
 	cmd.Env = env
 
 	t.Logf("构建二进制文件: GOOS=%s, GOARCH=%s, CGO_ENABLED=0", runtime.GOOS, runtime.GOARCH)
