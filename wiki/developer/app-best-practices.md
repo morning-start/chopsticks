@@ -152,9 +152,287 @@ onPostUninstall(ctx) {
 
 ---
 
-## 5. 配置函数
+## 5. 资源声明（Resources）
 
-### 5.1 env_path()
+在脚本中声明应用需要的资源（端口、环境变量、注册表等），帮助系统进行冲突检测和依赖管理。
+
+### 5.1 端口声明示例
+
+声明应用需要使用的网络端口：
+
+```javascript
+class MyApp extends App {
+    constructor() {
+        super({
+            name: "myapp",
+            description: "My Web Application",
+            resources: {
+                ports: [
+                    {
+                        port: 8080,
+                        protocol: "tcp",
+                        description: "Web 服务端口",
+                        required: true
+                    },
+                    {
+                        port: 8081,
+                        protocol: "tcp",
+                        description: "API 服务端口",
+                        required: false
+                    }
+                ],
+            },
+        });
+    }
+}
+```
+
+### 5.2 环境变量声明示例
+
+声明应用需要的环境变量：
+
+```javascript
+resources: {
+    env_vars: [
+        {
+            name: "MYAPP_HOME",
+            description: "应用安装目录",
+            required: true
+        },
+        {
+            name: "MYAPP_PORT",
+            default: "8080",
+            description: "服务监听端口",
+            required: false
+        },
+        {
+            name: "MYAPP_DEBUG",
+            default: "false",
+            description: "是否启用调试模式",
+            required: false
+        }
+    ],
+}
+```
+
+### 5.3 注册表声明示例（Windows）
+
+声明应用需要使用的注册表项：
+
+```javascript
+resources: {
+    registry_keys: [
+        {
+            path: "HKLM\\SOFTWARE\\MyApp",
+            description: "应用配置项",
+            required: false
+        },
+        {
+            path: "HKCU\\Software\\MyApp\\Settings",
+            description: "用户设置",
+            required: false
+        }
+    ],
+}
+```
+
+### 5.4 完整示例
+
+提供一个包含所有资源类型的完整示例：
+
+```javascript
+/** @type {import('./_chopsticks_')} */
+
+class MyWebApp extends App {
+    constructor() {
+        super({
+            name: "mywebapp",
+            description: "My Web Application with Resources",
+            homepage: "https://example.com",
+            license: "MIT",
+            bucket: "my-bucket",
+            resources: {
+                // 声明端口资源
+                ports: [
+                    {
+                        port: 3000,
+                        protocol: "tcp",
+                        description: "HTTP 服务端口",
+                        required: true
+                    },
+                    {
+                        port: 3001,
+                        protocol: "tcp",
+                        description: "HTTPS 服务端口",
+                        required: false
+                    }
+                ],
+                
+                // 声明环境变量
+                env_vars: [
+                    {
+                        name: "MYWEBAPP_HOME",
+                        description: "应用安装目录",
+                        required: true
+                    },
+                    {
+                        name: "MYWEBAPP_PORT",
+                        default: "3000",
+                        description: "服务监听端口",
+                        required: false
+                    },
+                    {
+                        name: "MYWEBAPP_NODE_ENV",
+                        default: "production",
+                        description: "运行环境",
+                        required: false
+                    }
+                ],
+                
+                // 声明注册表项（仅 Windows）
+                registry_keys: [
+                    {
+                        path: "HKLM\\SOFTWARE\\MyWebApp",
+                        description: "应用配置项",
+                        required: false
+                    },
+                    {
+                        path: "HKCU\\Software\\MyWebApp\\Settings",
+                        description: "用户设置",
+                        required: false
+                    }
+                ]
+            },
+        });
+    }
+
+    checkVersion() {
+        const response = fetch.get(
+            "https://api.github.com/repos/owner/mywebapp/releases/latest"
+        );
+        const data = JSON.parse(response.body);
+        return data.tag_name.replace(/^v/, "");
+    }
+
+    getDownloadInfo(version, arch) {
+        return {
+            url: `https://example.com/mywebapp-${version}.zip`,
+            type: "zip",
+        };
+    }
+}
+
+module.exports = new MyWebApp();
+```
+
+### 5.5 资源声明字段说明
+
+#### ports - 端口列表
+
+声明应用需要使用的网络端口。
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `port` | number | 是 | 端口号（1-65535） |
+| `protocol` | string | 否 | 协议类型，`"tcp"` 或 `"udp"`，默认 `"tcp"` |
+| `description` | string | 否 | 端口用途说明 |
+| `required` | boolean | 否 | 是否必需，默认 `true` |
+
+**示例：**
+
+```javascript
+ports: [
+    {
+        port: 8080,
+        protocol: "tcp",
+        description: "Web 服务端口",
+        required: true
+    },
+    {
+        port: 53,
+        protocol: "udp",
+        description: "DNS 服务端口",
+        required: false
+    }
+]
+```
+
+#### env_vars - 环境变量列表
+
+声明应用需要的环境变量。
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 是 | 环境变量名 |
+| `description` | string | 否 | 用途说明 |
+| `default` | string | 否 | 默认值（不提供时使用此值） |
+| `required` | boolean | 否 | 是否必需，默认 `true` |
+
+**示例：**
+
+```javascript
+env_vars: [
+    {
+        name: "APP_HOME",
+        description: "应用安装目录",
+        required: true
+    },
+    {
+        name: "APP_PORT",
+        default: "8080",
+        description: "服务端口",
+        required: false
+    }
+]
+```
+
+#### registry_keys - 注册表项列表（仅 Windows）
+
+声明应用需要使用的注册表项。
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `path` | string | 是 | 注册表路径（如 `HKLM\\SOFTWARE\\App`） |
+| `description` | string | 否 | 用途说明 |
+| `required` | boolean | 否 | 是否必需，默认 `true` |
+
+**支持的根键：**
+
+- `HKCR` - HKEY_CLASSES_ROOT
+- `HKCU` - HKEY_CURRENT_USER
+- `HKLM` - HKEY_LOCAL_MACHINE
+- `HKU` - HKEY_USERS
+- `HKCC` - HKEY_CURRENT_CONFIG
+
+**示例：**
+
+```javascript
+registry_keys: [
+    {
+        path: "HKLM\\SOFTWARE\\MyApp",
+        description: "应用全局配置",
+        required: false
+    },
+    {
+        path: "HKCU\\Software\\MyApp\\Settings",
+        description: "用户个人设置",
+        required: false
+    }
+]
+```
+
+### 5.6 资源声明的好处
+
+1. **冲突检测**：系统可以自动检测端口、环境变量等资源的冲突
+2. **依赖管理**：帮助系统了解应用的资源需求
+3. **自动配置**：系统可以自动设置默认值和必要的环境
+4. **文档化**：清晰声明应用的资源需求，便于维护
+
+---
+
+## 6. 配置函数
+
+### 6.1 env_path()
 
 返回需要加入 PATH 的目录：
 
@@ -164,7 +442,7 @@ env_path() {
 }
 ```
 
-### 5.2 bin()
+### 6.2 bin()
 
 返回可执行文件列表（用于创建 shim）：
 
@@ -174,7 +452,7 @@ bin() {
 }
 ```
 
-### 5.3 persist()
+### 6.3 persist()
 
 返回需要持久化的目录（更新时保留）：
 
@@ -184,7 +462,7 @@ persist() {
 }
 ```
 
-### 5.4 depends()
+### 6.4 depends()
 
 声明依赖：
 
@@ -194,7 +472,7 @@ depends() {
 }
 ```
 
-### 5.5 conflicts()
+### 6.5 conflicts()
 
 声明冲突软件：
 
@@ -206,9 +484,9 @@ conflicts() {
 
 ---
 
-## 6. 常见模式
+## 7. 常见模式
 
-### 6.1 绿色软件模式（同步方法）
+### 7.1 绿色软件模式（同步方法）
 
 适用于解压即用的绿色软件：
 
@@ -235,7 +513,7 @@ class App extends App {
 }
 ```
 
-### 6.2 安装程序模式（同步方法）
+### 7.2 安装程序模式（同步方法）
 
 适用于需要运行安装程序的软件：
 
@@ -260,7 +538,7 @@ class App extends App {
 }
 ```
 
-### 6.3 多架构支持（同步方法）
+### 7.3 多架构支持（同步方法）
 
 ```javascript
 class App extends App {
@@ -283,7 +561,7 @@ class App extends App {
 }
 ```
 
-### 6.4 多版本支持
+### 7.4 多版本支持
 
 ```javascript
 class NodeJS extends App {
@@ -303,9 +581,9 @@ class NodeJS extends App {
 
 ---
 
-## 7. 错误处理
+## 8. 错误处理
 
-### 7.1 安全调用（同步方法）
+### 8.1 安全调用（同步方法）
 
 ```javascript
 checkVersion() {
@@ -323,7 +601,7 @@ checkVersion() {
 }
 ```
 
-### 7.2 重试机制（同步方法）
+### 8.2 重试机制（同步方法）
 
 ```javascript
 fetchWithRetry(url, retries = 3) {
@@ -343,9 +621,9 @@ fetchWithRetry(url, retries = 3) {
 
 ---
 
-## 8. 调试技巧
+## 9. 调试技巧
 
-### 8.1 日志输出
+### 9.1 日志输出
 
 ```javascript
 onPostInstall(ctx) {
@@ -356,7 +634,7 @@ onPostInstall(ctx) {
 }
 ```
 
-### 8.2 调试模式
+### 9.2 调试模式
 
 ```bash
 # 启用详细输出
@@ -368,23 +646,23 @@ chopsticks install myapp --debug
 
 ---
 
-## 9. 最佳实践清单
+## 10. 最佳实践清单
 
-### 9.1 必需项
+### 10.1 必需项
 
 - [ ] 实现 `checkVersion()` 方法
 - [ ] 实现 `getDownloadInfo()` 方法
 - [ ] 正确设置 `name` 属性
 - [ ] 添加适当的 `description`
 
-### 9.2 推荐项
+### 10.2 推荐项
 
 - [ ] 使用 `onPostInstall` 创建快捷方式
 - [ ] 配置 `env_path()` 添加到 PATH
 - [ ] 配置 `bin()` 创建 shim
 - [ ] 使用 `persist()` 保留用户数据
 
-### 9.3 注意事项
+### 10.3 注意事项
 
 - 所有 JavaScript API 都是同步的，Go 层自动处理并发调度
 - 正确处理错误和异常
@@ -393,13 +671,13 @@ chopsticks install myapp --debug
 
 ---
 
-## 10. 完整示例
+## 11. 完整示例
 
 查看 [API 参考文档](API.md) 中的完整示例。
 
 ---
 
-## 11. 相关链接
+## 12. 相关链接
 
 - [软件源创建指南](bucket-guide.md)
 - [常见问题解答](../user/faq.md)
@@ -407,5 +685,5 @@ chopsticks install myapp --debug
 
 ---
 
-_最后更新：2026-03-01_
+_最后更新：2026-03-07_
 _版本：v0.10.0-alpha_

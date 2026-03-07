@@ -1,4 +1,4 @@
-﻿# Chopsticks JavaScript API 参考
+﻿﻿# Chopsticks JavaScript API 参考
 
 > 应用脚本中可用的 JavaScript API 完整参考
 
@@ -44,6 +44,247 @@ if (execResult.success) {
   log.error("执行失败：" + execResult.error);
 }
 ```
+
+---
+
+## 0. 资源声明与冲突检测
+
+### 0.1 概述
+
+Chopsticks 使用资源声明来检测应用之间的冲突。通过在脚本中声明应用需要的资源（端口、环境变量、注册表等），系统可以自动检测并防止资源冲突。
+
+**旧版本**：冲突检测基于简单的软件名称匹配。
+
+**新版本**：冲突检测基于资源声明，系统会检查以下资源类型：
+
+- **端口资源**：检测端口占用冲突
+- **环境变量**：检测环境变量冲突
+- **注册表项**：检测注册表键冲突（Windows）
+
+### 0.2 资源声明方式
+
+在 App 构造函数的 `resources` 字段中声明资源：
+
+```javascript
+class MyApp extends App {
+    constructor() {
+        super({
+            name: "myapp",
+            description: "My Application",
+            resources: {
+                // 声明资源
+            },
+        });
+    }
+}
+```
+
+### 0.3 端口资源声明
+
+声明应用需要使用的网络端口：
+
+```javascript
+resources: {
+    ports: [
+        {
+            port: 8080,           // 端口号
+            protocol: "tcp",      // 协议类型：tcp 或 udp
+            description: "Web 服务端口",
+            required: true        // 是否必需
+        }
+    ],
+}
+```
+
+**字段说明：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `port` | number | 是 | 端口号（1-65535） |
+| `protocol` | string | 否 | 协议类型，`"tcp"` 或 `"udp"`，默认 `"tcp"` |
+| `description` | string | 否 | 端口用途说明 |
+| `required` | boolean | 否 | 是否必需，默认 `true` |
+
+**冲突检测规则：**
+
+- 同一端口（相同协议）不能被多个应用同时占用
+- `required: false` 的端口冲突时会发出警告但不阻止安装
+- TCP 和 UDP 端口可以相同（不同协议）
+
+### 0.4 环境变量声明
+
+声明应用需要的环境变量：
+
+```javascript
+resources: {
+    env_vars: [
+        {
+            name: "MYAPP_HOME",       // 环境变量名
+            description: "应用安装目录",
+            default: "C:\\MyApp",     // 默认值
+            required: true            // 是否必需
+        }
+    ],
+}
+```
+
+**字段说明：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 是 | 环境变量名 |
+| `description` | string | 否 | 用途说明 |
+| `default` | string | 否 | 默认值 |
+| `required` | boolean | 否 | 是否必需，默认 `true` |
+
+**冲突检测规则：**
+
+- 相同名称的环境变量会检测冲突
+- 提供 `default` 值的环境变量通常不视为冲突
+
+### 0.5 注册表项声明（Windows）
+
+声明应用需要使用的注册表项：
+
+```javascript
+resources: {
+    registry_keys: [
+        {
+            path: "HKLM\\SOFTWARE\\MyApp",  // 注册表路径
+            description: "应用配置项",
+            required: false                 // 是否必需
+        }
+    ],
+}
+```
+
+**字段说明：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `path` | string | 是 | 注册表路径 |
+| `description` | string | 否 | 用途说明 |
+| `required` | boolean | 否 | 是否必需，默认 `true` |
+
+**支持的根键：**
+
+- `HKCR` - HKEY_CLASSES_ROOT
+- `HKCU` - HKEY_CURRENT_USER
+- `HKLM` - HKEY_LOCAL_MACHINE
+- `HKU` - HKEY_USERS
+- `HKCC` - HKEY_CURRENT_CONFIG
+
+**冲突检测规则：**
+
+- 相同的注册表路径会检测冲突
+- 父子路径关系会发出警告
+
+### 0.6 完整示例
+
+```javascript
+/** @type {import('./_chopsticks_')} */
+
+class MyWebApp extends App {
+    constructor() {
+        super({
+            name: "mywebapp",
+            description: "My Web Application",
+            homepage: "https://example.com",
+            license: "MIT",
+            bucket: "my-bucket",
+            resources: {
+                // 端口资源
+                ports: [
+                    {
+                        port: 3000,
+                        protocol: "tcp",
+                        description: "HTTP 服务端口",
+                        required: true
+                    },
+                    {
+                        port: 3001,
+                        protocol: "tcp",
+                        description: "HTTPS 服务端口",
+                        required: false
+                    }
+                ],
+                
+                // 环境变量
+                env_vars: [
+                    {
+                        name: "MYWEBAPP_HOME",
+                        description: "应用安装目录",
+                        required: true
+                    },
+                    {
+                        name: "MYWEBAPP_PORT",
+                        default: "3000",
+                        description: "服务监听端口",
+                        required: false
+                    }
+                ],
+                
+                // 注册表项（仅 Windows）
+                registry_keys: [
+                    {
+                        path: "HKLM\\SOFTWARE\\MyWebApp",
+                        description: "应用配置项",
+                        required: false
+                    },
+                    {
+                        path: "HKCU\\Software\\MyWebApp\\Settings",
+                        description: "用户设置",
+                        required: false
+                    }
+                ]
+            },
+        });
+    }
+
+    checkVersion() {
+        const response = fetch.get(
+            "https://api.github.com/repos/owner/mywebapp/releases/latest"
+        );
+        const data = JSON.parse(response.body);
+        return data.tag_name.replace(/^v/, "");
+    }
+
+    getDownloadInfo(version, arch) {
+        return {
+            url: `https://example.com/mywebapp-${version}.zip`,
+            type: "zip",
+        };
+    }
+}
+
+module.exports = new MyWebApp();
+```
+
+### 0.7 冲突检测行为
+
+当检测到资源冲突时，系统会根据情况采取不同行为：
+
+**端口冲突：**
+
+- `required: true`：阻止安装，显示错误信息
+- `required: false`：显示警告，继续安装
+
+**环境变量冲突：**
+
+- 无 `default` 值：显示警告
+- 有 `default` 值：使用默认值，不显示警告
+
+**注册表冲突：**
+
+- `required: true`：阻止安装，显示错误信息
+- `required: false`：显示警告，继续安装
+
+### 0.8 最佳实践
+
+1. **声明所有必需资源**：在 `resources` 中声明所有应用需要的资源
+2. **设置合理的 required**：非关键资源设置为 `required: false`
+3. **提供默认值**：为环境变量提供合理的 `default` 值
+4. **编写清晰的描述**：使用 `description` 说明资源用途
 
 ---
 
@@ -3301,6 +3542,6 @@ log.info("操作成功: " + result.someData);
 
 ---
 
-_最后更新：2026-03-01_
+_最后更新：2026-03-07_
 _版本：v0.10.0-alpha_
 
