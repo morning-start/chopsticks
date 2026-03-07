@@ -155,9 +155,6 @@ func runBucketInit(cmd *cobra.Command, args []string) error {
 	output.SuccessCheckf("Bucket %s initialized", name)
 	output.Highlightln("\nNext steps:")
 	output.Dimf("  cd %s\n", targetDir)
-	if templateType != "lua" {
-		output.Dimln("  npm install")
-	}
 	output.Dimln("  chopsticks bucket create my-app")
 	return nil
 }

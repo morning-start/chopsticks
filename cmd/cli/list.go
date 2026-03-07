@@ -36,7 +36,8 @@ func runList(cmd *cobra.Command, args []string) error {
 		output.Highlightln("已安装的软件包:")
 		output.Dimln("--------------")
 
-		apps, err := application.AppManager().ListInstalled()
+		ctx := cmd.Context()
+		apps, err := application.AppManager().ListInstalled(ctx)
 		if err != nil {
 			output.ErrorCrossf("获取已安装列表失败：%v", err)
 			return fmt.Errorf("获取已安装软件包列表失败：%w", err)

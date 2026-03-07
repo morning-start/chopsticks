@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"chopsticks/cmd/cli"
-	coreapp "chopsticks/core/app"
+	"chopsticks/core/app"
 	"chopsticks/pkg/config"
 	"chopsticks/pkg/output"
 )
@@ -50,7 +50,7 @@ func run() error {
 	}
 
 	// 使用 pkg/config 配置直接创建应用
-	application, err := coreapp.New(userCfg)
+	application, err := app.New(userCfg)
 	if err != nil {
 		return fmt.Errorf("failed to create application: %w", err)
 	}
