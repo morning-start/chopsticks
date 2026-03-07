@@ -209,7 +209,7 @@ func TestManagerListInstalled(t *testing.T) {
 		t.Fatalf("Failed to create buckets dir: %v", err)
 	}
 	bucketMgr := bucket.NewManager(adapter, nil, bucketsDir, nil)
-	
+
 	mgr := NewManager(bucketMgr, adapter, nil, nil, tmpDir)
 
 	apps, err := mgr.ListInstalled()

@@ -21,11 +21,11 @@ func createTestManager(t *testing.T) (store.Storage, store.LegacyStorage, AppMan
 	storage, err := store.NewFSStorage(storageDir)
 	require.NoError(t, err)
 	adapter := store.NewStorageAdapter(storage, tmpDir)
-	
+
 	bucketsDir := filepath.Join(tmpDir, "buckets")
 	require.NoError(t, os.MkdirAll(bucketsDir, 0755))
 	bucketMgr := bucket.NewManager(adapter, nil, bucketsDir, nil)
-	
+
 	mgr := NewManager(bucketMgr, adapter, nil, nil, tmpDir)
 	return storage, adapter, mgr, tmpDir
 }

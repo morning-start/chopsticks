@@ -74,6 +74,20 @@ var _ AppManager = (*manager)(nil)
 
 // NewManager 创建应用管理器
 func NewManager(bucketMgr bucket.BucketManager, storage store.LegacyStorage, installer Installer, config interface{}, installDir string) AppManager {
+	// 输入验证
+	if bucketMgr == nil {
+		panic("bucket manager cannot be nil")
+	}
+	if storage == nil {
+		panic("storage cannot be nil")
+	}
+	if installer == nil {
+		panic("installer cannot be nil")
+	}
+	if installDir == "" {
+		panic("install directory cannot be empty")
+	}
+
 	// 创建依赖管理器
 	depMgr, err := dep.NewDependencyManager(bucketMgr, storage, installDir)
 	if err != nil {

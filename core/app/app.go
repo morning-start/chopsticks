@@ -44,6 +44,14 @@ type app struct {
 }
 
 func New(cfg *config.Config) (*app, error) {
+	// 输入验证
+	if cfg == nil {
+		return nil, fmt.Errorf("config cannot be nil")
+	}
+	if cfg.RootDir == "" {
+		return nil, fmt.Errorf("config.RootDir cannot be empty")
+	}
+
 	a := &app{
 		config: cfg,
 	}

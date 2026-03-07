@@ -64,9 +64,9 @@ func TestBucketConfig_UnmarshalJSON(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "空的 JSON 对象",
-			json: `{}`,
-			want: BucketConfig{},
+			name:    "空的 JSON 对象",
+			json:    `{}`,
+			want:    BucketConfig{},
 			wantErr: false,
 		},
 	}

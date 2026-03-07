@@ -152,7 +152,7 @@ func (li *LazyIndex) Reload(ctx context.Context) error {
 
 	index, err := li.loader.LoadIndex(ctx, li.indexPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("懒加载索引 [%s] 失败：%w", li.indexPath, err)
 	}
 
 	li.cache.Set("index", index)
@@ -196,11 +196,11 @@ type BatchReader struct {
 
 // BatchReadResult 批量读取结果
 type BatchReadResult struct {
-	Items     []interface{}
-	Errors    map[string]error
-	CacheHits int
+	Items       []interface{}
+	Errors      map[string]error
+	CacheHits   int
 	CacheMisses int
-	Duration  time.Duration
+	Duration    time.Duration
 }
 
 // NewBatchReader 创建批量读取器
@@ -338,10 +338,10 @@ func (br *BatchReader) Close() {
 
 // Prefetcher 预取器
 type Prefetcher struct {
-	cache     *Cache
-	storage   store.Storage
+	cache      *Cache
+	storage    store.Storage
 	prefetchWg sync.WaitGroup
-	stopChan  chan struct{}
+	stopChan   chan struct{}
 }
 
 // NewPrefetcher 创建预取器
@@ -456,12 +456,12 @@ func parseJSON(data []byte, v interface{}) error {
 
 // LazyAppList 懒加载应用列表
 type LazyAppList struct {
-	appsDir   string
-	mu        sync.RWMutex
-	apps      map[string]*AppEntry
-	loaded    bool
-	loadTime  time.Time
-	cache     *Cache
+	appsDir  string
+	mu       sync.RWMutex
+	apps     map[string]*AppEntry
+	loaded   bool
+	loadTime time.Time
+	cache    *Cache
 }
 
 // AppEntry 应用条目
@@ -586,7 +586,7 @@ func (lal *LazyAppList) scanAppsLocked() error {
 			lal.loadTime = time.Now()
 			return nil
 		}
-		return err
+		return fmt.Errorf("扫描应用目录 [%s] 失败：%w", lal.appsDir, err)
 	}
 
 	newApps := make(map[string]*AppEntry)

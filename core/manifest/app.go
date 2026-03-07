@@ -13,15 +13,15 @@ type App struct {
 
 // AppScript 定义脚本信息（不变部分）。
 type AppScript struct {
-	Name         string            // 软件名称
-	Description  string            // 描述
-	Homepage     string            // 主页 URL
-	License      string            // 许可证
-	Category     string            // 分类
-	Tags         []string          // 标签
-	Maintainer   string            // 维护者
-	Bucket       string            // 所属软件源
-	Dependencies []Dependency      // 依赖列表（扁平结构，向后兼容）
+	Name         string       // 软件名称
+	Description  string       // 描述
+	Homepage     string       // 主页 URL
+	License      string       // 许可证
+	Category     string       // 分类
+	Tags         []string     // 标签
+	Maintainer   string       // 维护者
+	Bucket       string       // 所属软件源
+	Dependencies []Dependency // 依赖列表（扁平结构，向后兼容）
 }
 
 // Dependency 表示应用依赖
@@ -34,10 +34,10 @@ type Dependency struct {
 
 // Dependencies 表示完整的依赖声明
 type Dependencies struct {
-	Runtime    []Dependency // 运行时库（全局共享，引用计数）
-	Tools      []Dependency // 工具软件（全局共享，检查 installed_on_request）
-	Libraries  []Dependency // 库文件（不共享，随主软件卸载）
-	Conflicts  []string     // 冲突软件（不允许同时存在）
+	Runtime   []Dependency // 运行时库（全局共享，引用计数）
+	Tools     []Dependency // 工具软件（全局共享，检查 installed_on_request）
+	Libraries []Dependency // 库文件（不共享，随主软件卸载）
+	Conflicts []string     // 冲突软件（不允许同时存在）
 }
 
 // AppMeta 定义元数据（动态部分）。

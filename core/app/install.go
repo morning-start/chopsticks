@@ -70,6 +70,17 @@ type installer struct {
 var _ Installer = (*installer)(nil)
 
 func NewInstaller(storage store.LegacyStorage, config interface{}, jsEngine *engine.JSEngine, installBase string) Installer {
+	// 输入验证
+	if storage == nil {
+		panic("storage cannot be nil")
+	}
+	if jsEngine == nil {
+		panic("js engine cannot be nil")
+	}
+	if installBase == "" {
+		panic("install base directory cannot be empty")
+	}
+
 	return &installer{
 		storage:     storage,
 		config:      config,

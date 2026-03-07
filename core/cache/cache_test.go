@@ -51,9 +51,9 @@ func TestLRUCache_Basic(t *testing.T) {
 
 func TestLRUCache_TTL(t *testing.T) {
 	config := CacheConfig{
-		MaxSize:        1024 * 1024,
-		MaxEntries:     100,
-		TTL:            100 * time.Millisecond,
+		MaxSize:         1024 * 1024,
+		MaxEntries:      100,
+		TTL:             100 * time.Millisecond,
 		CleanupInterval: 50 * time.Millisecond,
 	}
 
@@ -128,7 +128,7 @@ func TestLRUCache_Concurrent(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			for j := 0; j < opsPerGoroutine; j++ {
-				key := string(rune('a' + id%26)) + string(rune('0' + j%10))
+				key := string(rune('a'+id%26)) + string(rune('0'+j%10))
 				value := id*1000 + j
 
 				cache.Set(key, value)
@@ -164,11 +164,11 @@ func TestAppCacheManager(t *testing.T) {
 
 	// 创建测试应用
 	app := &store.AppManifest{
-		Name:             "test-app",
-		Bucket:           "main",
-		CurrentVersion:   "1.0.0",
+		Name:              "test-app",
+		Bucket:            "main",
+		CurrentVersion:    "1.0.0",
 		InstalledVersions: []string{"1.0.0"},
-		InstalledAt:      time.Now(),
+		InstalledAt:       time.Now(),
 	}
 
 	// 保存应用
@@ -248,10 +248,10 @@ func TestBatchReader(t *testing.T) {
 	// 创建测试数据
 	for i := 0; i < 5; i++ {
 		app := &store.AppManifest{
-			Name:            string(rune('a' + i)),
-			Bucket:          "main",
-			CurrentVersion:  "1.0.0",
-			InstalledAt:     time.Now(),
+			Name:           string(rune('a' + i)),
+			Bucket:         "main",
+			CurrentVersion: "1.0.0",
+			InstalledAt:    time.Now(),
 		}
 		storage.SaveApp(ctx, app)
 	}

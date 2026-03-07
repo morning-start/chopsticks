@@ -23,15 +23,15 @@ import (
 
 // PerformanceAnalyzer 性能分析器
 type PerformanceAnalyzer struct {
-	mu          sync.RWMutex
-	cacheStats  []CacheStats
-	ioStats     []IOStats
-	samples     []PerformanceSample
-	maxSamples  int
-	sampleRate  time.Duration
-	stopChan    chan struct{}
-	doneChan    chan struct{}
-	running     bool
+	mu         sync.RWMutex
+	cacheStats []CacheStats
+	ioStats    []IOStats
+	samples    []PerformanceSample
+	maxSamples int
+	sampleRate time.Duration
+	stopChan   chan struct{}
+	doneChan   chan struct{}
+	running    bool
 }
 
 // PerformanceSample 性能样本
@@ -44,21 +44,21 @@ type PerformanceSample struct {
 
 // IOStats IO 统计
 type IOStats struct {
-	ReadOps      int64         // 读取操作数
-	WriteOps     int64         // 写入操作数
-	ReadBytes    int64         // 读取字节数
-	WriteBytes   int64         // 写入字节数
-	ReadDuration time.Duration // 读取耗时
+	ReadOps       int64         // 读取操作数
+	WriteOps      int64         // 写入操作数
+	ReadBytes     int64         // 读取字节数
+	WriteBytes    int64         // 写入字节数
+	ReadDuration  time.Duration // 读取耗时
 	WriteDuration time.Duration // 写入耗时
-	BatchReads   int64         // 批量读取次数
-	Prefetches   int64         // 预取次数
+	BatchReads    int64         // 批量读取次数
+	Prefetches    int64         // 预取次数
 }
 
 // MemoryStats 内存统计
 type MemoryStats struct {
-	Alloc    uint64 // 已分配内存
-	Sys      uint64 // 系统内存
-	GCCount  uint32 // GC 次数
+	Alloc   uint64 // 已分配内存
+	Sys     uint64 // 系统内存
+	GCCount uint32 // GC 次数
 }
 
 // NewPerformanceAnalyzer 创建性能分析器
@@ -146,13 +146,13 @@ func (pa *PerformanceAnalyzer) collectSample() {
 func (pa *PerformanceAnalyzer) getCacheStats() CacheStats {
 	m := metrics.GetMetrics()
 	return CacheStats{
-		Hits:       int64(m.AppCacheSize),
-		Misses:     0,
-		Size:       0,
-		MaxSize:    0,
-		HitRate:    m.AppCacheHitRate,
-		Entries:    m.AppCacheSize,
-		Evictions:  m.CacheEvictions,
+		Hits:      int64(m.AppCacheSize),
+		Misses:    0,
+		Size:      0,
+		MaxSize:   0,
+		HitRate:   m.AppCacheHitRate,
+		Entries:   m.AppCacheSize,
+		Evictions: m.CacheEvictions,
 	}
 }
 
@@ -310,8 +310,8 @@ func (pa *PerformanceAnalyzer) analyzeTrends(w io.Writer) {
 
 // IOTracker IO 追踪器
 type IOTracker struct {
-	mu           sync.RWMutex
-	operations   []IOOperation
+	mu            sync.RWMutex
+	operations    []IOOperation
 	maxOperations int
 }
 

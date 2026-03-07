@@ -36,59 +36,59 @@ const (
 type CacheEntry struct {
 	Key       string
 	Value     interface{}
-	Size      int64       // 缓存条目大小 (字节)
-	CreatedAt time.Time   // 创建时间
-	ExpiresAt time.Time   // 过期时间
-	AccessAt  time.Time   // 最后访问时间
-	HitCount  int64       // 命中次数
+	Size      int64         // 缓存条目大小 (字节)
+	CreatedAt time.Time     // 创建时间
+	ExpiresAt time.Time     // 过期时间
+	AccessAt  time.Time     // 最后访问时间
+	HitCount  int64         // 命中次数
 	Element   *list.Element // LRU 列表元素
 }
 
 // CacheStats 缓存统计信息
 type CacheStats struct {
-	Hits        int64     `json:"hits"`         // 命中次数
-	Misses      int64     `json:"misses"`       // 未命中次数
-	Evictions   int64     `json:"evictions"`    // 淘汰次数
-	Size        int64     `json:"size"`         // 当前缓存大小
-	Entries     int       `json:"entries"`      // 当前条目数
-	MaxSize     int64     `json:"max_size"`     // 最大缓存大小
-	MaxEntries  int       `json:"max_entries"`  // 最大条目数
-	HitRate     float64   `json:"hit_rate"`     // 命中率
-	AvgAccessAt time.Time `json:"avg_access"`   // 平均访问时间
+	Hits        int64     `json:"hits"`        // 命中次数
+	Misses      int64     `json:"misses"`      // 未命中次数
+	Evictions   int64     `json:"evictions"`   // 淘汰次数
+	Size        int64     `json:"size"`        // 当前缓存大小
+	Entries     int       `json:"entries"`     // 当前条目数
+	MaxSize     int64     `json:"max_size"`    // 最大缓存大小
+	MaxEntries  int       `json:"max_entries"` // 最大条目数
+	HitRate     float64   `json:"hit_rate"`    // 命中率
+	AvgAccessAt time.Time `json:"avg_access"`  // 平均访问时间
 }
 
 // CacheConfig 缓存配置
 type CacheConfig struct {
-	MaxSize        int64         `json:"max_size"`        // 最大缓存大小 (字节)
-	MaxEntries     int           `json:"max_entries"`     // 最大条目数
-	TTL            time.Duration `json:"ttl"`             // 默认 TTL
+	MaxSize         int64         `json:"max_size"`         // 最大缓存大小 (字节)
+	MaxEntries      int           `json:"max_entries"`      // 最大条目数
+	TTL             time.Duration `json:"ttl"`              // 默认 TTL
 	CleanupInterval time.Duration `json:"cleanup_interval"` // 清理间隔
 }
 
 // DefaultCacheConfig 返回默认缓存配置
 func DefaultCacheConfig() CacheConfig {
 	return CacheConfig{
-		MaxSize:        DefaultMaxCacheSize,
-		MaxEntries:     DefaultMaxCacheEntries,
-		TTL:            DefaultCacheTTL,
+		MaxSize:         DefaultMaxCacheSize,
+		MaxEntries:      DefaultMaxCacheEntries,
+		TTL:             DefaultCacheTTL,
 		CleanupInterval: DefaultCleanupInterval,
 	}
 }
 
 // Cache LRU 缓存实现
 type Cache struct {
-	mu           sync.RWMutex
-	entries      map[string]*CacheEntry
-	lruList      *list.List
-	config       CacheConfig
-	currentSize  int64
-	hits         int64
-	misses       int64
-	evictions    int64
-	cleanupStop  chan struct{}
-	cleanupDone  chan struct{}
-	closed       bool
-	valueSizer   ValueSizer // 可选的值大小计算器
+	mu          sync.RWMutex
+	entries     map[string]*CacheEntry
+	lruList     *list.List
+	config      CacheConfig
+	currentSize int64
+	hits        int64
+	misses      int64
+	evictions   int64
+	cleanupStop chan struct{}
+	cleanupDone chan struct{}
+	closed      bool
+	valueSizer  ValueSizer // 可选的值大小计算器
 }
 
 // ValueSizer 计算值大小的接口
@@ -462,7 +462,7 @@ func (m *AppCacheManager) SaveApp(ctx context.Context, app *store.AppManifest) e
 
 	// 保存到存储
 	if err := m.storage.SaveApp(ctx, app); err != nil {
-		return err
+		return fmt.Errorf("保存应用 [%s] 到存储失败：%w", app.Name, err)
 	}
 
 	// 更新缓存
@@ -476,7 +476,7 @@ func (m *AppCacheManager) DeleteApp(ctx context.Context, name string) error {
 
 	// 从存储删除
 	if err := m.storage.DeleteApp(ctx, name); err != nil {
-		return err
+		return fmt.Errorf("从存储删除应用 [%s] 失败：%w", name, err)
 	}
 
 	// 清除缓存
@@ -538,8 +538,8 @@ func (m *AppCacheManager) Close() {
 // GetStats 获取所有缓存统计
 func (m *AppCacheManager) GetStats() map[string]CacheStats {
 	return map[string]CacheStats{
-		"app":     m.cache.Stats(),
-		"bucket":  m.bucketCache.Stats(),
-		"index":   m.indexCache.Stats(),
+		"app":    m.cache.Stats(),
+		"bucket": m.bucketCache.Stats(),
+		"index":  m.indexCache.Stats(),
 	}
 }

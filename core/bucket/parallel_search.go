@@ -65,7 +65,6 @@ func (s *ParallelSearcher) SearchAllBuckets(
 
 	// 并行搜索每个 bucket
 	for _, bucketName := range buckets {
-		bucketName := bucketName // 捕获循环变量
 		g.Go(func() error {
 			bucketOpts := SearchOptions{
 				Bucket:   bucketName,
