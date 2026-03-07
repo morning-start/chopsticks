@@ -31,24 +31,30 @@ const (
 	DefaultFilePerm = 0644
 )
 
-// InstallOptions 安装选项 - 字段按大小从大到小排列
+// InstallOptions 安装选项
 type InstallOptions struct {
-	InstallDir string  // 16 bytes (string header)
-	Arch       string  // 16 bytes (string header)
-	Force      bool    // 1 byte
-	Isolate    bool    // 1 byte
-	NoDeps     bool    // 1 byte
-	_          [7]byte // padding for alignment
+	// InstallDir 指定安装目录
+	InstallDir string
+	// Arch 指定目标架构
+	Arch string
+	// Force 是否强制安装
+	Force bool
+	// Isolate 是否隔离安装
+	Isolate bool
+	// NoDeps 是否跳过依赖安装
+	NoDeps bool
 }
 
 // UninstallOptions 卸载选项
 type UninstallOptions struct {
-	Purge bool // 1 byte
+	// Purge 是否完全删除应用数据和配置
+	Purge bool
 }
 
 // RefreshOptions 刷新选项
 type RefreshOptions struct {
-	Force bool // 1 byte
+	// Force 是否强制刷新
+	Force bool
 }
 
 type Installer interface {
@@ -58,27 +64,27 @@ type Installer interface {
 	Switch(ctx context.Context, name, version string) error
 }
 
-// installer 安装器 - 字段按大小从大到小排列
+// installer 安装器
 type installer struct {
-	jsEngine    *engine.JSEngine    // 8 bytes
-	storage     store.LegacyStorage // 16 bytes (interface)
-	config      interface{}         // 16 bytes (interface)
-	downloadDir string              // 16 bytes (string header)
-	installBase string              // 16 bytes (string header)
+	jsEngine    *engine.JSEngine
+	storage     store.LegacyStorage
+	config      interface{}
+	downloadDir string
+	installBase string
 }
 
 var _ Installer = (*installer)(nil)
 
-func NewInstaller(storage store.LegacyStorage, config interface{}, jsEngine *engine.JSEngine, installBase string) Installer {
+func NewInstaller(storage store.LegacyStorage, config interface{}, jsEngine *engine.JSEngine, installBase string) (Installer, error) {
 	// 输入验证
 	if storage == nil {
-		panic("storage cannot be nil")
+		return nil, errors.Newf(errors.KindInvalidInput, "storage cannot be nil")
 	}
 	if jsEngine == nil {
-		panic("js engine cannot be nil")
+		return nil, errors.Newf(errors.KindInvalidInput, "js engine cannot be nil")
 	}
 	if installBase == "" {
-		panic("install base directory cannot be empty")
+		return nil, errors.Newf(errors.KindInvalidInput, "install base directory cannot be empty")
 	}
 
 	return &installer{
@@ -87,7 +93,7 @@ func NewInstaller(storage store.LegacyStorage, config interface{}, jsEngine *eng
 		jsEngine:    jsEngine,
 		installBase: installBase,
 		downloadDir: filepath.Join(installBase, "tmp"),
-	}
+	}, nil
 }
 
 func (i *installer) Install(ctx context.Context, app *manifest.App, opts InstallOptions) error {
@@ -154,18 +160,18 @@ func (i *installer) Install(ctx context.Context, app *manifest.App, opts Install
 
 	downloadInfo, err := i.getDownloadInfo(app, version, arch)
 	if err != nil {
-		return errors.Wrap(err, "get download info")
+		return errors.Wrapf(err, "get download info for %s %s/%s", appName, version, arch)
 	}
 
 	downloadedPath, err := i.downloadPackage(ctx, downloadInfo)
 	if err != nil {
-		return errors.Wrap(err, "download package")
+		return errors.Wrapf(err, "download package for %s", appName)
 	}
 	defer os.Remove(downloadedPath)
 
 	if downloadInfo.Hash != "" {
 		if err := i.verifyChecksum(downloadedPath, downloadInfo.Hash); err != nil {
-			return errors.Wrap(err, "verify checksum")
+			return errors.Wrapf(err, "verify checksum for %s", appName)
 		}
 	}
 
@@ -175,7 +181,7 @@ func (i *installer) Install(ctx context.Context, app *manifest.App, opts Install
 	}
 
 	if err := i.extractPackage(downloadedPath, extractDir); err != nil {
-		return errors.Wrap(err, "extract package")
+		return errors.Wrapf(err, "extract package for %s", appName)
 	}
 
 	hookEnv := i.buildHookEnv(appName, version, extractDir, downloadedPath)
@@ -202,7 +208,7 @@ func (i *installer) Install(ctx context.Context, app *manifest.App, opts Install
 	}
 
 	if err := i.storage.SaveInstalledApp(ctx, installedApp); err != nil {
-		return errors.Wrap(err, "save install record")
+		return errors.Wrapf(err, "save install record for %s", appName)
 	}
 
 	fmt.Printf("✓ %s (%s) installed successfully\n", appName, version)
@@ -270,7 +276,7 @@ func (i *installer) verifyChecksum(filePath, expectedHash string) error {
 
 	ok, err := calc.Verify(filePath, hash)
 	if err != nil {
-		return errors.Wrap(err, "checksum verification")
+		return errors.Wrapf(err, "checksum verification for %s", filepath.Base(filePath))
 	}
 	if !ok {
 		return errors.NewChecksumMismatch(hash, "")
@@ -337,7 +343,7 @@ func (i *installer) executeScript(_ context.Context, app *manifest.App, hookName
 	}
 
 	if err := i.jsEngine.LoadFile(scriptPath); err != nil {
-		return errors.Wrap(err, "load script file")
+		return errors.Wrapf(err, "load script file %s", scriptPath)
 	}
 
 	ctxMap := make(map[string]interface{})
@@ -415,7 +421,7 @@ func (i *installer) Uninstall(ctx context.Context, name string, opts UninstallOp
 	}
 
 	if err := i.storage.DeleteInstalledApp(ctx, name); err != nil {
-		return errors.Wrap(err, "delete install record")
+		return errors.Wrapf(err, "delete install record for %s", name)
 	}
 
 	fmt.Printf("✓ %s uninstalled successfully\n", name)
@@ -479,7 +485,7 @@ func (i *installer) Refresh(ctx context.Context, app *manifest.App, installed *m
 	}
 
 	if err := os.Rename(installed.InstallDir, backupDir); err != nil {
-		return errors.Wrap(err, "backup current version")
+		return errors.Wrapf(err, "backup current version for %s", app.Script.Name)
 	}
 
 	err := i.Install(ctx, app, InstallOptions{
@@ -516,12 +522,12 @@ func (i *installer) Switch(ctx context.Context, name, version string) error {
 	backupDir := filepath.Join(installed.InstallDir, currentVersion+".old")
 
 	if err := os.Rename(currentVersionDir, backupDir); err != nil {
-		return errors.Wrap(err, "backup current version")
+		return errors.Wrapf(err, "backup current version for %s", name)
 	}
 
 	if err := os.Rename(newVersionDir, currentVersionDir); err != nil {
 		os.Rename(backupDir, currentVersionDir)
-		return errors.Wrap(err, "switch version")
+		return errors.Wrapf(err, "switch version for %s from %s to %s", name, currentVersion, version)
 	}
 
 	os.RemoveAll(backupDir)
@@ -529,7 +535,7 @@ func (i *installer) Switch(ctx context.Context, name, version string) error {
 	installed.Version = version
 	installed.UpdatedAt = time.Now()
 	if err := i.storage.SaveInstalledApp(ctx, installed); err != nil {
-		return errors.Wrap(err, "save version switch")
+		return errors.Wrapf(err, "save version switch for %s", name)
 	}
 
 	fmt.Printf("✓ %s switched to version %s\n", name, version)

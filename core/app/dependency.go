@@ -139,7 +139,7 @@ func (r *DependencyResolver) resolveDependencies(
 			if dep.Optional {
 				continue // Optional dependency, skip if not found
 			}
-			return errors.Wrapf(err, "dependency not found: %s", dep.Name)
+			return errors.Wrapf(err, "find dependency app %q", dep.Name)
 		}
 
 		// Check version constraint
@@ -168,7 +168,7 @@ func (r *DependencyResolver) resolveDependencies(
 			// If exists, check if versions are compatible
 			if existing.Version != depApp.Meta.Version {
 				// Version conflict, try to resolve
-				if err := r.resolveVersionConflict(existing, node); err != nil {
+				if err := r.resolveVersionConflict(ctx, existing, node); err != nil {
 					return err
 				}
 			}
@@ -307,12 +307,12 @@ func compareVersions(v1, v2 string) int {
 }
 
 // resolveVersionConflict 解决版本冲突
-func (r *DependencyResolver) resolveVersionConflict(existing, new *DependencyNode) error {
+func (r *DependencyResolver) resolveVersionConflict(ctx context.Context, existing, new *DependencyNode) error {
 	// Simple strategy: choose newer version
 	// TODO: Implement more complex version conflict resolution strategy
 
 	// If existing version is installed, prefer keeping it
-	if r.isAppInstalled(existing.App.Script.Name) {
+	if r.isAppInstalled(ctx, existing.App.Script.Name) {
 		return nil
 	}
 
@@ -327,8 +327,8 @@ func (r *DependencyResolver) resolveVersionConflict(existing, new *DependencyNod
 }
 
 // isAppInstalled 检查应用是否已安装
-func (r *DependencyResolver) isAppInstalled(name string) bool {
-	_, err := r.storage.GetInstalledApp(context.Background(), name)
+func (r *DependencyResolver) isAppInstalled(ctx context.Context, name string) bool {
+	_, err := r.storage.GetInstalledApp(ctx, name)
 	return err == nil
 }
 

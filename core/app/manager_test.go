@@ -9,10 +9,30 @@ import (
 	"chopsticks/core/bucket"
 	"chopsticks/core/manifest"
 	"chopsticks/core/store"
+	"chopsticks/pkg/config"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// simpleMockInstallerForTest 简单的 mock installer 用于测试
+type simpleMockInstallerForTest struct{}
+
+func (m *simpleMockInstallerForTest) Install(ctx context.Context, app *manifest.App, opts InstallOptions) error {
+	return nil
+}
+
+func (m *simpleMockInstallerForTest) Uninstall(ctx context.Context, name string, opts UninstallOptions) error {
+	return nil
+}
+
+func (m *simpleMockInstallerForTest) Refresh(ctx context.Context, app *manifest.App, installed *manifest.InstalledApp, opts RefreshOptions) error {
+	return nil
+}
+
+func (m *simpleMockInstallerForTest) Switch(ctx context.Context, name, version string) error {
+	return nil
+}
 
 // createTestManager 创建测试管理器
 func createTestManager(t *testing.T) (store.Storage, store.LegacyStorage, AppManager, string) {
@@ -26,7 +46,11 @@ func createTestManager(t *testing.T) (store.Storage, store.LegacyStorage, AppMan
 	require.NoError(t, os.MkdirAll(bucketsDir, 0755))
 	bucketMgr := bucket.NewManager(adapter, nil, bucketsDir, nil)
 
-	mgr := NewManager(bucketMgr, adapter, nil, nil, tmpDir)
+	// 创建 mock installer
+	mockInstaller := &simpleMockInstallerForTest{}
+
+	mgr, err := NewManager(bucketMgr, adapter, mockInstaller, &config.Config{}, tmpDir)
+	require.NoError(t, err)
 	return storage, adapter, mgr, tmpDir
 }
 
@@ -51,13 +75,13 @@ func TestManager_ListInstalled(t *testing.T) {
 	defer storage.Close()
 
 	// 测试空列表
-	apps, err := mgr.ListInstalled()
+	ctx := context.Background()
+	apps, err := mgr.ListInstalled(ctx)
 	require.NoError(t, err)
 	assert.Empty(t, apps)
 	assert.NotNil(t, apps)
 
 	// 添加已安装应用
-	ctx := context.Background()
 	app := &manifest.InstalledApp{
 		Name:       "test-app",
 		Version:    "1.0.0",
@@ -68,7 +92,7 @@ func TestManager_ListInstalled(t *testing.T) {
 	require.NoError(t, err)
 
 	// 再次测试
-	apps, err = mgr.ListInstalled()
+	apps, err = mgr.ListInstalled(ctx)
 	require.NoError(t, err)
 	assert.Len(t, apps, 1)
 	assert.Equal(t, "test-app", apps[0].Name)

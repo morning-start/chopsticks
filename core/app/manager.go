@@ -15,6 +15,7 @@ import (
 	"chopsticks/core/dep"
 	"chopsticks/core/manifest"
 	"chopsticks/core/store"
+	"chopsticks/pkg/config"
 	"chopsticks/pkg/errors"
 )
 
@@ -32,66 +33,76 @@ type AppManager interface {
 	Update(ctx context.Context, name string, opts UpdateOptions) error
 	UpdateAll(ctx context.Context, opts UpdateOptions) error
 	Switch(ctx context.Context, name, version string) error
-	ListInstalled() ([]*manifest.InstalledApp, error)
+	ListInstalled(ctx context.Context) ([]*manifest.InstalledApp, error)
 	Info(ctx context.Context, bucket, name string) (*manifest.AppInfo, error)
 	Search(ctx context.Context, query string, bucket string) ([]SearchResult, error)
 }
 
 // InstallSpec 安装规格
 type InstallSpec struct {
-	Bucket  string
-	Name    string
+	// Bucket 指定软件源名称
+	Bucket string
+	// Name 指定应用名称
+	Name string
+	// Version 指定应用版本
 	Version string
 }
 
 // RemoveOptions 移除选项
 type RemoveOptions struct {
+	// Purge 是否完全删除应用数据和配置
 	Purge bool
 }
 
-// UpdateOptions 更新选项 - 字段已优化
+// UpdateOptions 更新选项
 type UpdateOptions struct {
+	// Force 是否强制更新
 	Force bool
 }
 
 // SearchResult 搜索结果
 type SearchResult struct {
+	// Bucket 软件源名称
 	Bucket string
-	App    *manifest.AppRef
+	// App 应用引用信息
+	App *manifest.AppRef
 }
 
-// manager 管理器 - 字段按大小从大到小排列
+// manager 管理器
 type manager struct {
-	bucketMgr  bucket.BucketManager // 16 bytes (interface)
-	storage    store.LegacyStorage  // 16 bytes (interface)
-	installer  Installer            // 16 bytes (interface)
-	depMgr     dep.Manager          // 16 bytes (interface)
-	config     interface{}          // 16 bytes (interface)
-	installDir string               // 16 bytes (string header)
+	bucketMgr  bucket.BucketManager
+	storage    store.LegacyStorage
+	installer  Installer
+	depMgr     dep.Manager
+	config     *config.Config
+	installDir string
 }
 
 var _ AppManager = (*manager)(nil)
 
 // NewManager 创建应用管理器
-func NewManager(bucketMgr bucket.BucketManager, storage store.LegacyStorage, installer Installer, config interface{}, installDir string) AppManager {
+func NewManager(bucketMgr bucket.BucketManager, storage store.LegacyStorage, installer Installer, cfg *config.Config, installDir string) (AppManager, error) {
 	// 输入验证
 	if bucketMgr == nil {
-		panic("bucket manager cannot be nil")
+		return nil, errors.Newf(errors.KindInvalidInput, "bucket manager cannot be nil")
 	}
 	if storage == nil {
-		panic("storage cannot be nil")
+		return nil, errors.Newf(errors.KindInvalidInput, "storage cannot be nil")
 	}
 	if installer == nil {
-		panic("installer cannot be nil")
+		return nil, errors.Newf(errors.KindInvalidInput, "installer cannot be nil")
+	}
+	if cfg == nil {
+		return nil, errors.Newf(errors.KindInvalidInput, "config cannot be nil")
 	}
 	if installDir == "" {
-		panic("install directory cannot be empty")
+		return nil, errors.Newf(errors.KindInvalidInput, "install directory cannot be empty")
 	}
 
 	// 创建依赖管理器
 	depMgr, err := dep.NewDependencyManager(bucketMgr, storage, installDir)
 	if err != nil {
-		fmt.Printf("warning: failed to create dependency manager: %v\n", err)
+		return nil, errors.Wrap(err, "create dependency manager")
 	}
 
 	return &manager{
@@ -99,9 +110,9 @@ func NewManager(bucketMgr bucket.BucketManager, storage store.LegacyStorage, ins
 		storage:    storage,
 		installer:  installer,
 		depMgr:     depMgr,
-		config:     config,
+		config:     cfg,
 		installDir: installDir,
-	}
+	}, nil
 }
 
 func (m *manager) Install(ctx context.Context, spec InstallSpec, opts InstallOptions) error {
@@ -112,12 +123,12 @@ func (m *manager) Install(ctx context.Context, spec InstallSpec, opts InstallOpt
 
 	_, err := m.bucketMgr.GetBucket(ctx, bucketName)
 	if err != nil {
-		return errors.Wrap(err, "get bucket")
+		return errors.Wrapf(err, "get bucket %q", bucketName)
 	}
 
 	app, err := m.bucketMgr.GetApp(ctx, bucketName, spec.Name)
 	if err != nil {
-		return errors.Wrap(err, "get app info")
+		return errors.Wrapf(err, "get app %q from bucket %q", spec.Name, bucketName)
 	}
 
 	// 使用依赖管理器解析依赖
@@ -125,7 +136,7 @@ func (m *manager) Install(ctx context.Context, spec InstallSpec, opts InstallOpt
 	if m.depMgr != nil && !opts.NoDeps {
 		depGraph, err = m.depMgr.Resolve(ctx, app)
 		if err != nil {
-			return errors.Wrap(err, "resolve dependencies")
+			return errors.Wrapf(err, "resolve dependencies for app %q", spec.Name)
 		}
 
 		// 安装依赖（按拓扑排序顺序）
@@ -221,7 +232,7 @@ func (m *manager) Remove(ctx context.Context, name string, opts RemoveOptions) e
 	if m.depMgr != nil {
 		dependents, err := m.depMgr.GetDependents(ctx, name)
 		if err != nil {
-			return errors.Wrap(err, "check dependents")
+			return errors.Wrapf(err, "check dependents for app %q", name)
 		}
 
 		if len(dependents) > 0 {
@@ -263,7 +274,7 @@ func (m *manager) Update(ctx context.Context, name string, opts UpdateOptions) e
 
 	app, err := m.bucketMgr.GetApp(ctx, bucketName, name)
 	if err != nil {
-		return errors.Wrap(err, "get app info")
+		return errors.Wrapf(err, "get app %q from bucket %q", name, bucketName)
 	}
 
 	refreshOpts := RefreshOptions{
@@ -276,7 +287,7 @@ func (m *manager) Update(ctx context.Context, name string, opts UpdateOptions) e
 func (m *manager) UpdateAll(ctx context.Context, opts UpdateOptions) error {
 	installedApps, err := m.storage.ListInstalledApps(ctx)
 	if err != nil {
-		return errors.Wrap(err, "list installed apps")
+		return errors.Wrap(err, "list all installed apps")
 	}
 
 	total := len(installedApps)
@@ -333,8 +344,8 @@ func (m *manager) Switch(ctx context.Context, name, version string) error {
 	return m.installer.Switch(ctx, name, version)
 }
 
-func (m *manager) ListInstalled() ([]*manifest.InstalledApp, error) {
-	apps, err := m.storage.ListInstalledApps(context.Background())
+func (m *manager) ListInstalled(ctx context.Context) ([]*manifest.InstalledApp, error) {
+	apps, err := m.storage.ListInstalledApps(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +363,7 @@ func (m *manager) Info(ctx context.Context, bucketName, name string) (*manifest.
 
 	app, err := m.bucketMgr.GetApp(ctx, bucketName, name)
 	if err != nil {
-		return nil, errors.Wrap(err, "get app info")
+		return nil, errors.Wrapf(err, "get app %q from bucket %q", name, bucketName)
 	}
 
 	installed, err := m.storage.GetInstalledApp(ctx, name)

@@ -30,17 +30,15 @@ type Application interface {
 	Shutdown(ctx context.Context) error
 }
 
-// app 结构体字段按大小从大到小排列以优化内存布局
-// 指针/引用类型 (8 字节): 64 位系统上
-// 接口类型 (16 字节): 包含类型和值指针
+// app 应用结构体
 type app struct {
-	jsEngine  *engine.JSEngine     // 8 bytes
-	config    *config.Config       // 8 bytes
-	bucketMgr bucket.BucketManager // 16 bytes (interface)
-	appMgr    AppManager           // 16 bytes (interface)
-	installer Installer            // 16 bytes (interface)
-	storage   store.LegacyStorage  // 16 bytes (interface) - 使用向后兼容的接口
-	logger    *logx.Logger         // 8 bytes
+	jsEngine  *engine.JSEngine
+	config    *config.Config
+	bucketMgr bucket.BucketManager
+	appMgr    AppManager
+	installer Installer
+	storage   store.LegacyStorage
+	logger    *logx.Logger
 }
 
 func New(cfg *config.Config) (*app, error) {
@@ -103,8 +101,16 @@ func New(cfg *config.Config) (*app, error) {
 
 	a.jsEngine = engine.NewJSEngine()
 
-	a.installer = NewInstaller(a.storage, cfg, a.jsEngine, cfg.AppsDir)
-	a.appMgr = NewManager(a.bucketMgr, a.storage, a.installer, cfg, cfg.AppsDir)
+	var createErr error
+	a.installer, createErr = NewInstaller(a.storage, cfg, a.jsEngine, cfg.AppsDir)
+	if createErr != nil {
+		return nil, fmt.Errorf("create installer: %w", createErr)
+	}
+
+	a.appMgr, createErr = NewManager(a.bucketMgr, a.storage, a.installer, cfg, cfg.AppsDir)
+	if createErr != nil {
+		return nil, fmt.Errorf("create app manager: %w", createErr)
+	}
 
 	return a, nil
 }

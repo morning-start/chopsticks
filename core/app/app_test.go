@@ -12,6 +12,25 @@ import (
 	"chopsticks/pkg/config"
 )
 
+// simpleMockInstaller 简单的 mock installer 用于测试
+type simpleMockInstaller struct{}
+
+func (m *simpleMockInstaller) Install(ctx context.Context, app *manifest.App, opts InstallOptions) error {
+	return nil
+}
+
+func (m *simpleMockInstaller) Uninstall(ctx context.Context, name string, opts UninstallOptions) error {
+	return nil
+}
+
+func (m *simpleMockInstaller) Refresh(ctx context.Context, app *manifest.App, installed *manifest.InstalledApp, opts RefreshOptions) error {
+	return nil
+}
+
+func (m *simpleMockInstaller) Switch(ctx context.Context, name, version string) error {
+	return nil
+}
+
 func TestDefaultConfig(t *testing.T) {
 	cfg := config.DefaultConfig()
 	if cfg == nil {
@@ -210,9 +229,13 @@ func TestManagerListInstalled(t *testing.T) {
 	}
 	bucketMgr := bucket.NewManager(adapter, nil, bucketsDir, nil)
 
-	mgr := NewManager(bucketMgr, adapter, nil, nil, tmpDir)
+	mgr, err := NewManager(bucketMgr, adapter, &simpleMockInstaller{}, &config.Config{}, tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create manager: %v", err)
+	}
 
-	apps, err := mgr.ListInstalled()
+	ctx := context.Background()
+	apps, err := mgr.ListInstalled(ctx)
 	if err != nil {
 		t.Errorf("ListInstalled() failed: %v", err)
 	}
