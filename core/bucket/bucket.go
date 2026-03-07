@@ -101,7 +101,7 @@ func (m *manager) Add(ctx context.Context, name, url string, opts AddOptions) er
 	}
 
 	if err := m.db.SaveBucket(ctx, bucketConfig); err != nil {
-		return errors.Wrap(err, "save bucket config")
+		return errors.Wrapf(err, "save bucket config for %q", name)
 	}
 
 	fmt.Printf("✓ bucket %s added successfully\n", name)
@@ -125,7 +125,7 @@ func (m *manager) Remove(ctx context.Context, name string, purge bool) error {
 	}
 
 	if err := m.db.DeleteBucket(ctx, name); err != nil {
-		return errors.Wrap(err, "delete bucket config")
+		return errors.Wrapf(err, "delete bucket config for %q", name)
 	}
 
 	fmt.Printf("✓ bucket %s removed\n", name)
@@ -154,7 +154,7 @@ func (m *manager) Update(ctx context.Context, name string) error {
 func (m *manager) UpdateAll(ctx context.Context) error {
 	buckets, err := m.db.ListBuckets(ctx)
 	if err != nil {
-		return errors.Wrap(err, "list buckets")
+		return errors.Wrap(err, "list all buckets")
 	}
 
 	for _, bucket := range buckets {

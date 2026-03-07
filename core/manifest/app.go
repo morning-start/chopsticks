@@ -13,15 +13,16 @@ type App struct {
 
 // AppScript 定义脚本信息（不变部分）。
 type AppScript struct {
-	Name         string       // 软件名称
-	Description  string       // 描述
-	Homepage     string       // 主页 URL
-	License      string       // 许可证
-	Category     string       // 分类
-	Tags         []string     // 标签
-	Maintainer   string       // 维护者
-	Bucket       string       // 所属软件源
-	Dependencies []Dependency // 依赖列表（扁平结构，向后兼容）
+	Name         string               // 软件名称
+	Description  string               // 描述
+	Homepage     string               // 主页 URL
+	License      string               // 许可证
+	Category     string               // 分类
+	Tags         []string             // 标签
+	Maintainer   string               // 维护者
+	Bucket       string               // 所属软件源
+	Dependencies []Dependency         // 依赖列表（扁平结构，向后兼容）
+	Resources    *ResourceDeclaration // 资源声明（端口、环境变量、注册表等）
 }
 
 // Dependency 表示应用依赖
@@ -109,4 +110,42 @@ type RuntimeInfo struct {
 type Orphans struct {
 	Runtime []string // 孤儿运行时库
 	Tools   []string // 孤儿工具软件
+}
+
+// ResourceDeclaration 定义应用的资源声明。
+// 用于声明应用运行所需的系统资源，如端口、环境变量、注册表项等。
+type ResourceDeclaration struct {
+	Ports    []PortDeclaration     `json:"ports,omitempty"`    // 端口声明列表
+	EnvVars  []EnvVarDeclaration   `json:"env_vars,omitempty"` // 环境变量声明列表
+	Registry []RegistryDeclaration `json:"registry,omitempty"` // 注册表声明列表
+}
+
+// PortDeclaration 定义端口资源声明。
+// 用于声明应用需要使用的网络端口，包括端口号、协议和用途说明。
+type PortDeclaration struct {
+	Port        int    `json:"port"`                  // 端口号（1-65535）
+	Protocol    string `json:"protocol,omitempty"`    // 协议类型（tcp/udp，默认为 tcp）
+	Description string `json:"description,omitempty"` // 端口用途说明
+	Required    bool   `json:"required,omitempty"`    // 是否为必需端口（默认为 true）
+}
+
+// EnvVarDeclaration 定义环境变量声明。
+// 用于声明应用需要设置或读取的环境变量，包括变量名、默认值和说明。
+type EnvVarDeclaration struct {
+	Name        string `json:"name"`                  // 环境变量名称
+	Value       string `json:"value,omitempty"`       // 默认值（可选）
+	Description string `json:"description,omitempty"` // 变量用途说明
+	Required    bool   `json:"required,omitempty"`    // 是否为必需变量（默认为 false）
+}
+
+// RegistryDeclaration 定义 Windows 注册表声明。
+// 用于声明应用需要创建或修改的注册表项，包括键路径、值名称和值数据。
+type RegistryDeclaration struct {
+	Hive        string `json:"hive"`                  // 根键（HKCU/HKLM/HKCR/HKCC/HKU）
+	Key         string `json:"key"`                   // 注册表键路径（如 "Software\\MyApp"）
+	ValueName   string `json:"value_name,omitempty"`  // 值名称（空字符串表示默认值）
+	ValueType   string `json:"value_type,omitempty"`  // 值类型（STRING/EXPAND_SZ/BINARY/DWORD/QWORD/MULTI_SZ，默认为 STRING）
+	ValueData   string `json:"value_data,omitempty"`  // 值数据
+	Description string `json:"description,omitempty"` // 注册表项用途说明
+	Required    bool   `json:"required,omitempty"`    // 是否为必需项（默认为 true）
 }
