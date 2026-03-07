@@ -274,7 +274,7 @@ func runConfigGet(cmd *cobra.Command, args []string) error {
 
 	value, err := getConfigValue(cfg, key)
 	if err != nil {
-		return err
+		return fmt.Errorf("获取配置值 [%s] 失败：%w", key, err)
 	}
 
 	fmt.Println(value)
@@ -291,7 +291,7 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := setConfigValue(cfg, key, value); err != nil {
-		return err
+		return fmt.Errorf("设置配置值 [%s] 失败：%w", key, err)
 	}
 
 	if err := config.SaveDefault(cfg); err != nil {

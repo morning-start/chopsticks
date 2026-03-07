@@ -14,11 +14,11 @@ import (
 )
 
 var (
-	cacheConfigMaxSize   int64
+	cacheConfigMaxSize    int64
 	cacheConfigMaxEntries int
-	cacheConfigTTL       string
-	cacheShowStats       bool
-	cacheClearAll        bool
+	cacheConfigTTL        string
+	cacheShowStats        bool
+	cacheClearAll         bool
 )
 
 // cacheCmd 缓存管理命令
@@ -218,9 +218,9 @@ func createCacheManager() (*cache.AppCacheManager, error) {
 
 	// 创建缓存配置
 	cacheConfig := cache.CacheConfig{
-		MaxSize:        cacheConfigMaxSize,
-		MaxEntries:     cacheConfigMaxEntries,
-		TTL:            parseDuration(cacheConfigTTL),
+		MaxSize:         cacheConfigMaxSize,
+		MaxEntries:      cacheConfigMaxEntries,
+		TTL:             parseDuration(cacheConfigTTL),
 		CleanupInterval: cache.DefaultCleanupInterval,
 	}
 
@@ -237,27 +237,6 @@ func parseDuration(s string) time.Duration {
 		return cache.DefaultCacheTTL
 	}
 	return d
-}
-
-// printCacheReport 打印缓存报告
-func printCacheReport(cacheMgr *cache.AppCacheManager) {
-	stats := cacheMgr.GetStats()
-
-	output.Infoln("========================================")
-	output.Infoln("Detailed Cache Report")
-	output.Infoln("========================================")
-	fmt.Println()
-
-	for name, stat := range stats {
-		output.Highlightf("%s Cache:\n", name)
-		output.Dimf("  Hits: %d\n", stat.Hits)
-		output.Dimf("  Misses: %d\n", stat.Misses)
-		output.Dimf("  Hit Rate: %.2f%%\n", stat.HitRate)
-		output.Dimf("  Size: %d / %d\n", stat.Size, stat.MaxSize)
-		output.Dimf("  Entries: %d / %d\n", stat.Entries, stat.MaxEntries)
-		output.Dimf("  Evictions: %d\n", stat.Evictions)
-		fmt.Println()
-	}
 }
 
 func init() {

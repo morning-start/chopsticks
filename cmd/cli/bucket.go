@@ -138,13 +138,18 @@ func runBucketInit(cmd *cobra.Command, args []string) error {
 	// 创建目标目录
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		output.ErrorCrossf("Failed to create directory: %v", err)
-		return err
+		return fmt.Errorf("创建 bucket 目录 [%s] 失败：%w", targetDir, err)
 	}
 
-	// 复制模板文件（从嵌入的文件系统）
-	if err := template.CopyTemplateDir(templateType, targetDir); err != nil {
+	// 准备模板数据
+	templateData := &template.TemplateData{
+		Name: name,
+	}
+
+	// 复制模板文件（从嵌入的文件系统），并处理模板变量
+	if err := template.CopyTemplateDirWithData(templateType, targetDir, templateData); err != nil {
 		output.ErrorCrossf("Failed to copy template files: %v", err)
-		return err
+		return fmt.Errorf("复制模板文件到 [%s] 失败：%w", targetDir, err)
 	}
 
 	output.SuccessCheckf("Bucket %s initialized", name)
@@ -201,7 +206,7 @@ func runBucketCreate(cmd *cobra.Command, args []string) error {
 	// 确保 apps 目录存在
 	if err := os.MkdirAll(appsDir, 0755); err != nil {
 		output.ErrorCrossf("Failed to create apps directory: %v", err)
-		return err
+		return fmt.Errorf("创建 apps 目录 [%s] 失败：%w", appsDir, err)
 	}
 
 	output.Infof("Creating App: ")
@@ -211,7 +216,7 @@ func runBucketCreate(cmd *cobra.Command, args []string) error {
 	templateContent, err := template.ReadTemplateFileByName("bucket-js", "apps/_example_.js")
 	if err != nil {
 		output.ErrorCrossf("Failed to read template file: %v", err)
-		return err
+		return fmt.Errorf("读取模板文件失败：%w", err)
 	}
 
 	// 替换模板内容

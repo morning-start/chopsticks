@@ -38,8 +38,8 @@ func runList(cmd *cobra.Command, args []string) error {
 
 		apps, err := application.AppManager().ListInstalled()
 		if err != nil {
-			output.ErrorCrossf("获取已安装列表失败: %v", err)
-			return err
+			output.ErrorCrossf("获取已安装列表失败：%v", err)
+			return fmt.Errorf("获取已安装软件包列表失败：%w", err)
 		}
 
 		if len(apps) == 0 {
@@ -62,8 +62,8 @@ func runList(cmd *cobra.Command, args []string) error {
 		// 获取所有 bucket
 		buckets, err := application.BucketManager().ListBuckets(ctx)
 		if err != nil {
-			output.ErrorCrossf("获取软件源列表失败: %v", err)
-			return err
+			output.ErrorCrossf("获取软件源列表失败：%v", err)
+			return fmt.Errorf("获取软件源列表失败：%w", err)
 		}
 
 		if len(buckets) == 0 {
