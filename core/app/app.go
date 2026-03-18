@@ -11,7 +11,6 @@ import (
 	"chopsticks/engine"
 	"chopsticks/engine/logx"
 	"chopsticks/pkg/config"
-	"chopsticks/pkg/output"
 )
 
 const (
@@ -81,17 +80,6 @@ func New(cfg *config.Config) (*app, error) {
 	fsStorage, err := store.NewFSStorage(cfg.StorageDir)
 	if err != nil {
 		return nil, fmt.Errorf("initialize storage: %w", err)
-	}
-
-	// 检查是否有现有的文件系统数据，如果没有，提示用户可能需要迁移
-	if !store.HasExistingFSData(cfg.StorageDir) {
-		// 检查是否有旧的 SQLite 数据库
-		oldDBPath := filepath.Join(cfg.RootDir, "chopsticks.db")
-		if _, err := os.Stat(oldDBPath); err == nil {
-			output.Warn("检测到旧的 SQLite 数据库：%s", oldDBPath)
-			output.Info("请运行以下命令迁移数据到文件系统存储：")
-			output.Info("  chopsticks migrate --from-sqlite %s\n", oldDBPath)
-		}
 	}
 
 	// 创建存储适配器以向后兼容
