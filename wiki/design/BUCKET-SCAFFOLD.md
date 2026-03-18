@@ -48,7 +48,8 @@ chopsticks bucket init my-bucket --dir ./buckets
 ```
 my-bucket/
 ├── bucket.json                 # 配置
-├── bucket.db                   # 可选：元数据缓存（SQLite）
+├── index.json                  # 软件包索引
+├── manifest/                   # 软件包元数据
 ├── apps/                       # 软件包目录
 │   └── example.js              # 示例软件包
 ├── tools.js                    # 共享工具（可选）

@@ -27,7 +27,8 @@
 my-bucket/
 ├── bucket.json           # 必需：软件源配置文件
 ├── README.md            # 可选：说明文档
-├── bucket.db               # 可选：软件包元数据缓存（SQLite）
+├── index.json            # 软件包索引
+├── manifest/             # 软件包元数据
 ├── apps/_chopsticks_.js  # 必需：类型定义（包含 App 基类）
 ├── apps/_example_.js     # 必需：示例软件包
 ├── apps/_tools_.js       # 可选：共享工具函数

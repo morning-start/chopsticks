@@ -32,7 +32,9 @@ Chopsticks 使用 **JavaScript** 编写 app，使用面向对象方式继承 App
 ```
 my-bucket/
 ├── bucket.json            # 必需：Bucket 配置
-├── bucket.db              # 可选：元数据缓存（SQLite）
+├── index.json             # 可选：应用索引（文件系统存储）
+├── manifest.json          # 可选：软件元数据
+├── operations.json        # 可选：操作记录
 ├── .gitignore            # 必需：忽略文件
 ├── apps/                 # 必需：软件包目录
 │   ├── _chopsticks_.js   # 必需：类型定义（包含 App 基类）
@@ -190,60 +192,95 @@ module.exports = new GitApp();
 
 ---
 
-## 4. Bucket 数据库
+## 4. Bucket 文件系统存储
 
-每个 Bucket 目录下有一个 `bucket.db` SQLite 数据库，用于缓存该 Bucket 下所有 App 的元信息。
+每个 Bucket 目录下使用纯文件系统存储应用元信息，不再使用 SQLite。
 
-### 4.1 表结构
+### 4.1 文件结构
 
-```sql
--- 应用表
-CREATE TABLE apps (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    version TEXT,
-    latest_version TEXT,
-    latest_downloads TEXT,
-    description TEXT,
-    homepage TEXT,
-    license TEXT,
-    category TEXT,
-    tags TEXT,
-    author TEXT,
-    script_path TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- 版本表
-CREATE TABLE app_versions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    app_id TEXT NOT NULL,
-    version TEXT NOT NULL,
-    released_at DATETIME,
-    downloads TEXT,
-    FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE CASCADE,
-    UNIQUE(app_id, version)
-);
+```
+bucket/
+├── index.json       # 应用索引：存储所有 App 的基本信息
+├── manifest.json   # 软件元数据：存储版本、下载量等信息
+└── operations.json # 操作记录：存储安装/卸载操作历史
 ```
 
-### 4.2 数据流程
+### 4.2 index.json 结构
+
+```json
+{
+  "apps": [
+    {
+      "id": "git",
+      "name": "git",
+      "version": "2.43.0",
+      "latest_version": "2.44.0",
+      "latest_downloads": "1200000",
+      "description": "Distributed version control system",
+      "homepage": "https://git-scm.com/",
+      "license": "GPL-2.0",
+      "category": "development",
+      "tags": ["vcs", "git"],
+      "author": "Git Community",
+      "script_path": "apps/git.js",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-03-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+### 4.3 manifest.json 结构
+
+```json
+{
+  "versions": [
+    {
+      "app_id": "git",
+      "version": "2.44.0",
+      "released_at": "2024-02-01T00:00:00Z",
+      "downloads": "500000"
+    }
+  ]
+}
+```
+
+### 4.4 operations.json 结构
+
+```json
+{
+  "operations": [
+    {
+      "id": "op_001",
+      "app_id": "git",
+      "version": "2.44.0",
+      "operation_type": "install",
+      "timestamp": "2024-03-01T10:00:00Z",
+      "from_version": null
+    }
+  ]
+}
+```
+
+### 4.5 数据流程
 
 ```
 用户添加 Bucket → 克隆 Git 仓库 → 扫描 apps/*.js
-    → 执行脚本获取版本信息 → 存储到 bucket.db
+    → 执行脚本获取版本信息 → 存储到 index.json 和 manifest.json
 ```
 
-### 4.3 注意事项
+### 4.6 注意事项
 
-- **不提交到 Git**：`bucket.db` 应添加到 `.gitignore`
+- **不提交到 Git**：所有 JSON 文件应添加到 `.gitignore`
 - **自动生成**：首次添加 Bucket 时自动创建
-- **按需更新**：Bucket 更新时自动刷新数据库
+- **按需更新**：Bucket 更新时自动刷新文件系统存储
 
 ```bash
 # .gitignore 添加
-bucket.db
-*.db
+index.json
+manifest.json
+operations.json
+*.json
 ```
 
 ---
@@ -626,11 +663,11 @@ VALUES ('git', '2.44.0', 'update', '2.43.0');
 
 ### 7.7 长时间间隔支持
 
-所有操作记录**持久化存储在 SQLite**，即使安装和卸载相隔数年，也能准确清理：
+所有操作记录**持久化存储在文件系统**，即使安装和卸载相隔数年，也能准确清理：
 
-- ✅ 操作记录存储在 `%USERPROFILE%\.chopsticks\data.db`
+- ✅ 操作记录存储在 `%USERPROFILE%\.chopsticks\operations.json`
 - ✅ 不依赖内存状态
-- ✅ 数据库文件随软件保留
+- ✅ JSON 文件随软件保留
 
 ---
 
@@ -717,7 +754,8 @@ chopsticks bucket init my-bucket --dir ./buckets
 ```
 my-bucket/
 ├── bucket.json                 # Bucket 配置
-├── bucket.db                   # 可选：元数据缓存（SQLite）
+├── index.json                  # 可选：应用索引
+├── manifest.json               # 可选：软件元数据
 ├── .gitignore                  # 忽略文件
 ├── apps/                       # 软件包目录
 │   ├── _chopsticks_.js        # 类型定义（包含 App 基类）
@@ -770,7 +808,7 @@ class ExampleApp extends App {
 
 Chopsticks 使用增量同步机制：
 
-1. **变更检测**: 通过 SQLite 触发器记录所有变更
+1. **变更检测**: 通过文件系统监控记录所有变更
 2. **差异计算**: 对比本地与云端状态，生成差异列表
 3. **冲突检测**: 识别同时修改的冲突项
 4. **增量传输**: 仅传输变更数据，节省带宽
