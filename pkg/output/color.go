@@ -4,6 +4,7 @@ package output
 import (
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/charmbracelet/lipgloss"
@@ -38,6 +39,29 @@ var (
 
 func init() {
 	updateStyles()
+}
+
+func sInterfaceToString(v interface{}) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return fmt.Sprintf("%v", v)
+}
+
+func joinStrings(a []interface{}) string {
+	if len(a) == 0 {
+		return ""
+	}
+	if len(a) == 1 {
+		return sInterfaceToString(a[0])
+	}
+	var b strings.Builder
+	b.WriteString(sInterfaceToString(a[0]))
+	for i := 1; i < len(a); i++ {
+		b.WriteString(" ")
+		b.WriteString(sInterfaceToString(a[i]))
+	}
+	return b.String()
 }
 
 // updateStyles 根据颜色开关更新样式
@@ -94,12 +118,16 @@ func EnableColor() {
 
 // Success 输出成功消息（绿色）
 func Success(format string, a ...interface{}) {
-	fmt.Print(styleSuccess.Render(fmt.Sprintf(format, a...)))
+	if len(a) == 0 {
+		fmt.Print(styleSuccess.Render(format))
+	} else {
+		fmt.Print(styleSuccess.Render(fmt.Sprintf(format, a...)))
+	}
 }
 
 // Successln 输出成功消息并换行
 func Successln(a ...interface{}) {
-	fmt.Println(styleSuccess.Render(fmt.Sprint(a...)))
+	fmt.Println(styleSuccess.Render(joinStrings(a)))
 }
 
 // Successf 输出格式化的成功消息
@@ -114,7 +142,7 @@ func Error(format string, a ...interface{}) {
 
 // Errorln 输出错误消息并换行
 func Errorln(a ...interface{}) {
-	fmt.Fprintln(os.Stderr, styleError.Render(fmt.Sprint(a...)))
+	fmt.Fprintln(os.Stderr, styleError.Render(joinStrings(a)))
 }
 
 // Errorf 输出格式化的错误消息
@@ -134,7 +162,7 @@ func Warn(format string, a ...interface{}) {
 
 // Warningln 输出警告消息并换行
 func Warningln(a ...interface{}) {
-	fmt.Println(styleWarning.Render(fmt.Sprint(a...)))
+	fmt.Println(styleWarning.Render(joinStrings(a)))
 }
 
 // Warningf 输出格式化的警告消息
@@ -149,7 +177,7 @@ func Info(format string, a ...interface{}) {
 
 // Infoln 输出信息消息并换行
 func Infoln(a ...interface{}) {
-	fmt.Println(styleInfo.Render(fmt.Sprint(a...)))
+	fmt.Println(styleInfo.Render(joinStrings(a)))
 }
 
 // Infof 输出格式化的信息消息
@@ -164,7 +192,7 @@ func Highlight(format string, a ...interface{}) {
 
 // Highlightln 输出高亮消息并换行
 func Highlightln(a ...interface{}) {
-	fmt.Println(styleHighlight.Render(fmt.Sprint(a...)))
+	fmt.Println(styleHighlight.Render(joinStrings(a)))
 }
 
 // Highlightf 输出格式化的高亮消息
@@ -179,7 +207,7 @@ func Dim(format string, a ...interface{}) {
 
 // Dimln 输出暗淡消息并换行
 func Dimln(a ...interface{}) {
-	fmt.Println(styleDim.Render(fmt.Sprint(a...)))
+	fmt.Println(styleDim.Render(joinStrings(a)))
 }
 
 // Dimf 输出格式化的暗淡消息
@@ -252,5 +280,5 @@ func PrintStyled(style lipgloss.Style, format string, a ...interface{}) {
 
 // PrintlnStyled 使用指定样式输出并换行
 func PrintlnStyled(style lipgloss.Style, a ...interface{}) {
-	fmt.Println(style.Render(fmt.Sprint(a...)))
+	fmt.Println(style.Render(joinStrings(a)))
 }

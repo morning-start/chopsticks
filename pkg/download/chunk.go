@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -109,8 +110,7 @@ func (c *Chunk) loadProgress() error {
 		return err
 	}
 
-	var progress int64
-	_, err = fmt.Sscanf(string(data), "%d", &progress)
+	progress, err := strconv.ParseInt(string(data), 10, 64)
 	if err != nil {
 		return err
 	}
