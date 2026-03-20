@@ -71,4 +71,5 @@ func init() {
 	rootCmd.AddCommand(depsCmd)
 	rootCmd.AddCommand(autoremoveCmd)
 	rootCmd.AddCommand(cleanupRuntimeCmd)
+	rootCmd.AddCommand(checkCmd)
 }

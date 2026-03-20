@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"chopsticks/core/bucket"
 	"chopsticks/core/dep"
@@ -26,7 +27,46 @@ var (
 	ErrDependencyConflict  = errors.ErrDependencyConflict
 )
 
-// AppManager 定义应用管理器接口。
+type CheckStatus string
+
+const (
+	CheckStatusPassed  CheckStatus = "passed"
+	CheckStatusFailed  CheckStatus = "failed"
+	CheckStatusWarning CheckStatus = "warning"
+)
+
+type IssueType string
+
+const (
+	IssueTypePath     IssueType = "path"
+	IssueTypeEnv      IssueType = "env"
+	IssueTypeSymlink  IssueType = "symlink"
+	IssueTypeFile     IssueType = "file"
+	IssueTypeRegistry IssueType = "registry"
+)
+
+type CheckIssue struct {
+	Type    IssueType
+	Message string
+	Target  string
+}
+
+type CheckResult struct {
+	Name      string
+	Status    CheckStatus
+	Issues    []CheckIssue
+	CheckedAt time.Time
+}
+
+type CheckOptions struct {
+	CheckPaths    bool
+	CheckEnv      bool
+	CheckSymlinks bool
+	CheckFiles    bool
+	Fix           bool
+	Verbose       bool
+}
+
 type AppManager interface {
 	Install(ctx context.Context, spec InstallSpec, opts InstallOptions) error
 	Remove(ctx context.Context, name string, opts RemoveOptions) error
@@ -36,6 +76,7 @@ type AppManager interface {
 	ListInstalled(ctx context.Context) ([]*manifest.InstalledApp, error)
 	Info(ctx context.Context, bucket, name string) (*manifest.AppInfo, error)
 	Search(ctx context.Context, query string, bucket string) ([]SearchResult, error)
+	Check(ctx context.Context, name string, opts CheckOptions) (*CheckResult, error)
 }
 
 // InstallSpec 安装规格
