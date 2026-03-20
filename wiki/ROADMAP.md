@@ -52,7 +52,7 @@
 | 依赖解析      | 自动解析和安装依赖     | ✅   |
 | CLI 框架      | 命令行界面和参数解析   | ✅   |
 | JS 引擎集成   | Goja JavaScript 运行时 | ✅   |
-| SQLite 存储   | 本地数据库支持         | ✅   |
+| 文件系统存储 | 纯文件系统存储 (JSON) | ✅   |
 | 文件系统 API  | fsutil 模块            | ✅   |
 | HTTP 请求 API | fetch 模块             | ✅   |
 | 路径操作 API  | pathx 模块             | ✅   |

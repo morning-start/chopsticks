@@ -6,26 +6,14 @@
 
 ## 标准别名列表
 
-| 主命令 | 别名 | 说明 | 示例 |
-|--------|------|------|------|
-| `install` | `i` | 安装软件 | `chopsticks i git` |
-| `uninstall` | `rm`, `remove` | 卸载软件 | `chopsticks rm git` |
-| `update` | `up`, `upgrade` | 更新软件 | `chopsticks up git` |
-| `search` | `s`, `find` | 搜索软件 | `chopsticks s git` |
-| `list` | `ls` | 列出已安装软件 | `chopsticks ls` |
-| `bucket` | - | 软件源管理 | `chopsticks bucket list` |
-
----
-
-## 已弃用别名
-
-以下别名已不再支持，请使用标准别名：
-
-| 已弃用别名 | 原对应命令 | 替代方案 |
-|------------|------------|----------|
-| ~~`serve`~~ | `install` | 使用 `i` |
-| ~~`clear`~~ | `uninstall` | 使用 `rm` 或 `remove` |
-| ~~`refresh`~~ | `update` | 使用 `up` 或 `upgrade` |
+| 主命令      | 别名            | 说明           | 示例                     |
+| ----------- | --------------- | -------------- | ------------------------ |
+| `install`   | `i`             | 安装软件       | `chopsticks i git`       |
+| `uninstall` | `rm`, `remove`  | 卸载软件       | `chopsticks rm git`      |
+| `update`    | `up`, `upgrade` | 更新软件       | `chopsticks up git`      |
+| `search`    | `s`, `find`     | 搜索软件       | `chopsticks s git`       |
+| `list`      | `ls`            | 列出已安装软件 | `chopsticks ls`          |
+| `bucket`    | -               | 软件源管理     | `chopsticks bucket list` |
 
 ---
 
@@ -100,11 +88,11 @@ chopsticks ls --all
 
 ## 4. 版本历史
 
-| 版本 | 变更 |
-|------|------|
-| v0.10.0-alpha | 标准化别名，更新版本号 |
-| v0.6.0-alpha | 标准化别名，移除 `serve`, `clear`, `refresh` |
-| v0.5.0-alpha | 初始别名支持 |
+| 版本          | 变更                                         |
+| ------------- | -------------------------------------------- |
+| v0.10.0-alpha | 标准化别名，更新版本号                       |
+| v0.6.0-alpha  | 标准化别名，移除 `serve`, `clear`, `refresh` |
+| v0.5.0-alpha  | 初始别名支持                                 |
 
 ---
 

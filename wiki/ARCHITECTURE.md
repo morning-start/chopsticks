@@ -73,18 +73,18 @@ graph TB
 
 ### 1.2 核心组件
 
-| 组件                 | 包路径            | 职责                       |
-| -------------------- | ----------------- | -------------------------- |
-| **AppManager**       | `core/app`        | 应用安装、卸载、更新、查询 |
-| **BucketManager**    | `core/bucket`     | 软件源管理、应用搜索       |
-| **Storage**          | `core/store`      | 文件系统存储（已废弃 SQLite） |
-| **ConflictDetector** | `core/conflict`   | 冲突检测与格式化           |
-| **Manifest**         | `core/manifest`   | 应用和软件源数据结构定义   |
-| **DependencyManager**| `core/dep`       | 依赖管理、引用计数、反向依赖、孤儿清理 |
-| **VersionManager**   | `core/version`    | 版本号解析、比较、约束     |
-| **JSEngine**         | `engine`          | JavaScript 脚本执行        |
-| **Git**              | `infra/git`       | 软件源仓库操作             |
-| **Installer**        | `infra/installer` | 安装程序处理               |
+| 组件                  | 包路径            | 职责                                   |
+| --------------------- | ----------------- | -------------------------------------- |
+| **AppManager**        | `core/app`        | 应用安装、卸载、更新、查询             |
+| **BucketManager**     | `core/bucket`     | 软件源管理、应用搜索                   |
+| **Storage**           | `core/store`      | 文件系统存储                           |
+| **ConflictDetector**  | `core/conflict`   | 冲突检测与格式化                       |
+| **Manifest**          | `core/manifest`   | 应用和软件源数据结构定义               |
+| **DependencyManager** | `core/dep`        | 依赖管理、引用计数、反向依赖、孤儿清理 |
+| **VersionModule**     | `engine/semver`   | 版本号解析、比较、约束                 |
+| **JSEngine**          | `engine`          | JavaScript 脚本执行                    |
+| **Git**               | `infra/git`       | 软件源仓库操作                         |
+| **Installer**         | `infra/installer` | 安装程序处理                           |
 
 ## 2. 核心接口
 
@@ -159,24 +159,24 @@ type DependencyManager interface {
     Resolve(ctx context.Context, app *manifest.App) (*DependencyGraph, error)
     CheckConflicts(ctx context.Context, deps *manifest.Dependencies) ([]Conflict, error)
     CheckCircular(ctx context.Context, deps []string) error
-    
+
     // 运行时库管理
     InstallRuntime(ctx context.Context, dep, version, appName string, size int64) error
     UninstallRuntime(ctx context.Context, dep, appName string) error
     GetRuntimeInfo(ctx context.Context, dep string) (*manifest.RuntimeInfo, error)
     CleanupRuntime(ctx context.Context) error
     ListRuntimes(ctx context.Context) map[string]*manifest.RuntimeInfo
-    
+
     // 反向依赖计算
     GetDependents(ctx context.Context, appName string) ([]string, error)
     GetAllDependents(ctx context.Context, appName string) ([]string, error)
     GetDependentsTree(ctx context.Context, appName string) *DependentTree
-    
+
     // 孤儿依赖清理
     FindOrphans(ctx context.Context) (*manifest.Orphans, error)
     CleanupOrphans(ctx context.Context, orphans *manifest.Orphans) error
     DryRunCleanup(ctx context.Context, orphans *manifest.Orphans) error
-    
+
     // 依赖索引管理
     RebuildIndex(ctx context.Context) error
     UpdateDepsIndex(ctx context.Context, appName string, deps []string) error
@@ -191,15 +191,15 @@ type VersionManager interface {
     Parse(version string) (*Version, error)
     Normalize(version string) string
     DetectType(version string) string
-    
+
     // 版本比较
     Compare(v1, v2 *Version) int
     CompareStrings(v1, v2 string) (int, error)
-    
+
     // 版本约束
     Satisfies(version *Version, constraint string) bool
     ParseConstraint(constraint string) (*Constraint, error)
-    
+
     // 版本排序
     Sort(versions []*Version) []*Version
     Latest(versions []*Version) *Version
@@ -376,17 +376,17 @@ type Bucket struct {
 
 Chopsticks 采用**纯文件系统存储架构**，完全摒弃 SQLite 数据库。
 
-| 数据类型     | 存储位置                        | 格式       |
-| ------------ | ------------------------------- | ---------- |
-| 已安装软件包 | `apps/{name}/manifest.json`     | JSON       |
-| 操作记录     | `apps/{name}/operations.json`   | JSON       |
-| 软件源配置   | `bucket-index.json`             | JSON       |
-| 软件包脚本   | `buckets/{id}/apps/*.js`        | JavaScript |
-| 软件包元数据 | `buckets/{id}/apps/*.meta.json` | JSON       |
-| 运行时库索引 | `runtime-index.json`            | JSON       |
+| 数据类型     | 存储位置                        | 格式               |
+| ------------ | ------------------------------- | ------------------ |
+| 已安装软件包 | `apps/{name}/manifest.json`     | JSON               |
+| 操作记录     | `apps/{name}/operations.json`   | JSON               |
+| 软件源配置   | `bucket-index.json`             | JSON               |
+| 软件包脚本   | `buckets/{id}/apps/*.js`        | JavaScript         |
+| 软件包元数据 | `buckets/{id}/apps/*.meta.json` | JSON               |
+| 运行时库索引 | `runtime-index.json`            | JSON               |
 | 依赖索引     | `deps-index.json`               | JSON（可重建缓存） |
-| 下载缓存     | `cache/downloads/`              | 二进制文件 |
-| 持久化数据   | `persist/{app}/`                | 任意格式   |
+| 下载缓存     | `cache/downloads/`              | 二进制文件         |
+| 持久化数据   | `persist/{app}/`                | 任意格式           |
 
 ### 4.2 核心数据文件
 
@@ -399,8 +399,8 @@ Chopsticks 采用**纯文件系统存储架构**，完全摒弃 SQLite 数据库
   "current_version": "2.43.0",
   "installed_versions": ["2.43.0", "2.42.0"],
   "dependencies": {
-    "runtime": [{"name": "vcredist140", "version": ">=14.0", "shared": true}],
-    "tools": [{"name": "7zip", "version": ">=19.0", "shared": true}],
+    "runtime": [{ "name": "vcredist140", "version": ">=14.0", "shared": true }],
+    "tools": [{ "name": "7zip", "version": ">=19.0", "shared": true }],
     "libraries": [],
     "conflicts": ["git-for-windows"]
   },
@@ -593,13 +593,13 @@ Chopsticks 使用 Goja (纯 Go JavaScript 引擎) 执行应用安装脚本。
 │           JS Engine (Goja)              │
 ├─────────────────────────────────────────┤
 │  ┌─────────┐ ┌─────────┐ ┌─────────┐   │
-│  │  fsutil │ │  fetch  │ │  execx  │   │
+│  │   fs    │ │  fetch  │ │  exec   │   │
 │  └─────────┘ └─────────┘ └─────────┘   │
 │  ┌─────────┐ ┌─────────┐ ┌─────────┐   │
-│  │ archive │ │ checksum│ │  pathx  │   │
+│  │ archive │ │checksum │ │  path   │   │
 │  └─────────┘ └─────────┘ └─────────┘   │
 │  ┌─────────┐ ┌─────────┐ ┌─────────┐   │
-│  │  logx   │ │  jsonx  │ │ symlink │   │
+│  │   log   │ │  json   │ │ symlink │   │
 │  └─────────┘ └─────────┘ └─────────┘   │
 │  ┌─────────┐ ┌─────────┐ ┌─────────┐   │
 │  │registry │ │ semver  │ │chopsticks│   │
@@ -614,14 +614,14 @@ Chopsticks 使用 Goja (纯 Go JavaScript 引擎) 执行应用安装脚本。
 
 | 模块         | 功能                        |
 | ------------ | --------------------------- |
-| `fsutil`     | 文件读写、目录操作          |
+| `fs`         | 文件读写、目录操作          |
 | `fetch`      | HTTP 请求、下载             |
-| `execx`      | 命令执行                    |
+| `exec`       | 命令执行                    |
 | `archive`    | 压缩解压 (zip, tar, 7z)     |
 | `checksum`   | 校验和验证 (MD5, SHA256)    |
-| `pathx`      | 路径操作                    |
-| `logx`       | 日志输出                    |
-| `jsonx`      | JSON 处理                   |
+| `path`       | 路径操作                    |
+| `log`        | 日志输出                    |
+| `json`       | JSON 处理                   |
 | `symlink`    | 符号链接操作                |
 | `registry`   | Windows 注册表操作          |
 | `semver`     | 语义化版本比较              |
@@ -759,7 +759,7 @@ chopsticks/
 
 ---
 
-_最后更新：2026-03-06_  
+_最后更新：2026-03-20_  
 _版本：v1.0.0_
 
 ---

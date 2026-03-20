@@ -24,11 +24,10 @@
 </p>
 
 <p align="center">
-  <a href="docs/ROADMAP.md">路线图</a> •
+  <a href="wiki/ROADMAP.md">路线图</a> •
   <a href="wiki/ARCHITECTURE.md">架构设计</a> •
-  <a href="docs/CHANGELOG.md">变更日志</a> •
-  <a href="docs/ARCHITECTURE-REVIEW.md">架构检测</a> •
-  <a href="docs/ARCHITECTURE-FIXES-COMPLETE.md">架构修复</a> •
+  <a href="wiki/CHANGELOG.md">变更日志</a> •
+  <a href="wiki/ARCHITECTURE.md">架构文档</a> •
   <a href="wiki/user/USAGE.md">使用指南</a> •
   <a href="wiki/developer/DEVELOPER.md">开发文档</a>
 </p>
@@ -45,7 +44,7 @@
 - **现代化架构** - Go 语言开发，单文件部署，性能优秀
 - **双脚本引擎** - 同时支持 JavaScript (ES6+) 和 Lua 脚本
 - **自动追踪** - 自动记录系统操作，卸载时智能清理
-- **轻量存储** - SQLite 本地数据库，无需额外服务
+- **轻量存储** - 纯文件系统存储，无需额外服务
 
 ---
 
@@ -59,7 +58,7 @@
 | 🪝 **生命周期钩子** | 下载前/后、解压前/后、安装前/后等完整钩子 |
 | 🔒 **安全验证** | SHA256/MD5 校验和验证，确保软件完整性 |
 | 🧹 **智能清理** | 自动追踪系统操作，卸载时精确清理 |
-| 💾 **轻量存储** | SQLite 本地数据库，单文件存储 |
+| 💾 **轻量存储** | 纯文件系统存储，JSON 格式易读易调试 |
 | ⚡ **并行处理** | 支持并发下载和软件源更新 |
 
 ---
@@ -118,7 +117,7 @@ chopsticks --help
 
 ### 开发者文档
 
-- [架构设计](docs/ARCHITECTURE.md) - 系统架构和技术设计
+- [架构设计](wiki/ARCHITECTURE.md) - 系统架构和技术设计
 - [开发指南](wiki/developer/DEVELOPER.md) - 如何参与开发
 - [API 参考](wiki/developer/API.md) - JavaScript/Lua API 文档
 - [编码规范](wiki/developer/STYLE.md) - Go 代码规范
@@ -127,10 +126,10 @@ chopsticks --help
 
 ### 项目文档
 
-- [路线图](docs/ROADMAP.md) - 项目规划和迭代计划
-- [变更日志](docs/CHANGELOG.md) - 版本变更记录
+- [路线图](wiki/ROADMAP.md) - 项目规划和迭代计划
+- [变更日志](wiki/CHANGELOG.md) - 版本变更记录
 - [功能需求](wiki/design/REQUIREMENT.md) - 详细功能规格
-- [数据库设计](wiki/design/DATABASE.md) - 数据库 Schema 设计
+- [数据存储设计](wiki/design/DATABASE.md) - 文件系统存储设计
 
 ---
 
@@ -152,7 +151,7 @@ chopsticks/
 │   ├── app/                 # 应用管理
 │   ├── bucket/              # 软件源管理
 │   ├── manifest/            # 数据结构定义
-│   └── store/               # 数据存储 (SQLite/BoltDB)
+│   └── store/               # 数据存储 (文件系统)
 ├── engine/                  # 脚本引擎和 API 模块
 │   ├── js.go                # JavaScript 引擎 (goja)
 │   ├── lua.go               # Lua 引擎 (gopher-lua)
@@ -171,10 +170,6 @@ chopsticks/
 ├── infra/                   # 基础设施
 │   ├── git/                 # Git 操作
 │   └── installer/           # 安装程序处理
-├── docs/                    # 项目文档
-│   ├── ROADMAP.md           # 路线图
-│   ├── ARCHITECTURE.md      # 架构设计
-│   └── CHANGELOG.md         # 变更日志
 ├── wiki/                    # Wiki 文档
 │   ├── design/              # 设计文档
 │   ├── developer/           # 开发者文档
@@ -191,10 +186,9 @@ chopsticks/
 | 技术 | 用途 | 版本 |
 |------|------|------|
 | Go | 主开发语言 | 1.25.6 |
-| Goja | JavaScript 引擎 | v0.0.0-20260106131823 |
-| Gopher-lua | Lua 引擎 | v1.1.1 |
-| go-git | Git 操作 | v5.11.0 |
-| SQLite | 本地数据库 | v1.14.24 |
+| Goja | JavaScript 引擎 | v0.0.0-20260226184354 |
+| go-git | Git 操作 | v5.17.0 |
+| go-yaml | YAML 解析 | v1.19.2 |
 
 ---
 
@@ -241,7 +235,7 @@ go test -cover ./...
 
 ## 路线图
 
-查看 [ROADMAP.md](docs/ROADMAP.md) 了解项目的详细规划和迭代计划。
+查看 [ROADMAP.md](wiki/ROADMAP.md) 了解项目的详细规划和迭代计划。
 
 ### 当前进度
 

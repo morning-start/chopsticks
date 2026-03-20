@@ -91,7 +91,7 @@ Chopsticks 是独立的命令行工具，可与现有包管理器共存，专注
 |------|----------|------|
 | JavaScript 引擎 | goja | v0.0.0-20260226184354 |
 | Git 客户端 | go-git/v5 | v5.17.0 |
-| SQLite | modernc/sqlite | v1.46.1 |
+| 数据存储 | 文件系统 | JSON 格式 |
 | CLI 框架 | cobra | v1.10.2 |
 
 ---

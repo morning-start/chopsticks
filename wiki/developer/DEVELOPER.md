@@ -70,7 +70,8 @@ class App {
     this.metadata = metadata;
   }
 
-  // 注意：所有方法都是同步的，Go 层自动处理并发调度
+  // 注意：App 类的方法是同步的，返回值格式为 {success, data/error}
+  // JS 引擎自动处理并发调度，调用者可使用 async/await 语法
   checkVersion() {
     throw new Error("Not implemented");
   }
