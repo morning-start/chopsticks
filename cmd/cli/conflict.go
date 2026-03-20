@@ -18,7 +18,7 @@ var (
 // conflictCmd 表示 conflict 命令
 var conflictCmd = &cobra.Command{
 	Use:     "conflict <package>",
-	Aliases: []string{"check"},
+	Aliases: []string{},
 	Short:   "检查应用安装冲突",
 	Long: `检查指定应用安装时可能产生的冲突。
 
@@ -30,7 +30,6 @@ var conflictCmd = &cobra.Command{
 
 示例:
   chopsticks conflict git
-  chopsticks check nodejs
   chopsticks conflict nginx --verbose`,
 	Args: cobra.ExactArgs(1),
 	RunE: runConflict,
